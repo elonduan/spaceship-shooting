@@ -64,7 +64,7 @@
         <li>R: reset</li>
       </ul>
       <label for="sensitivity">Rotation sensitivity</label>
-      <input id="sensitivity" type="range" min="0.005" max="3" step="0.002" value="0.015">
+      <input id="sensitivity" type="range" min="0.005" max="0.5" step="0.002" value="0.015">
       <button id="resetBtn">Reset</button>
       <div id="win">You destroyed the spaceship — you win! 🎉</div>
       <div id="lose">The spaceship destroyed you! ❌</div>
@@ -216,8 +216,9 @@
     function pressKey(code){ keys[code] = true; }
     function releaseKey(code){ keys[code] = false; }
     window.addEventListener('keydown',(e)=>{
+      let number = 0
       if(e.code === 'Space'){ shoot(); }
-      if(e.code === 'KeyM'){ launchMissile(); }
+      if(e.code === 'KeyM' && number < 3){ launchMissile(); }
       else if(e.key === 'r' || e.key === 'R'){ reset(); }
       else pressKey(e.code);
     });

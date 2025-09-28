@@ -55,7 +55,7 @@
 <body>
   <div id="overlay">
     <div class="panel">
-      <div><strong>Ball Shooter Competition — Smooth Turning</strong></div>
+      <div><strong>Ball Shooter Competition — Smooth Turning - b</strong></div>
       <ul style="margin:8px 0 0 18px;font-size:13px">
         <li>Arrow keys / Joystick: pitch & yaw</li>
         <li>A / D buttons: roll</li>
@@ -238,7 +238,7 @@
     const missiles = [];
     const bulletSpeed = 20;
     const missileSpeed = 15;
-    const missileLimit = 3; // ADDED MISSILE LIMIT
+    const missileLimit = 3; // The maximum number of missiles allowed at one time
     function shoot(){
       const bulletGeom = new THREE.SphereGeometry(2,8,8);
       const bulletMat = new THREE.MeshBasicMaterial({color:0xffff00});
@@ -249,10 +249,10 @@
       scene.add(bullet);
     }
     function launchMissile(){
-      // Check for missile limit before launching
+      // Check if the number of active missiles has reached the limit
       if(missiles.length >= missileLimit){
-        console.log("Missile limit of 3 reached!");
-        return; // Stop the function if limit is reached
+        console.log("Missile limit reached! (3)");
+        return; // Exit the function to prevent a new missile from being created
       }
       if(!missileGeometry) return;
       const missileMat = new THREE.MeshStandardMaterial({color:0xff0000});
@@ -460,7 +460,7 @@
 
     // Reset
     function reset(){
-      playerHP=20; enemyHP=10; updateHP();
+      playerHP=20; enemyHP=25; updateHP();
       winDiv.style.display='none'; loseDiv.style.display='none';
       gameOver=false;
       spaceshipPos = randomUnit().multiplyScalar(sphereRadius*0.4);

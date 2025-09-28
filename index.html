@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Ball Shooter — Smooth Turning & Banking</title>
+  <title>Ball Shooter — Smooth Turning & Banking2</title>
   <style>
     html,body{height:100%;margin:0;background:#000;color:#ddd;font-family:system-ui,-apple-system,Segoe UI,Roboto;overflow:hidden}
     #overlay{position:fixed;left:12px;top:12px;z-index:10;max-width:360px}
@@ -44,15 +44,16 @@
 <body>
   <div id="overlay">
     <div class="panel">
-      <div><strong>Ball Shooter Competition — Smooth Turning-2</strong></div>
+      <div><strong>Ball Shooter Competition — Smooth Turning</strong></div>
       <ul style="margin:8px 0 0 18px;font-size:13px">
         <li>Arrow keys / Joystick: pitch & yaw</li>
         <li>A / D buttons: roll</li>
         <li>Shoot button / Space: fire</li>
+        <li>M: launch missile</li>
         <li>R: reset</li>
       </ul>
       <label for="sensitivity">Rotation sensitivity</label>
-      <input id="sensitivity" type="range" min="0.005" max="0.05" step="0.002" value="0.015">
+      <input id="sensitivity" type="range" min="0.005" max="3" step="0.002" value="0.015">
       <button id="resetBtn">Reset</button>
       <div id="win">You destroyed the spaceship — you win! 🎉</div>
       <div id="lose">The spaceship destroyed you! ❌</div>
@@ -119,21 +120,40 @@
     const steerLerpFactor = 0.015;
     const maxRoll = 1.0;
     let prevVelDir = spaceshipVel.clone().normalize();
-    // Ship
+    // Ship & Missile
     let spaceship = null;
+    let missileGeometry = null;
     const loader = new THREE.STLLoader();
-    loader.load('./res/spaceship.stl', function(geometry){
-      geometry.computeBoundingBox();
-      const bb = geometry.boundingBox;
-      const center = new THREE.Vector3(); bb.getCenter(center);
-      geometry.translate(-center.x, -center.y, -center.z);
-      const mat = new THREE.MeshStandardMaterial({color:0xffffff});
-      spaceship = new THREE.Mesh(geometry, mat);
-      spaceship.scale.set(0.5,0.5,0.5);
-      spaceship.position.copy(spaceshipPos);
-      scene.add(spaceship);
-      alignShipToVelocity(1.0);
-    });
+
+    const loadModels = () => {
+        const spaceshipPromise = new Promise((resolve, reject) => {
+            loader.load('./res/spaceship.stl', (geometry) => {
+                geometry.computeBoundingBox();
+                const bb = geometry.boundingBox;
+                const center = new THREE.Vector3(); bb.getCenter(center);
+                geometry.translate(-center.x, -center.y, -center.z);
+                const mat = new THREE.MeshStandardMaterial({ color: 0xffffff });
+                spaceship = new THREE.Mesh(geometry, mat);
+                spaceship.scale.set(0.5, 0.5, 0.5);
+                spaceship.position.copy(spaceshipPos);
+                resolve();
+            }, undefined, reject);
+        });
+
+        const missilePromise = new Promise((resolve, reject) => {
+            loader.load('./res/missile.stl', (geometry) => {
+                geometry.computeBoundingBox();
+                const bb = geometry.boundingBox;
+                const center = new THREE.Vector3(); bb.getCenter(center);
+                geometry.translate(-center.x, -center.y, -center.z);
+                missileGeometry = geometry;
+                resolve();
+            }, undefined, reject);
+        });
+
+        return Promise.all([spaceshipPromise, missilePromise]);
+    };
+
     // Trail
     const trailParticles = [];
     const trailMaterial = new THREE.MeshBasicMaterial({
@@ -181,14 +201,18 @@
     sensitivityInput.addEventListener('input', (e) => {
       accel = parseFloat(e.target.value);
     });
-
     const keys = {};
     function pressKey(code){ keys[code] = true; }
     function releaseKey(code){ keys[code] = false; }
     window.addEventListener('keydown',(e)=>{
-      if(e.code === 'Space'){ shoot(); } else if(e.key === 'r' || e.key === 'R'){ reset(); } else pressKey(e.code);
+      if(e.code === 'Space'){ shoot(); }
+      if(e.code === 'KeyM'){ launchMissile(); }
+      else if(e.key === 'r' || e.key === 'R'){ reset(); }
+      else pressKey(e.code);
     });
-    window.addEventListener('keyup',(e)=>{ if(e.code !== 'Space') releaseKey(e.code); });
+    window.addEventListener('keyup',(e)=>{
+      if(e.code !== 'Space' && e.code !== 'KeyM') releaseKey(e.code);
+    });
     function updateCamera(){
       if(keys['ArrowDown']) camera.rotateX(-accel);
       if(keys['ArrowUp']) camera.rotateX(accel);
@@ -200,7 +224,9 @@
     // Shooting
     const bullets = [];
     const enemyBullets = [];
+    const missiles = [];
     const bulletSpeed = 20;
+    const missileSpeed = 15;
     function shoot(){
       const bulletGeom = new THREE.SphereGeometry(2,8,8);
       const bulletMat = new THREE.MeshBasicMaterial({color:0xffff00});
@@ -209,6 +235,21 @@
       bullet.position.copy(camera.position);
       bullets.push({mesh:bullet,vel:dir.multiplyScalar(bulletSpeed)});
       scene.add(bullet);
+    }
+    function launchMissile(){
+      if(!missileGeometry) return;
+      const missileMat = new THREE.MeshStandardMaterial({color:0xff0000});
+      const missile = new THREE.Mesh(missileGeometry, missileMat);
+      missile.scale.set(0.1, 0.1, 0.1);
+      const dir = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
+      missile.position.copy(camera.position.clone().add(dir.clone().multiplyScalar(10)));
+      missiles.push({
+        mesh: missile,
+        vel: dir.multiplyScalar(missileSpeed),
+        target: spaceship,
+        life: 5000 // In milliseconds
+      });
+      scene.add(missile);
     }
     function enemyShoot(){
       if(gameOver || !spaceship) return;
@@ -317,6 +358,22 @@
           if(enemyHP<=0){ winDiv.style.display='block'; gameOver=true; }
         }
       }
+      // missiles
+      for(let i=missiles.length-1;i>=0;i--){
+        const m = missiles[i];
+        if (m.target) {
+          const targetDir = m.target.position.clone().sub(m.mesh.position).normalize();
+          m.vel.lerp(targetDir.multiplyScalar(missileSpeed), 0.1);
+        }
+        m.mesh.position.add(m.vel.clone().multiplyScalar(dt * 60));
+        m.mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), m.vel.clone().normalize());
+        if(m.mesh.position.length()>sphereRadius*2 || (m.life-=dt*1000)<=0){ scene.remove(m.mesh); missiles.splice(i,1); continue; }
+        if(spaceship && m.mesh.position.distanceTo(spaceship.position) < 25){
+          scene.remove(m.mesh); missiles.splice(i,1);
+          enemyHP -= 3; updateHP();
+          if(enemyHP<=0){ winDiv.style.display='block'; gameOver=true; }
+        }
+      }
       for(let i=enemyBullets.length-1;i>=0;i--){
         const b = enemyBullets[i];
         b.mesh.position.add(b.vel.clone().multiplyScalar(dt*60));
@@ -374,7 +431,16 @@
       }
       renderer.render(scene, camera);
     }
-    animate();
+    // Main execution
+    loadModels().then(() => {
+        scene.add(spaceship);
+        alignShipToVelocity(1.0);
+        animate();
+        setTimeout(enemyShoot, 1200);
+    }).catch(error => {
+        console.error('Error loading models:', error);
+    });
+
     // Reset
     function reset(){
       playerHP=20; enemyHP=10; updateHP();
@@ -386,6 +452,7 @@
       if(spaceship) spaceship.position.copy(spaceshipPos);
       bullets.forEach(b=>scene.remove(b.mesh)); bullets.length=0;
       enemyBullets.forEach(b=>scene.remove(b.mesh)); enemyBullets.length=0;
+      missiles.forEach(m=>scene.remove(m.mesh)); missiles.length=0;
       trailParticles.forEach(p=>scene.remove(p.mesh)); trailParticles.length=0;
     }
     // Reset button

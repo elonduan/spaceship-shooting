@@ -1,0 +1,450 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Ball Shooter — Smooth Turning & Banking</title>
+  <style>
+    html,body{height:100%;margin:0;background:#000;color:#ddd;font-family:system-ui,-apple-system,Segoe UI,Roboto;overflow:hidden}
+    #overlay{position:fixed;left:12px;top:12px;z-index:10;max-width:360px}
+    .panel{background:rgba(0,0,0,0.45);padding:12px;border-radius:8px;backdrop-filter:blur(4px)}
+    #win,#lose{display:none;padding:18px;margin-top:12px;border-radius:8px;font-weight:700}
+    #win{background:linear-gradient(90deg,#0f0,#005500);color:#001}
+    #lose{background:linear-gradient(90deg,#f00,#550000);color:#fff}
+    #canvas-container{width:100%;height:100vh;display:block}
+    input[type=range]{width:100%}
+    label{font-size:13px;display:block;margin-top:10px}
+    #crosshair{position:fixed;left:50%;top:50%;width:20px;height:20px;margin-left:-10px;margin-top:-10px;z-index:5;pointer-events:none}
+    #crosshair:before,#crosshair:after{content:"";position:absolute;background:#fff}
+    #crosshair:before{left:9px;top:0;width:2px;height:20px}
+    #crosshair:after{left:0;top:9px;width:20px;height:2px}
+    #joystick { position:fixed; bottom:80px; left:80px; width:120px; height:120px; background:rgba(255,255,255,0.1); border-radius:50%; touch-action:none; z-index:20;}
+    #stick { position:absolute; left:50%; top:50%; width:50px; height:50px; margin-left:-25px; margin-top:-25px; background:rgba(255,255,255,0.3); border-radius:50%;}
+    #buttons { position:fixed; bottom:80px; right:80px; display:flex; flex-direction:column; gap:12px; z-index:20;}
+    #buttons button { width:70px; height:70px; border-radius:50%; border:none; background:rgba(255,255,255,0.2); color:#fff; font-size:18px;}
+    #hud { position:fixed; top:10px; left:0; right:0; display:flex; justify-content:space-between; padding:0 20px; z-index:15; }
+    .barContainer { width:180px; height:20px; background:rgba(255,255,255,0.2); border:1px solid #888; border-radius:10px; overflow:hidden;}
+    .barFill { height:100%; width:100%; }
+    #playerBar { background:linear-gradient(90deg,#0f0,#070); }
+    #enemyBar { background:linear-gradient(90deg,#f00,#700); }
+    #arrowIndicator {
+      position: fixed;
+      width: 0;
+      height: 0;
+      border-left: 12px solid transparent;
+      border-right: 12px solid transparent;
+      border-bottom: 20px solid yellow;
+      z-index: 50;
+      transform-origin: center;
+      pointer-events: none;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="overlay">
+    <div class="panel">
+      <div><strong>Ball Shooter Competition — Smooth Turning</strong></div>
+      <ul style="margin:8px 0 0 18px;font-size:13px">
+        <li>Arrow keys / Joystick: pitch & yaw</li>
+        <li>A / D buttons: roll</li>
+        <li>Shoot button / Space: fire</li>
+        <li>R: reset</li>
+      </ul>
+      <label for="sensitivity">Rotation sensitivity</label>
+      <input id="sensitivity" type="range" min="0.005" max="0.05" step="0.002" value="0.015">
+      <button id="resetBtn">Reset</button>
+      <div id="win">You destroyed the spaceship — you win! 🎉</div>
+      <div id="lose">The spaceship destroyed you! ❌</div>
+    </div>
+  </div>
+
+  <div id="hud">
+    <div class="barContainer"><div id="playerBar" class="barFill"></div></div>
+    <div class="barContainer"><div id="enemyBar" class="barFill"></div></div>
+  </div>
+
+  <div id="crosshair"></div>
+  <div id="canvas-container"></div>
+  <div id="arrowIndicator"></div>
+
+  <div id="joystick"><div id="stick"></div></div>
+  <div id="buttons">
+    <button id="shootBtn">Shoot</button>
+    <button id="rollLeft">A</button>
+    <button id="rollRight">D</button>
+  </div>
+
+  <!-- three.js + STLLoader -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/js/loaders/STLLoader.js"></script>
+
+  <script>
+    const container = document.getElementById('canvas-container');
+    const scene = new THREE.Scene();
+    const renderer = new THREE.WebGLRenderer({antialias:true});
+    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    container.appendChild(renderer.domElement);
+
+    const camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.1, 5000);
+    camera.position.set(0,0,0);
+
+    // Stars
+    function createStars(){
+      const starCount = 3000;
+      const geom = new THREE.BufferGeometry();
+      const positions = new Float32Array(starCount*3);
+      for(let i=0;i<starCount;i++){
+        positions[i*3+0] = (Math.random()-0.5)*4000;
+        positions[i*3+1] = (Math.random()-0.5)*4000;
+        positions[i*3+2] = (Math.random()-0.5)*4000;
+      }
+      geom.setAttribute('position', new THREE.BufferAttribute(positions,3));
+      const mat = new THREE.PointsMaterial({color:0xffffff,size:1.5,sizeAttenuation:true});
+      return new THREE.Points(geom,mat);
+    }
+    scene.add(createStars());
+
+    // Lights
+    const light = new THREE.PointLight(0xffffff,1.2,0);
+    light.position.set(200,200,200);
+    scene.add(light);
+    scene.add(new THREE.AmbientLight(0xffffff,0.3));
+
+    // Movement state
+    function randomUnit(){
+      const v = new THREE.Vector3(Math.random()*2-1, Math.random()*2-1, Math.random()*2-1);
+      return v.normalize();
+    }
+    const sphereRadius = 500;
+    let spaceshipPos = randomUnit().multiplyScalar(sphereRadius*0.4);
+    let speed = 3.0;
+    let spaceshipVel = randomUnit().multiplyScalar(speed);
+
+    // Smooth steering vars
+    let desiredVel = spaceshipVel.clone();
+    let nextSteerChange = 0;
+    const steerMin = 1000;
+    const steerMax = 3000;
+    const steerLerpFactor = 0.015;
+    const maxRoll = 1.0;
+    let prevVelDir = spaceshipVel.clone().normalize();
+
+    // Ship
+    let spaceship = null;
+    const loader = new THREE.STLLoader();
+    loader.load('./res/spaceship.stl', function(geometry){
+      geometry.computeBoundingBox();
+      const bb = geometry.boundingBox;
+      const center = new THREE.Vector3(); bb.getCenter(center);
+      geometry.translate(-center.x, -center.y, -center.z);
+
+      const mat = new THREE.MeshStandardMaterial({color:0xffffff});
+      spaceship = new THREE.Mesh(geometry, mat);
+      spaceship.scale.set(0.5,0.5,0.5);
+      spaceship.position.copy(spaceshipPos);
+      scene.add(spaceship);
+      alignShipToVelocity(1.0);
+    });
+
+    // Trail
+    const trailParticles = [];
+    const trailMaterial = new THREE.MeshBasicMaterial({
+      color: 0x00aaff,
+      transparent: true,
+      opacity: 1
+    });
+    const trailGeom = new THREE.SphereGeometry(5, 10, 10);
+
+    const BACK_OFFSET = 4.5;
+    const DOWN_OFFSET = 7.5;
+
+    function addTrailParticle() {
+      if (!spaceship) return;
+      const localOffset = new THREE.Vector3(0, BACK_OFFSET, -DOWN_OFFSET);
+      const worldOffset = localOffset.applyQuaternion(spaceship.quaternion);
+      const worldPos = spaceship.position.clone().add(worldOffset);
+      const particle = new THREE.Mesh(trailGeom, trailMaterial.clone());
+      particle.position.copy(worldPos);
+      trailParticles.push({mesh: particle, life: 1.0});
+      scene.add(particle);
+    }
+
+    function updateTrail(dt) {
+      for (let i = trailParticles.length - 1; i >= 0; i--) {
+        const p = trailParticles[i];
+        p.life -= dt * 0.7; // fade slower
+        if (p.life <= 0) {
+          scene.remove(p.mesh);
+          trailParticles.splice(i, 1);
+          continue;
+        }
+        p.mesh.material.opacity = 0.9 * (p.life);
+      }
+    }
+
+    // Bullets + HP
+    let playerHP = 20;
+    let enemyHP = 10;
+    const playerBar = document.getElementById('playerBar');
+    const enemyBar = document.getElementById('enemyBar');
+    const winDiv = document.getElementById('win');
+    const loseDiv = document.getElementById('lose');
+    function updateHP(){ playerBar.style.width = (playerHP/20*100) + "%"; enemyBar.style.width = (enemyHP/10*100) + "%"; }
+    updateHP();
+
+    // Controls
+    let accel = 0.015;
+    const keys = {};
+    function pressKey(code){ keys[code] = true; }
+    function releaseKey(code){ keys[code] = false; }
+    window.addEventListener('keydown',(e)=>{
+      if(e.code === 'Space'){ shoot(); } else if(e.key === 'r' || e.key === 'R'){ reset(); } else pressKey(e.code);
+    });
+    window.addEventListener('keyup',(e)=>{ if(e.code !== 'Space') releaseKey(e.code); });
+
+    function updateCamera(){
+      if(keys['ArrowDown']) camera.rotateX(-accel);
+      if(keys['ArrowUp']) camera.rotateX(accel);
+      if(keys['ArrowLeft']) camera.rotateY(accel);
+      if(keys['ArrowRight']) camera.rotateY(-accel);
+      if(keys['KeyA']) camera.rotateZ(accel);
+      if(keys['KeyD']) camera.rotateZ(-accel);
+    }
+
+    // Shooting
+    const bullets = [];
+    const enemyBullets = [];
+    const bulletSpeed = 20;
+    function shoot(){
+      const bulletGeom = new THREE.SphereGeometry(2,8,8);
+      const bulletMat = new THREE.MeshBasicMaterial({color:0xffff00});
+      const bullet = new THREE.Mesh(bulletGeom, bulletMat);
+      const dir = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
+      bullet.position.copy(camera.position);
+      bullets.push({mesh:bullet,vel:dir.multiplyScalar(bulletSpeed)});
+      scene.add(bullet);
+    }
+    function enemyShoot(){
+      if(gameOver || !spaceship) return;
+      const bulletGeom = new THREE.SphereGeometry(2,8,8);
+      const bulletMat = new THREE.MeshBasicMaterial({color:0x00ffff});
+      const bullet = new THREE.Mesh(bulletGeom, bulletMat);
+      const dir = camera.position.clone().sub(spaceship.position).normalize();
+      bullet.position.copy(spaceship.position);
+      enemyBullets.push({mesh:bullet,vel:dir.multiplyScalar(bulletSpeed*0.8)});
+      scene.add(bullet);
+      const delay = 800 + Math.random()*1200;
+      setTimeout(enemyShoot, delay);
+    }
+    setTimeout(enemyShoot, 1200);
+
+    // Model forward
+    const modelForwardLocal = new THREE.Vector3(0, -1, 0);
+
+    function alignShipToVelocity(t=0.35){
+      if(!spaceship) return;
+      if(spaceshipVel.lengthSq() < 1e-6) return;
+      const velDir = spaceshipVel.clone().normalize();
+      const meshWorldPos = new THREE.Vector3();
+      spaceship.getWorldPosition(meshWorldPos);
+      const forwardLocalPoint = modelForwardLocal.clone();
+      const forwardWorldPoint = spaceship.localToWorld(forwardLocalPoint.clone());
+      const forwardWorld = forwardWorldPoint.sub(meshWorldPos).normalize();
+      let qdelta = new THREE.Quaternion();
+      if(forwardWorld.dot(velDir) < -0.9999){
+        const tmp = new THREE.Vector3(1,0,0);
+        if(Math.abs(forwardWorld.x) > 0.9) tmp.set(0,1,0);
+        const axis = new THREE.Vector3().crossVectors(forwardWorld, tmp).normalize();
+        qdelta.setFromAxisAngle(axis, Math.PI);
+      } else {
+        qdelta.setFromUnitVectors(forwardWorld, velDir);
+      }
+      const prev = prevVelDir.clone();
+      const cur = velDir.clone();
+      const angleBetween = Math.acos(Math.min(Math.max(prev.dot(cur), -1), 1));
+      const turnAxis = new THREE.Vector3().crossVectors(prev, cur);
+      const sign = Math.sign(turnAxis.dot(new THREE.Vector3(0,1,0)) || 1);
+      const desiredRoll = Math.max(-maxRoll, Math.min(maxRoll, sign * angleBetween * 1.8));
+      const rollQuat = new THREE.Quaternion().setFromAxisAngle(velDir.clone(), desiredRoll);
+      const currentQ = spaceship.quaternion.clone();
+      const baseTargetQ = qdelta.multiply(currentQ);
+      const targetQ = rollQuat.multiply(baseTargetQ);
+      if(t >= 1) spaceship.quaternion.copy(targetQ);
+      else spaceship.quaternion.slerp(targetQ, t);
+      prevVelDir.lerp(velDir, 0.15).normalize();
+    }
+
+    // Steering
+    function pickNewDesired(){
+      desiredVel = randomUnit().multiplyScalar(speed);
+      nextSteerChange = performance.now() + steerMin + Math.random()*(steerMax - steerMin);
+    }
+    pickNewDesired();
+
+    function stepSpaceship(dt){
+      if(performance.now() > nextSteerChange){
+        pickNewDesired();
+      }
+      const lerpAmt = Math.min(1, steerLerpFactor * (dt*60));
+      spaceshipVel.lerp(desiredVel, lerpAmt);
+      spaceshipVel.setLength(speed);
+      spaceshipPos.add(spaceshipVel.clone().multiplyScalar(dt * 60));
+      const dist = spaceshipPos.length();
+      if(dist >= sphereRadius){
+        const normal = spaceshipPos.clone().normalize();
+        spaceshipPos.copy(normal.clone().multiplyScalar(sphereRadius - 1));
+        const v = spaceshipVel.clone();
+        const dot = v.dot(normal);
+        const reflected = v.clone().sub(normal.clone().multiplyScalar(2*dot));
+        spaceshipVel.copy(reflected.setLength(speed));
+        desiredVel.copy(spaceshipVel);
+      }
+      if(spaceship){
+        spaceship.position.copy(spaceshipPos);
+        alignShipToVelocity(0.25);
+      }
+    }
+
+    // Arrow indicator
+    const arrow = document.getElementById('arrowIndicator');
+
+    // Animation loop
+    let last = performance.now();
+    let gameOver = false;
+    let trailTimer = 0;
+
+    function animate(t){
+      requestAnimationFrame(animate);
+      if(gameOver) return;
+      const now = t || performance.now();
+      const dt = Math.min((now - last)/1000, 0.1);
+      last = now;
+
+      stepSpaceship(dt);
+
+      // spawn trail more frequently
+      trailTimer += dt;
+      while (trailTimer > 0.02) { // every 0.02s (~50 per second)
+        addTrailParticle();
+        trailTimer -= 0.02;
+      }
+      updateTrail(dt);
+
+      // bullets
+      for(let i=bullets.length-1;i>=0;i--){
+        const b = bullets[i];
+        b.mesh.position.add(b.vel.clone().multiplyScalar(dt*60));
+        if(b.mesh.position.length()>sphereRadius*2){ scene.remove(b.mesh); bullets.splice(i,1); continue; }
+        if(spaceship && b.mesh.position.distanceTo(spaceship.position) < 20){
+          scene.remove(b.mesh); bullets.splice(i,1);
+          enemyHP--; updateHP();
+          if(enemyHP<=0){ winDiv.style.display='block'; gameOver=true; }
+        }
+      }
+
+      for(let i=enemyBullets.length-1;i>=0;i--){
+        const b = enemyBullets[i];
+        b.mesh.position.add(b.vel.clone().multiplyScalar(dt*60));
+        if(b.mesh.position.length()>sphereRadius*2){ scene.remove(b.mesh); enemyBullets.splice(i,1); continue; }
+        if(b.mesh.position.distanceTo(camera.position) < 10){
+          scene.remove(b.mesh); enemyBullets.splice(i,1);
+          playerHP--; updateHP();
+          if(playerHP<=0){ loseDiv.style.display='block'; gameOver=true; }
+        }
+      }
+
+      updateCamera();
+
+     // Arrow Indicator
+      if (spaceship) {
+        const pos = spaceship.position.clone();
+        const vector = pos.project(camera);
+
+        const halfW = window.innerWidth / 2;
+        const halfH = window.innerHeight / 2;
+
+        // Convert to screen space
+        let x = (vector.x * halfW) + halfW;
+        let y = (-vector.y * halfH) + halfH;
+
+        // Check if target is in front or behind
+        let dirX = x - halfW;
+        let dirY = y - halfH;
+
+        if (vector.z > 1) {
+          // Behind camera → flip direction
+          dirX = -dirX;
+          dirY = -dirY;
+        }
+
+        // On screen?
+        if (vector.z < 1 &&
+            x >= 0 && x <= window.innerWidth &&
+            y >= 0 && y <= window.innerHeight) {
+          // On screen → hide arrow
+          arrow.style.display = "none";
+        } else {
+          // Off screen → show arrow
+          arrow.style.display = "block";
+
+          const angle = Math.atan2(dirY, dirX);
+
+          // Push arrow to screen edge
+          const edgeBuffer = 40;
+          const slope = dirY / dirX;
+
+          if (Math.abs(dirX) > Math.abs(dirY)) {
+            // hits left/right border
+            x = dirX > 0 ? window.innerWidth - edgeBuffer : edgeBuffer;
+            y = halfH + slope * (x - halfW);
+          } else {
+            // hits top/bottom border
+            y = dirY > 0 ? window.innerHeight - edgeBuffer : edgeBuffer;
+            x = halfW + (y - halfH) / slope;
+          }
+
+          arrow.style.left = `${x - 12}px`;
+          arrow.style.top = `${y - 12}px`;
+          arrow.style.transform = `rotate(${angle}rad)`;
+        }
+      }
+
+
+
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    // Reset
+    function reset(){
+      playerHP=20; enemyHP=10; updateHP();
+      winDiv.style.display='none'; loseDiv.style.display='none';
+      gameOver=false;
+      spaceshipPos = randomUnit().multiplyScalar(sphereRadius*0.4);
+      spaceshipVel = randomUnit().multiplyScalar(speed);
+      desiredVel = spaceshipVel.clone();
+      if(spaceship) spaceship.position.copy(spaceshipPos);
+      bullets.forEach(b=>scene.remove(b.mesh)); bullets.length=0;
+      enemyBullets.forEach(b=>scene.remove(b.mesh)); enemyBullets.length=0;
+      trailParticles.forEach(p=>scene.remove(p.mesh)); trailParticles.length=0;
+    }
+
+    // Reset button
+    document.getElementById('resetBtn').addEventListener('click', reset);
+    document.getElementById('shootBtn').addEventListener('click', shoot);
+    document.getElementById('rollLeft').addEventListener('mousedown',()=>pressKey('KeyA'));
+    document.getElementById('rollLeft').addEventListener('mouseup',()=>releaseKey('KeyA'));
+    document.getElementById('rollRight').addEventListener('mousedown',()=>pressKey('KeyD'));
+    document.getElementById('rollRight').addEventListener('mouseup',()=>releaseKey('KeyD'));
+
+    // Resize
+    window.addEventListener('resize',()=>{
+      camera.aspect = window.innerWidth/window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+  </script>
+</body>
+</html>

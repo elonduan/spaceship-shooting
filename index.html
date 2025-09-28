@@ -188,7 +188,7 @@
     }
     // Bullets + HP
     let playerHP = 20;
-    let enemyHP = 25;
+    let enemyHP = 10;
     const playerBar = document.getElementById('playerBar');
     const enemyBar = document.getElementById('enemyBar');
     const winDiv = document.getElementById('win');
@@ -449,7 +449,7 @@
 
     // Reset
     function reset(){
-      playerHP=20; enemyHP=10; updateHP();
+      playerHP=20; enemyHP=25; updateHP();
       winDiv.style.display='none'; loseDiv.style.display='none';
       gameOver=false;
       spaceshipPos = randomUnit().multiplyScalar(sphereRadius*0.4);

@@ -47,7 +47,7 @@
 <body>
   <div id="overlay">
     <div class="panel">
-      <div><strong>Ball Shooter Competition — Smooth Turning - 1.0</strong></div>
+      <div><strong>Ball Shooter Competition — Smooth Turning - 1.5</strong></div>
       <ul style="margin:8px 0 0 18px;font-size:13px">
         <li>Arrow keys / Joystick: pitch & yaw</li>
         <li>A / D buttons: roll</li>
@@ -440,7 +440,7 @@
     const enemyBullets = [];
     const missiles = [];
     const bulletSpeed = 80;
-    const missileSpeed = 15;
+    const missileSpeed = 5;
     function shoot(){
       const bulletGeom = new THREE.SphereGeometry(2,8,8);
       const bulletMat = new THREE.MeshBasicMaterial({color:0xffff00});
@@ -457,7 +457,7 @@
       updateMissileUI();
       const missileMat = new THREE.MeshStandardMaterial({color:0xff0000});
       const missile = new THREE.Mesh(missileGeometry, missileMat);
-      missile.scale.set(0.2, 0.2, 0.2);
+      missile.scale.set(0.4, 0.4, 0.4);
       const dir = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
       missile.position.copy(camera.position.clone().add(dir.clone().multiplyScalar(10)));
       missiles.push({

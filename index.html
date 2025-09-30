@@ -57,7 +57,7 @@
 <body>
   <div id="overlay">
     <div class="panel">
-      <div><strong>Ball Shooter Competition — Smooth Turning3</strong></div>
+      <div><strong>Ball Shooter Competition — Smooth Turning4</strong></div>
       <ul style="margin:8px 0 0 18px;font-size:13px">
         <li>Arrow keys / Joystick: pitch & yaw</li>
         <li>A / D buttons: roll</li>
@@ -251,6 +251,10 @@
     }
     function launchMissile(){
       if(!missileGeometry) return;
+    
+      // ✅ missile limit: max 3 alive at a time
+      if(missiles.length >= 3) return;
+    
       const missileMat = new THREE.MeshStandardMaterial({color:0xff0000});
       const missile = new THREE.Mesh(missileGeometry, missileMat);
       missile.scale.set(0.1, 0.1, 0.1);
@@ -264,6 +268,7 @@
       });
       scene.add(missile);
     }
+
     function enemyShoot(){
       if(gameOver || !spaceship) return;
       const bulletGeom = new THREE.SphereGeometry(2,8,8);

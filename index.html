@@ -236,7 +236,7 @@
     const bullets = [];
     const enemyBullets = [];
     const missiles = [];
-    const bulletSpeed = 20;
+    const bulletSpeed = 50;
     const missileSpeed = 15;
     let missileCount = 0; // Tracks the total number of missiles fired
     const missileLimit = 3; // The maximum number of missiles for the entire game
@@ -377,22 +377,38 @@
           if(enemyHP<=0){ winDiv.style.display='block'; gameOver=true; }
         }
       }
-      // missiles
-      for(let i=missiles.length-1;i>=0;i--){
+      // In the missiles update loop
+      for (let i = missiles.length - 1; i >= 0; i--) {
         const m = missiles[i];
+      
         if (m.target) {
           const targetDir = m.target.position.clone().sub(m.mesh.position).normalize();
           m.vel.lerp(targetDir.multiplyScalar(missileSpeed), 0.1);
         }
+      
+        // Update position
         m.mesh.position.add(m.vel.clone().multiplyScalar(dt * 60));
-        m.mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), m.vel.clone().normalize());
-        if(m.mesh.position.length()>sphereRadius*2 || (m.life-=dt*1000)<=0){ scene.remove(m.mesh); missiles.splice(i,1); continue; }
-        if(spaceship && m.mesh.position.distanceTo(spaceship.position) < 25){
-          scene.remove(m.mesh); missiles.splice(i,1);
-          enemyHP -= 3; updateHP();
-          if(enemyHP<=0){ winDiv.style.display='block'; gameOver=true; }
+      
+        // === FIXED ORIENTATION ===
+        const forwardAxis = new THREE.Vector3(0, 1, 0); // adjust if your STL forward is different
+        const velDir = m.vel.clone().normalize();
+        m.mesh.quaternion.setFromUnitVectors(forwardAxis, velDir);
+      
+        // Lifetime and collisions
+        if (m.mesh.position.length() > sphereRadius * 2 || (m.life -= dt * 1000) <= 0) {
+          scene.remove(m.mesh);
+          missiles.splice(i, 1);
+          continue;
+        }
+        if (spaceship && m.mesh.position.distanceTo(spaceship.position) < 25) {
+          scene.remove(m.mesh);
+          missiles.splice(i, 1);
+          enemyHP -= 3;
+          updateHP();
+          if (enemyHP <= 0) { winDiv.style.display = 'block'; gameOver = true; }
         }
       }
+
       for(let i=enemyBullets.length-1;i>=0;i--){
         const b = enemyBullets[i];
         b.mesh.position.add(b.vel.clone().multiplyScalar(dt*60));

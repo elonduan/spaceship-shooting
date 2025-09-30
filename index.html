@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Ball Shooter — Smooth Turning & Banking</title>
+  <title>Ball Shooter — Smooth Turning & Banking2 (with hero stars)</title>
   <style>
     html,body{height:100%;margin:0;background:#000;color:#ddd;font-family:system-ui,-apple-system,Segoe UI,Roboto;overflow:hidden}
     #overlay{position:fixed;left:12px;top:12px;z-index:10;max-width:420px}
@@ -47,7 +47,7 @@
 <body>
   <div id="overlay">
     <div class="panel">
-      <div><strong>Ball Shooter Competition — Smooth Turning2</strong></div>
+      <div><strong>Ball Shooter Competition — Smooth Turning</strong></div>
       <ul style="margin:8px 0 0 18px;font-size:13px">
         <li>Arrow keys / Joystick: pitch & yaw</li>
         <li>A / D buttons: roll</li>
@@ -124,13 +124,11 @@
     scene.add(createStars());
 
     // ---------- Improved hero star textures & creation ----------
-    // layered radial texture for cores/halo
     function makeRadialTextureStar(size = 256) {
       const c = document.createElement('canvas');
       c.width = c.height = size;
       const ctx = c.getContext('2d');
       const cx = size/2, cy = size/2, r = size/2;
-
       const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
       g.addColorStop(0.0, 'rgba(255,255,255,1)');
       g.addColorStop(0.06, 'rgba(255,255,255,1)');
@@ -140,22 +138,18 @@
       g.addColorStop(1.0, 'rgba(0,0,0,0)');
       ctx.fillStyle = g;
       ctx.fillRect(0,0,size,size);
-
       const tex = new THREE.CanvasTexture(c);
       tex.needsUpdate = true;
       return tex;
     }
 
-    // elongated flare texture with soft feathered ends
     function makeElongatedFlareTexture(length = 1024, height = 32, color = 'rgba(200,230,255,1)') {
       const c = document.createElement('canvas');
       c.width = Math.max(256, Math.round(length));
       c.height = Math.max(8, Math.round(height));
       const ctx = c.getContext('2d');
       const w = c.width, h = c.height;
-
       const band = ctx.createLinearGradient(0, 0, w, 0);
-      // ensure color has alpha=1 for replacement
       const col = color;
       band.addColorStop(0, 'rgba(255,255,255,0)');
       band.addColorStop(0.12, col.replace(/,1\)$/, ',0.95)'));
@@ -164,20 +158,17 @@
       band.addColorStop(1, 'rgba(255,255,255,0)');
       ctx.fillStyle = band;
       ctx.fillRect(0, (h*0.5) - (h*0.35), w, h*0.7);
-
       const featherRadius = Math.min(w * 0.12, 200);
       const lgL = ctx.createRadialGradient(0, h/2, 0, 0, h/2, featherRadius);
       lgL.addColorStop(0, col.replace(/,1\)$/, ',0.95)'));
       lgL.addColorStop(1, 'rgba(255,255,255,0)');
       ctx.fillStyle = lgL;
       ctx.fillRect(-featherRadius, 0, featherRadius, h);
-
       const lgR = ctx.createRadialGradient(w, h/2, 0, w, h/2, featherRadius);
       lgR.addColorStop(0, col.replace(/,1\)$/, ',0.95)'));
       lgR.addColorStop(1, 'rgba(255,255,255,0)');
       ctx.fillStyle = lgR;
       ctx.fillRect(w, 0, featherRadius, h);
-
       const tex = new THREE.CanvasTexture(c);
       tex.needsUpdate = true;
       return tex;
@@ -185,7 +176,6 @@
 
     const brightStars = [];
     function createBrightStar(position, scale = 400) {
-      // intense inner core
       const innerCoreTex = makeRadialTextureStar(128);
       const innerCoreMat = new THREE.SpriteMaterial({
         map: innerCoreTex, transparent: true,
@@ -196,7 +186,6 @@
       innerCore.scale.set(scale * 0.06, scale * 0.06, 1);
       scene.add(innerCore);
 
-      // primary core
       const coreTex = makeRadialTextureStar(256);
       const coreMat = new THREE.SpriteMaterial({
         map: coreTex, transparent: true,
@@ -207,7 +196,6 @@
       core.scale.set(scale * 0.12, scale * 0.12, 1);
       scene.add(core);
 
-      // soft halo
       const haloTex = makeRadialTextureStar(512);
       const haloMat = new THREE.SpriteMaterial({
         map: haloTex, transparent: true,
@@ -218,16 +206,13 @@
       halo.scale.set(scale * 0.9, scale * 0.56, 1);
       scene.add(halo);
 
-      // thin horizontal flare (sprite)
       const flareTex = makeElongatedFlareTexture(Math.round(scale * 2.4), Math.max(4, Math.round(scale * 0.02)), 'rgba(200,230,255,1)');
       const flareMat = new THREE.SpriteMaterial({ map: flareTex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
       const flare = new THREE.Sprite(flareMat);
       flare.position.copy(position);
-      // long but thin
       flare.scale.set(scale * 2.2, scale * 0.03, 1);
       scene.add(flare);
 
-      // slimmer bright center streak
       const flare2Tex = makeElongatedFlareTexture(Math.round(scale * 1.2), Math.max(2, Math.round(scale * 0.01)), 'rgba(255,255,255,1)');
       const flare2Mat = new THREE.SpriteMaterial({ map: flare2Tex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
       const flare2 = new THREE.Sprite(flare2Mat);
@@ -235,12 +220,10 @@
       flare2.scale.set(scale * 1.2, scale * 0.015, 1);
       scene.add(flare2);
 
-      // subtle vertical thin streak (very small)
       const vflareTex = makeElongatedFlareTexture(Math.round(scale * 0.8), Math.max(2, Math.round(scale * 0.01)), 'rgba(200,230,255,0.9)');
       const vflareMat = new THREE.SpriteMaterial({ map: vflareTex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
       const vflare = new THREE.Sprite(vflareMat);
       vflare.position.copy(position);
-      // make it vertical by swapping scale axes and rotating
       vflare.scale.set(scale * 0.02, scale * 0.9, 1);
       vflare.material.rotation = Math.PI / 2;
       scene.add(vflare);
@@ -263,7 +246,7 @@
       });
     }
 
-    // add a couple of hero stars (tweak positions/scales to taste)
+    // add a couple of hero stars
     createBrightStar(new THREE.Vector3(-300, 120, -1200), 700);
     createBrightStar(new THREE.Vector3(420, -60, -2000), 420);
 
@@ -283,6 +266,7 @@
     let speed = 3.0;
     let spaceshipVel = randomUnit().multiplyScalar(speed);
 
+    // Smooth steering vars
     let desiredVel = spaceshipVel.clone();
     let nextSteerChange = 0;
     const steerMin = 1000;
@@ -291,6 +275,7 @@
     const maxRoll = 1.0;
     let prevVelDir = spaceshipVel.clone().normalize();
 
+    // Ship & Missile
     let spaceship = null;
     let missileGeometry = null;
     const loader = new THREE.STLLoader();
@@ -347,7 +332,7 @@
     function updateTrail(dt) {
       for (let i = trailParticles.length - 1; i >= 0; i--) {
         const p = trailParticles[i];
-        p.life -= dt * 0.7;
+        p.life -= dt * 0.7; // fade slower
         if (p.life <= 0) {
           scene.remove(p.mesh);
           trailParticles.splice(i, 1);
@@ -359,41 +344,37 @@
 
     /*********************** HP, bullets & missiles *************************/
     let playerHP = 20;
-    let enemyHP = 20;
+    let enemyHP = 20; // <-- changed to 20
     const playerMaxHP = 20;
-    const enemyMaxHP = 200;
+    const enemyMaxHP = 20; // <-- changed to 20
 
     const winDiv = document.getElementById('win');
     const loseDiv = document.getElementById('lose');
 
-    // missile ammo per game (total)
+    // Missile total ammo (per-game)
     let missileAmmo = 3;
     const missileCountSpan = document.getElementById('missileCount');
     function updateMissileUI(){ missileCountSpan.textContent = missileAmmo; }
 
-    // HP bar updater (drain order: green -> white -> red)
+    // HP bar updater (green -> white -> red)
     function setHPbars(containerId, hp, maxHP){
       const seg = maxHP / 3;
       const redDiv = document.querySelector(`#${containerId} .red`);
       const whiteDiv = document.querySelector(`#${containerId} .white`);
       const greenDiv = document.querySelector(`#${containerId} .green`);
+      let remaining = Math.max(0, Math.min(hp, maxHP));
 
-      // clamp hp between 0..maxHP
-      const clamped = Math.max(0, Math.min(hp, maxHP));
-
-      // The logic below maps hp to each segment so that:
-      // - red shows hp in range [0..seg]
-      // - white shows hp in range [seg..2*seg]
-      // - green shows hp in range [2*seg..3*seg]
-      // That way as hp falls, green empties first, then white, then red.
-      const redVal = Math.max(0, Math.min(seg, clamped));
-      const whiteVal = Math.max(0, Math.min(seg, clamped - seg));
-      const greenVal = Math.max(0, Math.min(seg, clamped - 2*seg));
+      // green (right-most) consumes first
+      let g = Math.max(0, Math.min(seg, remaining));
+      remaining -= g;
+      let w = Math.max(0, Math.min(seg, remaining));
+      remaining -= w;
+      let r = Math.max(0, Math.min(seg, remaining));
 
       const unit = 100 / 3; // percent per full segment
-      redDiv.style.width = (redVal / seg * unit) + '%';
-      whiteDiv.style.width = (whiteVal / seg * unit) + '%';
-      greenDiv.style.width = (greenVal / seg * unit) + '%';
+      greenDiv.style.width = (g / seg * unit) + '%';
+      whiteDiv.style.width = (w / seg * unit) + '%';
+      redDiv.style.width = (r / seg * unit) + '%';
     }
 
     function updateHP(){
@@ -406,8 +387,9 @@
     /*********************** Controls *************************************/
     let accel = parseFloat(document.getElementById('sensitivity').value);
     const sensitivityInput = document.getElementById('sensitivity');
-    sensitivityInput.addEventListener('input', (e) => { accel = parseFloat(e.target.value); });
-
+    sensitivityInput.addEventListener('input', (e) => {
+      accel = parseFloat(e.target.value);
+    });
     const keys = {};
     function pressKey(code){ keys[code] = true; }
     function releaseKey(code){ keys[code] = false; }
@@ -428,14 +410,12 @@
       if(keys['KeyA']) camera.rotateZ(accel);
       if(keys['KeyD']) camera.rotateZ(-accel);
     }
-
-    /*********************** Shooting *************************************/
+    // Shooting
     const bullets = [];
     const enemyBullets = [];
     const missiles = [];
     const bulletSpeed = 20;
     const missileSpeed = 15;
-
     function shoot(){
       const bulletGeom = new THREE.SphereGeometry(2,8,8);
       const bulletMat = new THREE.MeshBasicMaterial({color:0xffff00});
@@ -445,14 +425,11 @@
       bullets.push({mesh:bullet,vel:dir.multiplyScalar(bulletSpeed)});
       scene.add(bullet);
     }
-
     function launchMissile(){
       if(!missileGeometry) return;
-      // total ammo limit (per-game)
       if (missileAmmo <= 0) return;
       missileAmmo--;
       updateMissileUI();
-
       const missileMat = new THREE.MeshStandardMaterial({color:0xff0000});
       const missile = new THREE.Mesh(missileGeometry, missileMat);
       missile.scale.set(0.1, 0.1, 0.1);
@@ -462,11 +439,10 @@
         mesh: missile,
         vel: dir.multiplyScalar(missileSpeed),
         target: spaceship,
-        life: 5000
+        life: 5000 // In milliseconds
       });
       scene.add(missile);
     }
-
     function enemyShoot(){
       if(gameOver || !spaceship) return;
       const bulletGeom = new THREE.SphereGeometry(2,8,8);
@@ -480,8 +456,7 @@
       setTimeout(enemyShoot, delay);
     }
     setTimeout(enemyShoot, 1200);
-
-    /*********************** Ship orientation *****************************/
+    // Model forward
     const modelForwardLocal = new THREE.Vector3(0, -1, 0);
     function alignShipToVelocity(t=0.35){
       if(!spaceship) return;
@@ -515,8 +490,7 @@
       else spaceship.quaternion.slerp(targetQ, t);
       prevVelDir.lerp(velDir, 0.15).normalize();
     }
-
-    /*********************** Steering *************************************/
+    // Steering
     function pickNewDesired(){
       desiredVel = randomUnit().multiplyScalar(speed);
       nextSteerChange = performance.now() + steerMin + Math.random()*(steerMax - steerMin);
@@ -545,11 +519,9 @@
         alignShipToVelocity(0.25);
       }
     }
-
-    /*********************** Arrow indicator ******************************/
+    // Arrow indicator
     const arrow = document.getElementById('arrowIndicator');
-
-    /*********************** Animation loop ********************************/
+    // Animation loop
     let last = performance.now();
     let gameOver = false;
     let trailTimer = 0;
@@ -559,17 +531,14 @@
       const now = t || performance.now();
       const dt = Math.min((now - last)/1000, 0.1);
       last = now;
-
       stepSpaceship(dt);
-
-      // trail
+      // spawn trail more frequently
       trailTimer += dt;
-      while (trailTimer > 0.02) {
+      while (trailTimer > 0.02) { // every 0.02s (~50 per second)
         addTrailParticle();
         trailTimer -= 0.02;
       }
       updateTrail(dt);
-
       // bullets
       for(let i=bullets.length-1;i>=0;i--){
         const b = bullets[i];
@@ -581,23 +550,24 @@
           if(enemyHP<=0){ winDiv.style.display='block'; gameOver=true; }
         }
       }
-
       // missiles
       for (let i = missiles.length - 1; i >= 0; i--) {
         const m = missiles[i];
-
+      
         if (m.target) {
           const targetDir = m.target.position.clone().sub(m.mesh.position).normalize();
           m.vel.lerp(targetDir.multiplyScalar(missileSpeed), 0.1);
         }
-
+      
+        // Update position
         m.mesh.position.add(m.vel.clone().multiplyScalar(dt * 60));
-
-        // orient along velocity
-        const forwardAxis = new THREE.Vector3(0, 1, 0);
+      
+        // === FIXED ORIENTATION ===
+        const forwardAxis = new THREE.Vector3(0, 1, 0); // adjust if your STL forward is different
         const velDir = m.vel.clone().normalize();
         m.mesh.quaternion.setFromUnitVectors(forwardAxis, velDir);
-
+      
+        // Lifetime and collisions
         if (m.mesh.position.length() > sphereRadius * 2 || (m.life -= dt * 1000) <= 0) {
           scene.remove(m.mesh);
           missiles.splice(i, 1);
@@ -622,33 +592,43 @@
           if(playerHP<=0){ loseDiv.style.display='block'; gameOver=true; }
         }
       }
-
       updateCamera();
-
-      // Arrow Indicator logic (unchanged)
+     // Arrow Indicator
       if (spaceship) {
         const pos = spaceship.position.clone();
         const vector = pos.project(camera);
         const halfW = window.innerWidth / 2;
         const halfH = window.innerHeight / 2;
+        // Convert to screen space
         let x = (vector.x * halfW) + halfW;
         let y = (-vector.y * halfH) + halfH;
+        // Check if target is in front or behind
         let dirX = x - halfW;
         let dirY = y - halfH;
-        if (vector.z > 1) { dirX = -dirX; dirY = -dirY; }
+        if (vector.z > 1) {
+          // Behind camera → flip direction
+          dirX = -dirX;
+          dirY = -dirY;
+        }
+        // On screen?
         if (vector.z < 1 &&
             x >= 0 && x <= window.innerWidth &&
             y >= 0 && y <= window.innerHeight) {
+          // On screen → hide arrow
           arrow.style.display = "none";
         } else {
+          // Off screen → show arrow
           arrow.style.display = "block";
           const angle = Math.atan2(dirY, dirX);
+          // Push arrow to screen edge
           const edgeBuffer = 40;
           const slope = dirY / dirX;
           if (Math.abs(dirX) > Math.abs(dirY)) {
+            // hits left/right border
             x = dirX > 0 ? window.innerWidth - edgeBuffer : edgeBuffer;
             y = halfH + slope * (x - halfW);
           } else {
+            // hits top/bottom border
             y = dirY > 0 ? window.innerHeight - edgeBuffer : edgeBuffer;
             x = halfW + (y - halfH) / slope;
           }
@@ -657,27 +637,21 @@
           arrow.style.transform = `rotate(${angle}rad)`;
         }
       }
-
-      // update bright stars (twinkle)
-      updateBrightStars(dt);
-
       renderer.render(scene, camera);
     }
-
-    /*********************** Load models & start **************************/
+    // Main execution
     loadModels().then(() => {
-        if (spaceship) scene.add(spaceship);
+        scene.add(spaceship);
         alignShipToVelocity(1.0);
         animate();
+        setTimeout(enemyShoot, 1200);
     }).catch(error => {
         console.error('Error loading models:', error);
-        // start anyway so you can test UI and stars without models
-        animate();
     });
 
-    /*********************** Reset ****************************************/
+    // Reset
     function reset(){
-      playerHP=20; enemyHP=20; updateHP();
+      playerHP=20; enemyHP=20; updateHP(); // <-- reset enemy to 20
       missileAmmo = 3; updateMissileUI();
       winDiv.style.display='none'; loseDiv.style.display='none';
       gameOver=false;
@@ -689,18 +663,15 @@
       enemyBullets.forEach(b=>scene.remove(b.mesh)); enemyBullets.length=0;
       missiles.forEach(m=>scene.remove(m.mesh)); missiles.length=0;
       trailParticles.forEach(p=>scene.remove(p.mesh)); trailParticles.length=0;
-      updateMissileUI();
-      updateHP();
     }
-
+    // Reset button
     document.getElementById('resetBtn').addEventListener('click', reset);
     document.getElementById('shootBtn').addEventListener('click', shoot);
     document.getElementById('rollLeft').addEventListener('mousedown',()=>pressKey('KeyA'));
     document.getElementById('rollLeft').addEventListener('mouseup',()=>releaseKey('KeyA'));
     document.getElementById('rollRight').addEventListener('mousedown',()=>pressKey('KeyD'));
     document.getElementById('rollRight').addEventListener('mouseup',()=>releaseKey('KeyD'));
-
-    /*********************** Resize ****************************************/
+    // Resize
     window.addEventListener('resize',()=>{
       camera.aspect = window.innerWidth/window.innerHeight;
       camera.updateProjectionMatrix();

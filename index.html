@@ -49,7 +49,7 @@
 <body>
   <div id="overlay">
     <div class="panel">
-      <div><strong>Ball Shooter Competition — Smooth Turning-a</strong></div>
+      <div><strong>Ball Shooter Competition — Smooth Turning-b</strong></div>
       <ul style="margin:8px 0 0 18px;font-size:13px">
         <li>Arrow keys / Joystick: pitch & yaw</li>
         <li>A / D buttons: roll</li>
@@ -122,6 +122,145 @@
       return new THREE.Points(geom,mat);
     }
     scene.add(createStars());
+    // ---------- Bright hero star (drop into your script) ----------
+    function makeRadialTexture(colorStops, size = 256) {
+      const c = document.createElement('canvas');
+      c.width = c.height = size;
+      const ctx = c.getContext('2d');
+    
+      const cx = size/2, cy = size/2;
+      const r = size/2;
+      const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+    
+      // colorStops = [{pos:0, color:'#fff'}, ...]
+      colorStops.forEach(s => grad.addColorStop(s.pos, s.color));
+      ctx.fillStyle = grad;
+      ctx.fillRect(0,0,size,size);
+    
+      const tex = new THREE.CanvasTexture(c);
+      tex.needsUpdate = true;
+      return tex;
+    }
+    
+    /**
+     * Add a bright star composed of:
+     *  - core sprite (small bright center)
+     *  - halo sprite (big soft glow)
+     *  - horizontal flare plane (thin stretched flare)
+     *
+     * position: THREE.Vector3
+     * scale: base size multiplier (tweak to taste)
+     */
+    function createBrightStar(position, scale = 200) {
+      // Core
+      const coreTex = makeRadialTexture([
+        {pos:0.0, color:'#ffffff'},
+        {pos:0.35, color:'#ffffff'},
+        {pos:0.6, color:'rgba(255,255,255,0.0)'}
+      ], 128);
+      const coreMat = new THREE.SpriteMaterial({
+        map: coreTex, transparent: true,
+        blending: THREE.AdditiveBlending, depthWrite: false
+      });
+      const core = new THREE.Sprite(coreMat);
+      core.position.copy(position);
+      core.scale.set(scale*0.12, scale*0.12, 1);
+      scene.add(core);
+    
+      // Halo
+      const haloTex = makeRadialTexture([
+        {pos:0.0, color:'rgba(200,230,255,0.9)'},
+        {pos:0.35, color:'rgba(120,180,255,0.45)'},
+        {pos:0.8, color:'rgba(20,40,80,0.0)'}
+      ], 256);
+      const haloMat = new THREE.SpriteMaterial({
+        map: haloTex, transparent: true,
+        blending: THREE.AdditiveBlending, depthWrite: false
+      });
+      const halo = new THREE.Sprite(haloMat);
+      halo.position.copy(position);
+      halo.scale.set(scale*0.9, scale*0.6, 1);
+      scene.add(halo);
+    
+      // Vertical/Horizontal streaks (thin flare bars) — create two to cross slightly
+      function makeFlareBar(width, height, tint = 'rgba(255,255,255,0.9)') {
+        const sz = Math.max(128, Math.round(width));
+        const c = document.createElement('canvas');
+        c.width = sz; c.height = Math.max(8, Math.round(height));
+        const ctx = c.getContext('2d');
+    
+        // horizontal gradient fade out on both ends
+        const grad = ctx.createLinearGradient(0,0,c.width,0);
+        grad.addColorStop(0, 'rgba(255,255,255,0.0)');
+        grad.addColorStop(0.15, tint);
+        grad.addColorStop(0.85, tint);
+        grad.addColorStop(1, 'rgba(255,255,255,0.0)');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0,0,c.width,c.height);
+    
+        const tex = new THREE.CanvasTexture(c);
+        tex.needsUpdate = true;
+        const mat = new THREE.MeshBasicMaterial({
+          map: tex, transparent: true,
+          blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide
+        });
+        const geom = new THREE.PlaneGeometry(width, height);
+        const mesh = new THREE.Mesh(geom, mat);
+        mesh.position.copy(position);
+        return mesh;
+      }
+    
+      // Big horizontal flare
+      const flare = makeFlareBar(scale * 2.4, scale * 0.06, 'rgba(200,230,255,0.85)');
+      // Slight tilt to match cinematic star streak
+      flare.rotation.z = 0.01;
+      scene.add(flare);
+    
+      // Slim more intense center streak
+      const flare2 = makeFlareBar(scale * 1.2, scale * 0.03, 'rgba(255,255,255,0.95)');
+      flare2.rotation.z = -0.005;
+      scene.add(flare2);
+    
+      // Add a very subtle vertical cross to mimic lens diffraction
+      const vflare = makeFlareBar(scale * 0.6, scale * 0.03, 'rgba(200,230,255,0.7)');
+      vflare.rotation.z = Math.PI / 2;
+      scene.add(vflare);
+    
+      // Optional twinkle tweak — tiny flicker animation stored in object for update loop
+      const starObj = { core, halo, flare, flare2, vflare, baseScale: scale };
+      brightStars.push(starObj);
+      return starObj;
+    }
+    
+    // small array for animating star twinkle (optional)
+    const brightStars = [];
+    
+    // Example usage -- add a big hero star in the background:
+    scene.add(createStars()); // your preexisting star field call (if used already)
+    // place a bright star "in front" along -Z so camera sees it; adjust to taste:
+    createBrightStar(new THREE.Vector3(-300, 120, -1200), 700);
+    createBrightStar(new THREE.Vector3(420, -60, -2000), 400); // extra smaller one
+    
+    // Add subtle twinkle animation inside your existing animation loop:
+    const twinkleClock = new THREE.Clock();
+    function updateBrightStars(dt) {
+      // dt ~ seconds
+      brightStars.forEach((s, i) => {
+        // gentle pulsing
+        const pulse = 0.96 + Math.sin(performance.now()*0.002 + i*1.7) * 0.04;
+        s.core.scale.set(s.baseScale*0.12 * pulse, s.baseScale*0.12 * pulse, 1);
+        s.halo.scale.set(s.baseScale*0.9 * (1 + (1-pulse)*0.15), s.baseScale*0.6 * (1 + (1-pulse)*0.15), 1);
+        s.flare.material.opacity = 0.9 * pulse;
+        s.flare2.material.opacity = 0.95 * pulse;
+      });
+    }
+    
+    // Call updateBrightStars from your animate() loop (near other per-frame updates):
+    // e.g. inside animate():
+    // const dt = ...;
+    // updateBrightStars(dt);
+    
+
     // Lights
     const light = new THREE.PointLight(0xffffff,1.2,0);
     light.position.set(200,200,200);

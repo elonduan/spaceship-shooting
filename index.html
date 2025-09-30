@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Ball Shooter — Smooth Turning & Banking2 (with hero stars)</title>
+  <title>Ball Shooter — Smooth Turning & Banking2 (with diagonal star lights)</title>
   <style>
     html,body{height:100%;margin:0;background:#000;color:#ddd;font-family:system-ui,-apple-system,Segoe UI,Roboto;overflow:hidden}
     #overlay{position:fixed;left:12px;top:12px;z-index:10;max-width:420px}
@@ -47,7 +47,7 @@
 <body>
   <div id="overlay">
     <div class="panel">
-      <div><strong>Ball Shooter Competition — Smooth Turning-g</strong></div>
+      <div><strong>Ball Shooter Competition — Smooth Turning-h</strong></div>
       <ul style="margin:8px 0 0 18px;font-size:13px">
         <li>Arrow keys / Joystick: pitch & yaw</li>
         <li>A / D buttons: roll</li>
@@ -124,13 +124,11 @@
     scene.add(createStars());
 
     // ---------- Improved hero star textures & creation ----------
-    // layered radial texture for cores/halo
     function makeRadialTextureStar(size = 256) {
       const c = document.createElement('canvas');
       c.width = c.height = size;
       const ctx = c.getContext('2d');
       const cx = size/2, cy = size/2, r = size/2;
-
       const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
       g.addColorStop(0.0, 'rgba(255,255,255,1)');
       g.addColorStop(0.06, 'rgba(255,255,255,1)');
@@ -140,22 +138,18 @@
       g.addColorStop(1.0, 'rgba(0,0,0,0)');
       ctx.fillStyle = g;
       ctx.fillRect(0,0,size,size);
-
       const tex = new THREE.CanvasTexture(c);
       tex.needsUpdate = true;
       return tex;
     }
 
-    // elongated flare texture with soft feathered ends
     function makeElongatedFlareTexture(length = 1024, height = 32, color = 'rgba(200,230,255,1)') {
       const c = document.createElement('canvas');
       c.width = Math.max(256, Math.round(length));
       c.height = Math.max(8, Math.round(height));
       const ctx = c.getContext('2d');
       const w = c.width, h = c.height;
-
       const band = ctx.createLinearGradient(0, 0, w, 0);
-      // ensure color has alpha=1 for replacement
       const col = color;
       band.addColorStop(0, 'rgba(255,255,255,0)');
       band.addColorStop(0.12, col.replace(/,1\)$/, ',0.95)'));
@@ -164,20 +158,17 @@
       band.addColorStop(1, 'rgba(255,255,255,0)');
       ctx.fillStyle = band;
       ctx.fillRect(0, (h*0.5) - (h*0.35), w, h*0.7);
-
       const featherRadius = Math.min(w * 0.12, 200);
       const lgL = ctx.createRadialGradient(0, h/2, 0, 0, h/2, featherRadius);
       lgL.addColorStop(0, col.replace(/,1\)$/, ',0.95)'));
       lgL.addColorStop(1, 'rgba(255,255,255,0)');
       ctx.fillStyle = lgL;
       ctx.fillRect(-featherRadius, 0, featherRadius, h);
-
       const lgR = ctx.createRadialGradient(w, h/2, 0, w, h/2, featherRadius);
       lgR.addColorStop(0, col.replace(/,1\)$/, ',0.95)'));
       lgR.addColorStop(1, 'rgba(255,255,255,0)');
       ctx.fillStyle = lgR;
       ctx.fillRect(w, 0, featherRadius, h);
-
       const tex = new THREE.CanvasTexture(c);
       tex.needsUpdate = true;
       return tex;
@@ -185,7 +176,6 @@
 
     const brightStars = [];
     function createBrightStar(position, scale = 400) {
-      // intense inner core
       const innerCoreTex = makeRadialTextureStar(128);
       const innerCoreMat = new THREE.SpriteMaterial({
         map: innerCoreTex, transparent: true,
@@ -196,7 +186,6 @@
       innerCore.scale.set(scale * 0.06, scale * 0.06, 1);
       scene.add(innerCore);
 
-      // primary core
       const coreTex = makeRadialTextureStar(256);
       const coreMat = new THREE.SpriteMaterial({
         map: coreTex, transparent: true,
@@ -207,7 +196,6 @@
       core.scale.set(scale * 0.12, scale * 0.12, 1);
       scene.add(core);
 
-      // soft halo
       const haloTex = makeRadialTextureStar(512);
       const haloMat = new THREE.SpriteMaterial({
         map: haloTex, transparent: true,
@@ -218,16 +206,13 @@
       halo.scale.set(scale * 0.9, scale * 0.56, 1);
       scene.add(halo);
 
-      // thin horizontal flare (sprite)
       const flareTex = makeElongatedFlareTexture(Math.round(scale * 2.4), Math.max(4, Math.round(scale * 0.02)), 'rgba(200,230,255,1)');
       const flareMat = new THREE.SpriteMaterial({ map: flareTex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
       const flare = new THREE.Sprite(flareMat);
       flare.position.copy(position);
-      // long but thin
       flare.scale.set(scale * 2.2, scale * 0.03, 1);
       scene.add(flare);
 
-      // slimmer bright center streak
       const flare2Tex = makeElongatedFlareTexture(Math.round(scale * 1.2), Math.max(2, Math.round(scale * 0.01)), 'rgba(255,255,255,1)');
       const flare2Mat = new THREE.SpriteMaterial({ map: flare2Tex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
       const flare2 = new THREE.Sprite(flare2Mat);
@@ -235,12 +220,10 @@
       flare2.scale.set(scale * 1.2, scale * 0.015, 1);
       scene.add(flare2);
 
-      // subtle vertical thin streak (very small)
       const vflareTex = makeElongatedFlareTexture(Math.round(scale * 0.8), Math.max(2, Math.round(scale * 0.01)), 'rgba(200,230,255,0.9)');
       const vflareMat = new THREE.SpriteMaterial({ map: vflareTex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
       const vflare = new THREE.Sprite(vflareMat);
       vflare.position.copy(position);
-      // make it vertical by swapping scale axes and rotating
       vflare.scale.set(scale * 0.02, scale * 0.9, 1);
       vflare.material.rotation = Math.PI / 2;
       scene.add(vflare);
@@ -249,6 +232,35 @@
       brightStars.push(starObj);
       return starObj;
     }
+
+    // ---------- Diagonal light streaks (new) ----------
+    const diagonalLights = [];
+    // Create a large soft diagonal sprite. angleDeg rotates the sprite in screen-space (radians used).
+    function createDiagonalLight(position, angleDeg = 30, length = 2600, height = 120, color = 'rgba(160,200,255,1)', opacity = 0.22) {
+      const tex = makeElongatedFlareTexture(length, Math.max(8, Math.round(height)), color);
+      const mat = new THREE.SpriteMaterial({
+        map: tex,
+        transparent: true,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        opacity: opacity
+      });
+      const sprite = new THREE.Sprite(mat);
+      sprite.position.copy(position);
+      // scale controls world-size: length × (height factor). Keep length big to cross screen.
+      sprite.scale.set(length * 0.9, height * 0.8, 1);
+      // sprite rotation is in screen-space: convert degrees to radians and apply
+      sprite.material.rotation = angleDeg * Math.PI / 180;
+      scene.add(sprite);
+      diagonalLights.push(sprite);
+      return sprite;
+    }
+
+    // place two diagonal lights:
+    // - Second quadrant (top-left): angle +30°
+    // - Fourth quadrant (bottom-right): angle -30°
+    createDiagonalLight(new THREE.Vector3(-800, 420, -1800), 30, 3000, 160, 'rgba(160,200,255,1)', 0.20);
+    createDiagonalLight(new THREE.Vector3(800, -420, -1800), -30, 3000, 160, 'rgba(160,200,255,1)', 0.20);
 
     function updateBrightStars(dt) {
       const t = performance.now() * 0.001;
@@ -261,11 +273,13 @@
         s.flare2.material.opacity = 0.95 * (0.9 + 0.1 * Math.cos(t * 1.7 + i));
         s.vflare.material.opacity = 0.75 * (0.9 + 0.1 * Math.sin(t * 1.1 + i));
       });
-    }
 
-    // add a couple of hero stars (tweak positions/scales to taste)
-    createBrightStar(new THREE.Vector3(-300, 120, -1200), 700);
-    createBrightStar(new THREE.Vector3(420, -60, -2000), 420);
+      // gently pulse diagonal lights so they feel alive (tiny motion)
+      diagonalLights.forEach((d, idx) => {
+        const base = 0.18 + (idx * 0.02);
+        d.material.opacity = base * (0.9 + 0.1 * Math.sin(performance.now() * 0.0009 + idx));
+      });
+    }
 
     /*********************** Lights ****************************************/
     const light = new THREE.PointLight(0xffffff,1.2,0);
@@ -282,7 +296,6 @@
     let spaceshipPos = randomUnit().multiplyScalar(sphereRadius*0.4);
     let speed = 3.0;
     let spaceshipVel = randomUnit().multiplyScalar(speed);
-
     let desiredVel = spaceshipVel.clone();
     let nextSteerChange = 0;
     const steerMin = 1000;
@@ -290,7 +303,6 @@
     const steerLerpFactor = 0.015;
     const maxRoll = 1.0;
     let prevVelDir = spaceshipVel.clone().normalize();
-
     let spaceship = null;
     let missileGeometry = null;
     const loader = new THREE.STLLoader();
@@ -362,35 +374,23 @@
     let enemyHP = 10;
     const playerMaxHP = 20;
     const enemyMaxHP = 10;
-
     const winDiv = document.getElementById('win');
     const loseDiv = document.getElementById('lose');
-
-    // missile ammo per game (total)
     let missileAmmo = 3;
     const missileCountSpan = document.getElementById('missileCount');
     function updateMissileUI(){ missileCountSpan.textContent = missileAmmo; }
 
-    // HP bar updater (drain order: green -> white -> red)
     function setHPbars(containerId, hp, maxHP){
       const seg = maxHP / 3;
       const redDiv = document.querySelector(`#${containerId} .red`);
       const whiteDiv = document.querySelector(`#${containerId} .white`);
       const greenDiv = document.querySelector(`#${containerId} .green`);
-
-      // clamp hp between 0..maxHP
       const clamped = Math.max(0, Math.min(hp, maxHP));
-
-      // The logic below maps hp to each segment so that:
-      // - red shows hp in range [0..seg]
-      // - white shows hp in range [seg..2*seg]
-      // - green shows hp in range [2*seg..3*seg]
-      // That way as hp falls, green empties first, then white, then red.
+      // each segment maps to a range:
       const redVal = Math.max(0, Math.min(seg, clamped));
       const whiteVal = Math.max(0, Math.min(seg, clamped - seg));
       const greenVal = Math.max(0, Math.min(seg, clamped - 2*seg));
-
-      const unit = 100 / 3; // percent per full segment
+      const unit = 100 / 3;
       redDiv.style.width = (redVal / seg * unit) + '%';
       whiteDiv.style.width = (whiteVal / seg * unit) + '%';
       greenDiv.style.width = (greenVal / seg * unit) + '%';
@@ -448,11 +448,9 @@
 
     function launchMissile(){
       if(!missileGeometry) return;
-      // total ammo limit (per-game)
       if (missileAmmo <= 0) return;
       missileAmmo--;
       updateMissileUI();
-
       const missileMat = new THREE.MeshStandardMaterial({color:0xff0000});
       const missile = new THREE.Mesh(missileGeometry, missileMat);
       missile.scale.set(0.1, 0.1, 0.1);
@@ -658,7 +656,7 @@
         }
       }
 
-      // update bright stars (twinkle)
+      // update bright stars & diagonal lights
       updateBrightStars(dt);
 
       renderer.render(scene, camera);
@@ -671,7 +669,6 @@
         animate();
     }).catch(error => {
         console.error('Error loading models:', error);
-        // start anyway so you can test UI and stars without models
         animate();
     });
 

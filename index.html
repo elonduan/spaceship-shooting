@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Ball Shooter — Smooth Turning & Banking2</title>
+  <title>Ball Shooter — Smooth Turning & Banking</title>
   <style>
     html,body{height:100%;margin:0;background:#000;color:#ddd;font-family:system-ui,-apple-system,Segoe UI,Roboto;overflow:hidden}
     #overlay{position:fixed;left:12px;top:12px;z-index:10;max-width:360px}
@@ -71,7 +71,7 @@
 <body>
   <div id="overlay">
     <div class="panel">
-      <div><strong>Ball Shooter Competition — Smooth Turning - f</strong></div>
+      <div><strong>Ball Shooter Competition — Smooth Turning-n</strong></div>
       <ul style="margin:8px 0 0 18px;font-size:13px">
         <li>Arrow keys / Joystick: pitch & yaw</li>
         <li>A / D buttons: roll</li>
@@ -87,7 +87,6 @@
     </div>
   </div>
   <div id="hud">
-    <!-- Player HP segmented -->
     <div class="barContainer" id="playerContainer">
       <div id="playerBar">
         <div class="hpSegment red"></div>
@@ -95,7 +94,6 @@
         <div class="hpSegment green"></div>
       </div>
     </div>
-    <!-- Enemy HP (unchanged) -->
     <div class="barContainer" id="enemyContainer">
       <div id="enemyBar"></div>
     </div>
@@ -112,28 +110,102 @@
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/js/loaders/STLLoader.js"></script>
   <script>
-    // === (game setup code same as before) ===
+    // === Setup ===
     const container = document.getElementById('canvas-container');
     const scene = new THREE.Scene();
     const renderer = new THREE.WebGLRenderer({antialias:true});
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setSize(window.innerWidth, window.innerHeight);
     container.appendChild(renderer.domElement);
+
     const camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.1, 5000);
     camera.position.set(0,0,0);
-    // ... (rest of setup unchanged, stars, lights, ship, missile etc)
+
+    // Lights
+    scene.add(new THREE.AmbientLight(0x666666));
+    const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+    dirLight.position.set(5,5,5);
+    scene.add(dirLight);
+
+    // Stars
+    const starGeo = new THREE.BufferGeometry();
+    const starCount = 2000;
+    const positions = [];
+    for (let i=0;i<starCount;i++) {
+      positions.push((Math.random()-0.5)*4000, (Math.random()-0.5)*4000, (Math.random()-0.5)*4000);
+    }
+    starGeo.setAttribute('position', new THREE.Float32BufferAttribute(positions,3));
+    const stars = new THREE.Points(starGeo, new THREE.PointsMaterial({color:0x8888ff,size:2}));
+    scene.add(stars);
+
+    // Ship (load STL)
+    const loader = new THREE.STLLoader();
+    let ship;
+    loader.load('spaceship.stl', geometry=>{
+      const material = new THREE.MeshPhongMaterial({color:0xffffff});
+      ship = new THREE.Mesh(geometry, material);
+      ship.scale.set(0.2,0.2,0.2);
+      ship.rotation.x = -Math.PI/2;
+      scene.add(ship);
+    });
+
+    // Enemy
+    const enemyGeo = new THREE.SphereGeometry(20,16,16);
+    const enemyMat = new THREE.MeshPhongMaterial({color:0xff0000});
+    const enemy = new THREE.Mesh(enemyGeo, enemyMat);
+    enemy.position.set(0,0,-600);
+    scene.add(enemy);
+
+    // Bullets
+    let bullets = [];
+    const bulletSpeed = 20;
+
+    function shoot(){
+      const bulletGeom = new THREE.SphereGeometry(2,8,8);
+      const bulletMat = new THREE.MeshBasicMaterial({color:0xffff00});
+      const bullet = new THREE.Mesh(bulletGeom, bulletMat);
+      const dir = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
+      bullet.position.copy(camera.position);
+      bullets.push({mesh:bullet,vel:dir.multiplyScalar(bulletSpeed)});
+      scene.add(bullet);
+    }
+
+    // Shoot auto-fire for button
+    let shootInterval = null;
+    const shootBtn = document.getElementById('shootBtn');
+    shootBtn.addEventListener('mousedown', () => {
+      if (!shootInterval) {
+        shoot();
+        shootInterval = setInterval(shoot, 200);
+      }
+    });
+    shootBtn.addEventListener('mouseup', () => {
+      clearInterval(shootInterval); shootInterval = null;
+    });
+    shootBtn.addEventListener('mouseleave', () => {
+      clearInterval(shootInterval); shootInterval = null;
+    });
+
+    // Missile
+    let missiles = [];
+    function launchMissile(){
+      loader.load('missile.stl', geometry=>{
+        const material = new THREE.MeshPhongMaterial({color:0x00ff00});
+        const missile = new THREE.Mesh(geometry, material);
+        missile.scale.set(0.1,0.1,0.1);
+        missile.position.copy(camera.position);
+        missile.quaternion.copy(camera.quaternion);
+        missiles.push({mesh:missile,vel:new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize().multiplyScalar(10)});
+        scene.add(missile);
+      });
+    }
 
     // HP
     let playerHP = 20;
     let enemyHP = 20;
     const enemyBar = document.getElementById('enemyBar');
-    const winDiv = document.getElementById('win');
-    const loseDiv = document.getElementById('lose');
     function updateHP(){
-      // Enemy bar
       enemyBar.style.width = (enemyHP/20*100) + "%";
-
-      // Player segmented bar
       const totalHP = 20;
       const hpPerSegment = totalHP / 3;
       const segs = document.querySelectorAll('#playerBar .hpSegment');
@@ -150,32 +222,74 @@
     }
     updateHP();
 
-    // Shoot auto-fire for button
-    function shoot(){
-      const bulletGeom = new THREE.SphereGeometry(2,8,8);
-      const bulletMat = new THREE.MeshBasicMaterial({color:0xffff00});
-      const bullet = new THREE.Mesh(bulletGeom, bulletMat);
-      const dir = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
-      bullet.position.copy(camera.position);
-      bullets.push({mesh:bullet,vel:dir.multiplyScalar(bulletSpeed)});
-      scene.add(bullet);
-    }
-    let shootInterval = null;
-    const shootBtn = document.getElementById('shootBtn');
-    shootBtn.addEventListener('mousedown', () => {
-      if (!shootInterval) {
-        shoot();
-        shootInterval = setInterval(shoot, 200);
-      }
-    });
-    shootBtn.addEventListener('mouseup', () => {
-      clearInterval(shootInterval); shootInterval = null;
-    });
-    shootBtn.addEventListener('mouseleave', () => {
-      clearInterval(shootInterval); shootInterval = null;
-    });
+    const winDiv = document.getElementById('win');
+    const loseDiv = document.getElementById('lose');
 
-    // ... (rest of your code remains same: controls, missiles, enemy bullets, animate, reset, resize)
+    // Controls
+    let keys = {};
+    document.addEventListener('keydown',e=>{
+      keys[e.key.toLowerCase()] = true;
+      if(e.key===" "){ shoot(); }
+      if(e.key==="m"){ launchMissile(); }
+      if(e.key==="r"){ resetGame(); }
+    });
+    document.addEventListener('keyup',e=>{ keys[e.key.toLowerCase()] = false; });
+
+    // Game loop
+    function animate(){
+      requestAnimationFrame(animate);
+
+      // Update bullets
+      bullets.forEach((b,i)=>{
+        b.mesh.position.add(b.vel);
+        if (b.mesh.position.distanceTo(enemy.position)<25){
+          enemyHP--; updateHP();
+          scene.remove(b.mesh); bullets.splice(i,1);
+          if(enemyHP<=0){ winDiv.style.display='block'; }
+        }
+      });
+
+      // Update missiles
+      missiles.forEach((m,i)=>{
+        m.mesh.position.add(m.vel);
+        if (m.mesh.position.distanceTo(enemy.position)<30){
+          enemyHP -= 5; updateHP();
+          scene.remove(m.mesh); missiles.splice(i,1);
+          if(enemyHP<=0){ winDiv.style.display='block'; }
+        }
+      });
+
+      // Controls rotation
+      const sensitivity = parseFloat(document.getElementById('sensitivity').value);
+      if(keys['arrowup']) camera.rotateX(-sensitivity);
+      if(keys['arrowdown']) camera.rotateX(sensitivity);
+      if(keys['arrowleft']) camera.rotateY(sensitivity);
+      if(keys['arrowright']) camera.rotateY(-sensitivity);
+      if(keys['a']) camera.rotateZ(sensitivity);
+      if(keys['d']) camera.rotateZ(-sensitivity);
+
+      // Keep ship model with camera
+      if(ship){ ship.position.copy(camera.position); ship.quaternion.copy(camera.quaternion); }
+
+      renderer.render(scene,camera);
+    }
+    animate();
+
+    // Reset
+    function resetGame(){
+      playerHP=20; enemyHP=20; updateHP();
+      winDiv.style.display='none'; loseDiv.style.display='none';
+      bullets.forEach(b=>scene.remove(b.mesh)); bullets=[];
+      missiles.forEach(m=>scene.remove(m.mesh)); missiles=[];
+      enemy.position.set(0,0,-600);
+    }
+
+    // Resize
+    window.addEventListener('resize',()=>{
+      camera.aspect = window.innerWidth/window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth,window.innerHeight);
+    });
   </script>
 </body>
 </html>

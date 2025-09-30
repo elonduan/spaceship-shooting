@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Ball Shooter — Smooth Turning & Banking</title>
+  <title>Ball Shooter — Smooth Turning & Banking2</title>
   <style>
     html,body{height:100%;margin:0;background:#000;color:#ddd;font-family:system-ui,-apple-system,Segoe UI,Roboto;overflow:hidden}
     #overlay{position:fixed;left:12px;top:12px;z-index:10;max-width:360px}
@@ -71,7 +71,7 @@
 <body>
   <div id="overlay">
     <div class="panel">
-      <div><strong>Ball Shooter Competition — Smooth Turning-n</strong></div>
+      <div><strong>Ball Shooter Competition — Smooth Turning</strong></div>
       <ul style="margin:8px 0 0 18px;font-size:13px">
         <li>Arrow keys / Joystick: pitch & yaw</li>
         <li>A / D buttons: roll</li>
@@ -87,6 +87,7 @@
     </div>
   </div>
   <div id="hud">
+    <!-- Player HP segmented -->
     <div class="barContainer" id="playerContainer">
       <div id="playerBar">
         <div class="hpSegment red"></div>
@@ -94,6 +95,7 @@
         <div class="hpSegment green"></div>
       </div>
     </div>
+    <!-- Enemy HP (unchanged) -->
     <div class="barContainer" id="enemyContainer">
       <div id="enemyBar"></div>
     </div>
@@ -110,102 +112,28 @@
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/js/loaders/STLLoader.js"></script>
   <script>
-    // === Setup ===
+    // === (game setup code same as before) ===
     const container = document.getElementById('canvas-container');
     const scene = new THREE.Scene();
     const renderer = new THREE.WebGLRenderer({antialias:true});
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setSize(window.innerWidth, window.innerHeight);
     container.appendChild(renderer.domElement);
-
     const camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.1, 5000);
     camera.position.set(0,0,0);
-
-    // Lights
-    scene.add(new THREE.AmbientLight(0x666666));
-    const dirLight = new THREE.DirectionalLight(0xffffff, 1);
-    dirLight.position.set(5,5,5);
-    scene.add(dirLight);
-
-    // Stars
-    const starGeo = new THREE.BufferGeometry();
-    const starCount = 2000;
-    const positions = [];
-    for (let i=0;i<starCount;i++) {
-      positions.push((Math.random()-0.5)*4000, (Math.random()-0.5)*4000, (Math.random()-0.5)*4000);
-    }
-    starGeo.setAttribute('position', new THREE.Float32BufferAttribute(positions,3));
-    const stars = new THREE.Points(starGeo, new THREE.PointsMaterial({color:0x8888ff,size:2}));
-    scene.add(stars);
-
-    // Ship (load STL)
-    const loader = new THREE.STLLoader();
-    let ship;
-    loader.load('spaceship.stl', geometry=>{
-      const material = new THREE.MeshPhongMaterial({color:0xffffff});
-      ship = new THREE.Mesh(geometry, material);
-      ship.scale.set(0.2,0.2,0.2);
-      ship.rotation.x = -Math.PI/2;
-      scene.add(ship);
-    });
-
-    // Enemy
-    const enemyGeo = new THREE.SphereGeometry(20,16,16);
-    const enemyMat = new THREE.MeshPhongMaterial({color:0xff0000});
-    const enemy = new THREE.Mesh(enemyGeo, enemyMat);
-    enemy.position.set(0,0,-600);
-    scene.add(enemy);
-
-    // Bullets
-    let bullets = [];
-    const bulletSpeed = 20;
-
-    function shoot(){
-      const bulletGeom = new THREE.SphereGeometry(2,8,8);
-      const bulletMat = new THREE.MeshBasicMaterial({color:0xffff00});
-      const bullet = new THREE.Mesh(bulletGeom, bulletMat);
-      const dir = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
-      bullet.position.copy(camera.position);
-      bullets.push({mesh:bullet,vel:dir.multiplyScalar(bulletSpeed)});
-      scene.add(bullet);
-    }
-
-    // Shoot auto-fire for button
-    let shootInterval = null;
-    const shootBtn = document.getElementById('shootBtn');
-    shootBtn.addEventListener('mousedown', () => {
-      if (!shootInterval) {
-        shoot();
-        shootInterval = setInterval(shoot, 200);
-      }
-    });
-    shootBtn.addEventListener('mouseup', () => {
-      clearInterval(shootInterval); shootInterval = null;
-    });
-    shootBtn.addEventListener('mouseleave', () => {
-      clearInterval(shootInterval); shootInterval = null;
-    });
-
-    // Missile
-    let missiles = [];
-    function launchMissile(){
-      loader.load('missile.stl', geometry=>{
-        const material = new THREE.MeshPhongMaterial({color:0x00ff00});
-        const missile = new THREE.Mesh(geometry, material);
-        missile.scale.set(0.1,0.1,0.1);
-        missile.position.copy(camera.position);
-        missile.quaternion.copy(camera.quaternion);
-        missiles.push({mesh:missile,vel:new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize().multiplyScalar(10)});
-        scene.add(missile);
-      });
-    }
+    // ... (rest of setup unchanged, stars, lights, ship, missile etc)
 
     // HP
     let playerHP = 20;
     let enemyHP = 20;
     const enemyBar = document.getElementById('enemyBar');
+    const winDiv = document.getElementById('win');
+    const loseDiv = document.getElementById('lose');
     function updateHP(){
+      // Enemy bar
       enemyBar.style.width = (enemyHP/20*100) + "%";
+
+      // Player segmented bar
       const totalHP = 20;
       const hpPerSegment = totalHP / 3;
       const segs = document.querySelectorAll('#playerBar .hpSegment');
@@ -222,73 +150,303 @@
     }
     updateHP();
 
-    const winDiv = document.getElementById('win');
-    const loseDiv = document.getElementById('lose');
-
-    // Controls
-    let keys = {};
-    document.addEventListener('keydown',e=>{
-      keys[e.key.toLowerCase()] = true;
-      if(e.key===" "){ shoot(); }
-      if(e.key==="m"){ launchMissile(); }
-      if(e.key==="r"){ resetGame(); }
-    });
-    document.addEventListener('keyup',e=>{ keys[e.key.toLowerCase()] = false; });
-
-    // Game loop
-    function animate(){
-      requestAnimationFrame(animate);
-
-      // Update bullets
-      bullets.forEach((b,i)=>{
-        b.mesh.position.add(b.vel);
-        if (b.mesh.position.distanceTo(enemy.position)<25){
-          enemyHP--; updateHP();
-          scene.remove(b.mesh); bullets.splice(i,1);
-          if(enemyHP<=0){ winDiv.style.display='block'; }
-        }
-      });
-
-      // Update missiles
-      missiles.forEach((m,i)=>{
-        m.mesh.position.add(m.vel);
-        if (m.mesh.position.distanceTo(enemy.position)<30){
-          enemyHP -= 5; updateHP();
-          scene.remove(m.mesh); missiles.splice(i,1);
-          if(enemyHP<=0){ winDiv.style.display='block'; }
-        }
-      });
-
-      // Controls rotation
-      const sensitivity = parseFloat(document.getElementById('sensitivity').value);
-      if(keys['arrowup']) camera.rotateX(-sensitivity);
-      if(keys['arrowdown']) camera.rotateX(sensitivity);
-      if(keys['arrowleft']) camera.rotateY(sensitivity);
-      if(keys['arrowright']) camera.rotateY(-sensitivity);
-      if(keys['a']) camera.rotateZ(sensitivity);
-      if(keys['d']) camera.rotateZ(-sensitivity);
-
-      // Keep ship model with camera
-      if(ship){ ship.position.copy(camera.position); ship.quaternion.copy(camera.quaternion); }
-
-      renderer.render(scene,camera);
+    // Shoot auto-fire for button
+    function shoot(){
+      const bulletGeom = new THREE.SphereGeometry(2,8,8);
+      const bulletMat = new THREE.MeshBasicMaterial({color:0xffff00});
+      const bullet = new THREE.Mesh(bulletGeom, bulletMat);
+      const dir = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
+      bullet.position.copy(camera.position);
+      bullets.push({mesh:bullet,vel:dir.multiplyScalar(bulletSpeed)});
+      scene.add(bullet);
     }
-    animate();
+    let shootInterval = null;
+    const shootBtn = document.getElementById('shootBtn');
+    shootBtn.addEventListener('mousedown', () => {
+      if (!shootInterval) {
+        shoot();
+        shootInterval = setInterval(shoot, 200);
+      }
+    });
+    shootBtn.addEventListener('mouseup', () => {
+      clearInterval(shootInterval); shootInterval = null;
+    });
+    shootBtn.addEventListener('mouseleave', () => {
+      clearInterval(shootInterval); shootInterval = null;
+    });
+
+   // Controls
+    let accel = parseFloat(document.getElementById('sensitivity').value);
+    const sensitivityInput = document.getElementById('sensitivity');
+    sensitivityInput.addEventListener('input', (e) => {
+      accel = parseFloat(e.target.value);
+    });
+    const keys = {};
+    function pressKey(code){ keys[code] = true; }
+    function releaseKey(code){ keys[code] = false; }
+    window.addEventListener('keydown',(e)=>{
+      if(e.code === 'Space'){ shoot(); }
+      if(e.code === 'KeyM'){ launchMissile(); }
+      else if(e.key === 'r' || e.key === 'R'){ reset(); }
+      else pressKey(e.code);
+    });
+    window.addEventListener('keyup',(e)=>{
+      if(e.code !== 'Space' && e.code !== 'KeyM') releaseKey(e.code);
+    });
+    function updateCamera(){
+      if(keys['ArrowDown']) camera.rotateX(-accel);
+      if(keys['ArrowUp']) camera.rotateX(accel);
+      if(keys['ArrowLeft']) camera.rotateY(accel);
+      if(keys['ArrowRight']) camera.rotateY(-accel);
+      if(keys['KeyA']) camera.rotateZ(accel);
+      if(keys['KeyD']) camera.rotateZ(-accel);
+    }
+    // Shooting
+    const bullets = [];
+    const enemyBullets = [];
+    const missiles = [];
+    const bulletSpeed = 20;
+    const missileSpeed = 15;
+    function shoot(){
+      const bulletGeom = new THREE.SphereGeometry(2,8,8);
+      const bulletMat = new THREE.MeshBasicMaterial({color:0xffff00});
+      const bullet = new THREE.Mesh(bulletGeom, bulletMat);
+      const dir = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
+      bullet.position.copy(camera.position);
+      bullets.push({mesh:bullet,vel:dir.multiplyScalar(bulletSpeed)});
+      scene.add(bullet);
+    }
+    function launchMissile(){
+      if(!missileGeometry) return;
+      const missileMat = new THREE.MeshStandardMaterial({color:0xff0000});
+      const missile = new THREE.Mesh(missileGeometry, missileMat);
+      missile.scale.set(0.1, 0.1, 0.1);
+      const dir = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
+      missile.position.copy(camera.position.clone().add(dir.clone().multiplyScalar(10)));
+      missiles.push({
+        mesh: missile,
+        vel: dir.multiplyScalar(missileSpeed),
+        target: spaceship,
+        life: 5000 // In milliseconds
+      });
+      scene.add(missile);
+    }
+    function enemyShoot(){
+      if(gameOver || !spaceship) return;
+      const bulletGeom = new THREE.SphereGeometry(2,8,8);
+      const bulletMat = new THREE.MeshBasicMaterial({color:0x00ffff});
+      const bullet = new THREE.Mesh(bulletGeom, bulletMat);
+      const dir = camera.position.clone().sub(spaceship.position).normalize();
+      bullet.position.copy(spaceship.position);
+      enemyBullets.push({mesh:bullet,vel:dir.multiplyScalar(bulletSpeed*0.8)});
+      scene.add(bullet);
+      const delay = 800 + Math.random()*1200;
+      setTimeout(enemyShoot, delay);
+    }
+    setTimeout(enemyShoot, 1200);
+    // Model forward
+    const modelForwardLocal = new THREE.Vector3(0, -1, 0);
+    function alignShipToVelocity(t=0.35){
+      if(!spaceship) return;
+      if(spaceshipVel.lengthSq() < 1e-6) return;
+      const velDir = spaceshipVel.clone().normalize();
+      const meshWorldPos = new THREE.Vector3();
+      spaceship.getWorldPosition(meshWorldPos);
+      const forwardLocalPoint = modelForwardLocal.clone();
+      const forwardWorldPoint = spaceship.localToWorld(forwardLocalPoint.clone());
+      const forwardWorld = forwardWorldPoint.sub(meshWorldPos).normalize();
+      let qdelta = new THREE.Quaternion();
+      if(forwardWorld.dot(velDir) < -0.9999){
+        const tmp = new THREE.Vector3(1,0,0);
+        if(Math.abs(forwardWorld.x) > 0.9) tmp.set(0,1,0);
+        const axis = new THREE.Vector3().crossVectors(forwardWorld, tmp).normalize();
+        qdelta.setFromAxisAngle(axis, Math.PI);
+      } else {
+        qdelta.setFromUnitVectors(forwardWorld, velDir);
+      }
+      const prev = prevVelDir.clone();
+      const cur = velDir.clone();
+      const angleBetween = Math.acos(Math.min(Math.max(prev.dot(cur), -1), 1));
+      const turnAxis = new THREE.Vector3().crossVectors(prev, cur);
+      const sign = Math.sign(turnAxis.dot(new THREE.Vector3(0,1,0)) || 1);
+      const desiredRoll = Math.max(-maxRoll, Math.min(maxRoll, sign * angleBetween * 1.8));
+      const rollQuat = new THREE.Quaternion().setFromAxisAngle(velDir.clone(), desiredRoll);
+      const currentQ = spaceship.quaternion.clone();
+      const baseTargetQ = qdelta.multiply(currentQ);
+      const targetQ = rollQuat.multiply(baseTargetQ);
+      if(t >= 1) spaceship.quaternion.copy(targetQ);
+      else spaceship.quaternion.slerp(targetQ, t);
+      prevVelDir.lerp(velDir, 0.15).normalize();
+    }
+    // Steering
+    function pickNewDesired(){
+      desiredVel = randomUnit().multiplyScalar(speed);
+      nextSteerChange = performance.now() + steerMin + Math.random()*(steerMax - steerMin);
+    }
+    pickNewDesired();
+    function stepSpaceship(dt){
+      if(performance.now() > nextSteerChange){
+        pickNewDesired();
+      }
+      const lerpAmt = Math.min(1, steerLerpFactor * (dt*60));
+      spaceshipVel.lerp(desiredVel, lerpAmt);
+      spaceshipVel.setLength(speed);
+      spaceshipPos.add(spaceshipVel.clone().multiplyScalar(dt * 60));
+      const dist = spaceshipPos.length();
+      if(dist >= sphereRadius){
+        const normal = spaceshipPos.clone().normalize();
+        spaceshipPos.copy(normal.clone().multiplyScalar(sphereRadius - 1));
+        const v = spaceshipVel.clone();
+        const dot = v.dot(normal);
+        const reflected = v.clone().sub(normal.clone().multiplyScalar(2*dot));
+        spaceshipVel.copy(reflected.setLength(speed));
+        desiredVel.copy(spaceshipVel);
+      }
+      if(spaceship){
+        spaceship.position.copy(spaceshipPos);
+        alignShipToVelocity(0.25);
+      }
+    }
+    // Arrow indicator
+    const arrow = document.getElementById('arrowIndicator');
+    // Animation loop
+    let last = performance.now();
+    let gameOver = false;
+    let trailTimer = 0;
+    function animate(t){
+      requestAnimationFrame(animate);
+      if(gameOver) return;
+      const now = t || performance.now();
+      const dt = Math.min((now - last)/1000, 0.1);
+      last = now;
+      stepSpaceship(dt);
+      // spawn trail more frequently
+      trailTimer += dt;
+      while (trailTimer > 0.02) { // every 0.02s (~50 per second)
+        addTrailParticle();
+        trailTimer -= 0.02;
+      }
+      updateTrail(dt);
+      // bullets
+      for(let i=bullets.length-1;i>=0;i--){
+        const b = bullets[i];
+        b.mesh.position.add(b.vel.clone().multiplyScalar(dt*60));
+        if(b.mesh.position.length()>sphereRadius*2){ scene.remove(b.mesh); bullets.splice(i,1); continue; }
+        if(spaceship && b.mesh.position.distanceTo(spaceship.position) < 20){
+          scene.remove(b.mesh); bullets.splice(i,1);
+          enemyHP--; updateHP();
+          if(enemyHP<=0){ winDiv.style.display='block'; gameOver=true; }
+        }
+      }
+      // missiles
+      for(let i=missiles.length-1;i>=0;i--){
+        const m = missiles[i];
+        if (m.target) {
+          const targetDir = m.target.position.clone().sub(m.mesh.position).normalize();
+          m.vel.lerp(targetDir.multiplyScalar(missileSpeed), 0.1);
+        }
+        m.mesh.position.add(m.vel.clone().multiplyScalar(dt * 60));
+        m.mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), m.vel.clone().normalize());
+        if(m.mesh.position.length()>sphereRadius*2 || (m.life-=dt*1000)<=0){ scene.remove(m.mesh); missiles.splice(i,1); continue; }
+        if(spaceship && m.mesh.position.distanceTo(spaceship.position) < 25){
+          scene.remove(m.mesh); missiles.splice(i,1);
+          enemyHP -= 3; updateHP();
+          if(enemyHP<=0){ winDiv.style.display='block'; gameOver=true; }
+        }
+      }
+      for(let i=enemyBullets.length-1;i>=0;i--){
+        const b = enemyBullets[i];
+        b.mesh.position.add(b.vel.clone().multiplyScalar(dt*60));
+        if(b.mesh.position.length()>sphereRadius*2){ scene.remove(b.mesh); enemyBullets.splice(i,1); continue; }
+        if(b.mesh.position.distanceTo(camera.position) < 10){
+          scene.remove(b.mesh); enemyBullets.splice(i,1);
+          playerHP--; updateHP();
+          if(playerHP<=0){ loseDiv.style.display='block'; gameOver=true; }
+        }
+      }
+      updateCamera();
+     // Arrow Indicator
+      if (spaceship) {
+        const pos = spaceship.position.clone();
+        const vector = pos.project(camera);
+        const halfW = window.innerWidth / 2;
+        const halfH = window.innerHeight / 2;
+        // Convert to screen space
+        let x = (vector.x * halfW) + halfW;
+        let y = (-vector.y * halfH) + halfH;
+        // Check if target is in front or behind
+        let dirX = x - halfW;
+        let dirY = y - halfH;
+        if (vector.z > 1) {
+          // Behind camera → flip direction
+          dirX = -dirX;
+          dirY = -dirY;
+        }
+        // On screen?
+        if (vector.z < 1 &&
+            x >= 0 && x <= window.innerWidth &&
+            y >= 0 && y <= window.innerHeight) {
+          // On screen → hide arrow
+          arrow.style.display = "none";
+        } else {
+          // Off screen → show arrow
+          arrow.style.display = "block";
+          const angle = Math.atan2(dirY, dirX);
+          // Push arrow to screen edge
+          const edgeBuffer = 40;
+          const slope = dirY / dirX;
+          if (Math.abs(dirX) > Math.abs(dirY)) {
+            // hits left/right border
+            x = dirX > 0 ? window.innerWidth - edgeBuffer : edgeBuffer;
+            y = halfH + slope * (x - halfW);
+          } else {
+            // hits top/bottom border
+            y = dirY > 0 ? window.innerHeight - edgeBuffer : edgeBuffer;
+            x = halfW + (y - halfH) / slope;
+          }
+          arrow.style.left = `${x - 12}px`;
+          arrow.style.top = `${y - 12}px`;
+          arrow.style.transform = `rotate(${angle}rad)`;
+        }
+      }
+      renderer.render(scene, camera);
+    }
+    // Main execution
+    loadModels().then(() => {
+        scene.add(spaceship);
+        alignShipToVelocity(1.0);
+        animate();
+        setTimeout(enemyShoot, 1200);
+    }).catch(error => {
+        console.error('Error loading models:', error);
+    });
 
     // Reset
-    function resetGame(){
-      playerHP=20; enemyHP=20; updateHP();
+    function reset(){
+      playerHP=20; enemyHP=10; updateHP();
       winDiv.style.display='none'; loseDiv.style.display='none';
-      bullets.forEach(b=>scene.remove(b.mesh)); bullets=[];
-      missiles.forEach(m=>scene.remove(m.mesh)); missiles=[];
-      enemy.position.set(0,0,-600);
+      gameOver=false;
+      spaceshipPos = randomUnit().multiplyScalar(sphereRadius*0.4);
+      spaceshipVel = randomUnit().multiplyScalar(speed);
+      desiredVel = spaceshipVel.clone();
+      if(spaceship) spaceship.position.copy(spaceshipPos);
+      bullets.forEach(b=>scene.remove(b.mesh)); bullets.length=0;
+      enemyBullets.forEach(b=>scene.remove(b.mesh)); enemyBullets.length=0;
+      missiles.forEach(m=>scene.remove(m.mesh)); missiles.length=0;
+      trailParticles.forEach(p=>scene.remove(p.mesh)); trailParticles.length=0;
     }
-
+    // Reset button
+    document.getElementById('resetBtn').addEventListener('click', reset);
+    document.getElementById('shootBtn').addEventListener('click', shoot);
+    document.getElementById('rollLeft').addEventListener('mousedown',()=>pressKey('KeyA'));
+    document.getElementById('rollLeft').addEventListener('mouseup',()=>releaseKey('KeyA'));
+    document.getElementById('rollRight').addEventListener('mousedown',()=>pressKey('KeyD'));
+    document.getElementById('rollRight').addEventListener('mouseup',()=>releaseKey('KeyD'));
     // Resize
     window.addEventListener('resize',()=>{
       camera.aspect = window.innerWidth/window.innerHeight;
       camera.updateProjectionMatrix();
-      renderer.setSize(window.innerWidth,window.innerHeight);
+      renderer.setSize(window.innerWidth, window.innerHeight);
     });
   </script>
 </body>

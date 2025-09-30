@@ -24,9 +24,22 @@
     #buttons button { width:70px; height:70px; border-radius:50%; border:none; background:rgba(255,255,255,0.2); color:#fff; font-size:18px;}
     #hud { position:fixed; top:10px; left:0; right:0; display:flex; justify-content:space-between; padding:0 20px; z-index:15; }
     .barContainer { width:180px; height:20px; background:rgba(255,255,255,0.2); border:1px solid #888; border-radius:10px; overflow:hidden;}
-    .barFill { height:100%; width:100%; }
-    #playerBar { background:linear-gradient(90deg,#0f0,#070); }
-    #enemyBar { background:linear-gradient(90deg,#f00,#700); }
+    /* Three-section fill: red | white | green (left → right).
+       The JS controls the width (percentage) so shrinking the bar reveals less of the gradient. */
+    .barFill {
+      height:100%;
+      width:100%;
+      background: linear-gradient(90deg,
+        #ff2b2b 0%,
+        #ff2b2b 33.333%,
+        #ffffff 33.333%,
+        #ffffff 66.666%,
+        #2ecc40 66.666%,
+        #2ecc40 100%
+      );
+      transition: width 180ms linear;
+      box-sizing: border-box;
+    }
     #arrowIndicator {
       position: fixed;
       width: 0;
@@ -44,7 +57,7 @@
 <body>
   <div id="overlay">
     <div class="panel">
-      <div><strong>Ball Shooter Competition — Smooth Turning2</strong></div>
+      <div><strong>Ball Shooter Competition — Smooth Turning3</strong></div>
       <ul style="margin:8px 0 0 18px;font-size:13px">
         <li>Arrow keys / Joystick: pitch & yaw</li>
         <li>A / D buttons: roll</li>
@@ -485,6 +498,7 @@
       camera.updateProjectionMatrix();
       renderer.setSize(window.innerWidth, window.innerHeight);
     });
+  </script>
   </script>
 </body>
 </html>

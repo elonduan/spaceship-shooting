@@ -49,7 +49,7 @@
 <body>
   <div id="overlay">
     <div class="panel">
-      <div><strong>Ball Shooter Competition — Smooth Turning</strong></div>
+      <div><strong>Ball Shooter Competition — Smooth Turning-a</strong></div>
       <ul style="margin:8px 0 0 18px;font-size:13px">
         <li>Arrow keys / Joystick: pitch & yaw</li>
         <li>A / D buttons: roll</li>
@@ -225,26 +225,39 @@
     function updateMissileUI(){ missileCountSpan.textContent = missileAmmo; }
 
     // HP bar updater (green -> white -> red)
+   // Replace your existing setHPbars with this
     function setHPbars(containerId, hp, maxHP){
       const seg = maxHP / 3;
       const redDiv = document.querySelector(`#${containerId} .red`);
       const whiteDiv = document.querySelector(`#${containerId} .white`);
       const greenDiv = document.querySelector(`#${containerId} .green`);
-      let remaining = Math.max(0, Math.min(hp, maxHP));
-
-      // green (right-most) consumes first
-      let g = Math.max(0, Math.min(seg, remaining));
-      remaining -= g;
-      let w = Math.max(0, Math.min(seg, remaining));
-      remaining -= w;
-      let r = Math.max(0, Math.min(seg, remaining));
-
-      // each segment represents 1/3 of the width -> unit percent:
-      const unit = 100 / 3; // 33.3333...
+    
+      // clamp HP
+      const clampedHP = Math.max(0, Math.min(hp, maxHP));
+    
+      // deficit = how much HP has been lost from full
+      let deficit = maxHP - clampedHP;
+    
+      // Reduce segments in order: green -> white -> red
+      // Each segment starts at 'seg' and loses HP according to deficit.
+      let g = Math.max(0, seg - deficit);
+      deficit -= (seg - g);
+      if (deficit < 0) deficit = 0;
+    
+      let w = Math.max(0, seg - deficit);
+      deficit -= (seg - w);
+      if (deficit < 0) deficit = 0;
+    
+      let r = Math.max(0, seg - deficit);
+    
+      // Convert each segment value (0..seg) to percent of the total bar width.
+      // Each segment represents 1/3 of the total width.
+      const unit = 100 / 3; // 33.333...
       greenDiv.style.width = (g / seg * unit) + '%';
       whiteDiv.style.width = (w / seg * unit) + '%';
       redDiv.style.width = (r / seg * unit) + '%';
     }
+
 
     function updateHP(){
       setHPbars('playerBar', playerHP, playerMaxHP);

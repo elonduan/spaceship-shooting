@@ -48,7 +48,7 @@
 <body>
   <div id="overlay">
     <div class="panel">
-      <div><strong>Ball Shooter Competition — Smooth Turning - </strong></div>
+      <div><strong>Ball Shooter Competition — Smooth Turning - 1.5</strong></div>
       <ul style="margin:8px 0 0 18px;font-size:13px">
         <li>Arrow keys / Joystick: pitch & yaw</li>
         <li>A / D buttons: roll</li>
@@ -260,7 +260,7 @@
 
     /* Rocks: irregular floating asteroids */
     
-    );
+    ;
         const rock = new THREE.Mesh(geom, mat);
         // place at a random distance and direction
         const dist = 200 + Math.random() * 2400;
@@ -647,8 +647,6 @@
     }
     document.getElementById('autoShootBtn').addEventListener('click', ()=> setAutoShooting(!autoShooting));
 
-   // Cleaned and optimized version — rocks and roll removed
-
     function animate(t){
       requestAnimationFrame(animate);
       if(gameOver) return;
@@ -656,7 +654,7 @@
       const dt = Math.min((now - last)/1000, 0.1);
       last = now;
       stepSpaceship(dt);
-    
+
       // Player G/H adjust camera position within inner sphere
       if (keys['KeyG'] || keys['KeyH']) {
         const camForward = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
@@ -667,14 +665,14 @@
         if (newCamPos.length() > innerSphereRadius) newCamPos.setLength(innerSphereRadius);
         camera.position.copy(newCamPos);
       }
-    
+
       trailTimer += dt;
       while (trailTimer > 0.02) {
         addTrailParticle();
         trailTimer -= 0.02;
       }
       updateTrail(dt);
-    
+
       // bullets
       for(let i=bullets.length-1;i>=0;i--){
         const b = bullets[i];
@@ -686,7 +684,7 @@
           if(enemyHP<=0){ winDiv.style.display='block'; gameOver=true; setAutoShooting(false); }
         }
       }
-    
+
       // missiles
       for (let i = missiles.length - 1; i >= 0; i--) {
         const m = missiles[i];
@@ -711,8 +709,7 @@
           if (enemyHP <= 0) { winDiv.style.display = 'block'; gameOver = true; setAutoShooting(false); }
         }
       }
-    
-      // enemy bullets
+
       for(let i=enemyBullets.length-1;i>=0;i--){
         const b = enemyBullets[i];
         b.mesh.position.add(b.vel.clone().multiplyScalar(dt*60));
@@ -723,9 +720,9 @@
           if(playerHP<=0){ loseDiv.style.display='block'; gameOver=true; setAutoShooting(false); }
         }
       }
-    
+
       updateCamera();
-    
+
       // Arrow Indicator
       if (spaceship) {
         const pos = spaceship.position.clone();
@@ -763,7 +760,6 @@
       }
       renderer.render(scene, camera);
     }
-
     // Main execution
     loadModels().then(() => {
         scene.add(spaceship);

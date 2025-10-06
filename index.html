@@ -30,7 +30,7 @@
     .red   { background:#ff2b2b; width:33.3333%; }
     .white { background:#ffffff; width:33.3333%; }
     .green { background:#2ecc40; width:33.3333%; }
-    #missileUI { font-size:13px; margin-left:6px; color:#fff; min-width:80px; text-align:right; }
+    #missileUI{position:fixed; left:50%; top: calc(50% + 24px); transform:translateX(-50%); font-size:13px; color:#fff; z-index:20; text-align:center; padding:6px 10px; background:rgba(0,0,0,0.35); border-radius:8px; pointer-events:none;}
     #arrowIndicator {
       position: fixed;
       width: 0;
@@ -82,10 +82,11 @@
       </div>
     </div>
 
-    <div id="missileUI"><span id="missileCountUI"></span></div>
+    
   </div>
 
   <div id="crosshair"></div>
+  <div id="missileUI"><span id="missileCountUI"></span></div>
   <div id="canvas-container"></div>
   <div id="arrowIndicator"></div>
   <div id="joystick"><div id="stick"></div></div>

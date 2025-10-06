@@ -48,7 +48,7 @@
 <body>
   <div id="overlay">
     <div class="panel">
-      <div><strong>Ball Shooter Competition — Smooth Turning - 3</strong></div>
+      <div><strong>Ball Shooter Competition — Smooth Turning - 1.5</strong></div>
       <ul style="margin:8px 0 0 18px;font-size:13px">
         <li>Arrow keys / Joystick: pitch & yaw</li>
         <li>A / D buttons: roll</li>
@@ -101,7 +101,7 @@
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/js/loaders/STLLoader.js"></script>
   <script>
-    /*********************** Basic scene & helpers *************************/
+    /*e & helpers *************/
     const container = document.getElementById('canvas-container');
     const scene = new THREE.Scene();
     const renderer = new THREE.WebGLRenderer({antialias:true});
@@ -254,14 +254,13 @@
     createBrightStar(new THREE.Vector3(-300, 120, -1200), 700);
     createBrightStar(new THREE.Vector3(420, -60, -2000), 420);
 
-    /*********************** Lights ****************************************/
+    /******************/
     const light = new THREE.PointLight(0xffffff,1.2,0);
     light.position.set(200,200,200);
     scene.add(light);
     scene.add(new THREE.AmbientLight(0xffffff,0.3));
 
-    /*********************** /*********************** ***********************/
-    const rocks = [];
+    /**** ********/*[];
     function makeRockGeometry(radius = 20, detail = 1) {
       // Start from an icosahedron then perturb vertices for an irregular look
       const geom = new THREE.IcosahedronGeometry(radius, Math.max(0, detail));
@@ -323,7 +322,7 @@
       }
     }
 
-    /*********************** Movement & ship setup *************************/ *************************/
+    /* ship setup *************/ *************/
     function randomUnit(){
       const v = new THREE.Vector3(Math.random()*2-1, Math.random()*2-1, Math.random()*2-1);
       return v.normalize();
@@ -376,7 +375,7 @@
         return Promise.all([spaceshipPromise, missilePromise]);
     };
 
-    /*********************** Trail *****************************************/
+    /******************/
     const trailParticles = [];
     const trailMaterial = new THREE.MeshBasicMaterial({
       color: 0x00aaff,
@@ -409,7 +408,7 @@
       }
     }
 
-    /*********************** HP, bullets & missiles *************************/
+    /*s & missiles *************/
     let playerHP = 20;
     let enemyHP = 20; // <-- changed to 20
     const playerMaxHP = 20;
@@ -499,7 +498,7 @@
     updateHP();
     updateMissileUI();
 
-    /*********************** Controls *************************************/
+    /*******************/
     let accel = parseFloat(document.getElementById('sensitivity').value);
     const sensitivityInput = document.getElementById('sensitivity');
     sensitivityInput.addEventListener('input', (e) => {

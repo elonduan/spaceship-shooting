@@ -22,6 +22,7 @@
     #stick { position:absolute; left:50%; top:50%; width:50px; height:50px; margin-left:-25px; margin-top:-25px; background:rgba(255,255,255,0.3); border-radius:50%;}
     #buttons { position:fixed; bottom:80px; right:80px; display:flex; flex-direction:column; gap:12px; z-index:20;}
     #buttons button { width:70px; height:70px; border-radius:50%; border:none; background:rgba(255,255,255,0.2); color:#fff; font-size:18px;}
+    #buttons button.active { box-shadow:0 0 18px rgba(255,255,255,0.15); background:rgba(255,255,255,0.28); }
     #hud { position:fixed; top:10px; left:0; right:0; display:flex; justify-content:space-between; padding:0 20px; z-index:15; align-items:center; gap:12px; }
     .barContainer { width:180px; height:20px; background:rgba(255,255,255,0.12); border:1px solid #888; border-radius:10px; overflow:hidden; display:flex; align-items:center;}
     .barSegments { display:flex; height:100%; width:100%; }
@@ -47,7 +48,7 @@
 <body>
   <div id="overlay">
     <div class="panel">
-      <div><strong>Ball Shooter Competition — Smooth Turning - 2</strong></div>
+      <div><strong>Ball Shooter Competition — Smooth Turning - 1.5</strong></div>
       <ul style="margin:8px 0 0 18px;font-size:13px">
         <li>Arrow keys / Joystick: pitch & yaw</li>
         <li>A / D buttons: roll</li>
@@ -64,7 +65,7 @@
     </div>
   </div>
 
-  <div id="hud">
+  <div class="hud-row" id="hud">
     <div class="barContainer">
       <div id="playerBar" class="barSegments">
         <div class="hp red"></div>
@@ -92,6 +93,8 @@
     <button id="shootBtn">Shoot</button>
     <button id="rollLeft">A</button>
     <button id="rollRight">D</button>
+    <button id="missileBtn">M</button>
+    <button id="autoShootBtn">Auto</button>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
@@ -352,9 +355,32 @@
     const loseDiv = document.getElementById('lose');
 
     // Missile total ammo (per-game)
-    let missileAmmo = 4;
+    let missileAmmo = 4; // standardize to 4
     const missileCountSpan = document.getElementById('missileCount');
-    function updateMissileUI(){ missileCountSpan.textContent = missileAmmo; }
+
+    // Missile cooldown (ms)
+    const missileCooldownMs = 1500; // 1.5s cooldown between missile launches
+    let lastMissileTime = -Infinity;
+
+    function updateMissileUI(){
+      missileCountSpan.textContent = missileAmmo;
+      const ui = document.getElementById('missileCountUI');
+      const now = performance.now();
+      if (missileAmmo <= 0) {
+        ui.textContent = 'No missiles';
+      } else {
+        const since = now - lastMissileTime;
+        if (since >= missileCooldownMs) {
+          ui.textContent = 'Missile ready';
+        } else {
+          const rem = Math.max(0, (missileCooldownMs - since) / 1000);
+          ui.textContent = 'Cooldown ' + rem.toFixed(1) + 's';
+        }
+      }
+    }
+
+    // Periodically update UI countdown so it looks smooth
+    setInterval(updateMissileUI, 100);
 
     // HP bar updater (green -> white -> red)
     // REPLACE your existing setHPbars(...) with this function:
@@ -450,46 +476,43 @@
       bullets.push({mesh:bullet,vel:dir.multiplyScalar(bulletSpeed)});
       scene.add(bullet);
     }
-    // Missile cooldown (ms)
-    const missileCooldown = 2000; // 2 seconds
-    let lastMissileTime = 0;
-    
-    function launchMissile() {
-      if (!missileGeometry) return;
-      if (missileAmmo <= 0) return;
-    
+
+    // Missile launch with cooldown check
+    function launchMissile(){
+      if(!missileGeometry) return;
       const now = performance.now();
-      if (now - lastMissileTime < missileCooldown) {
-        return; // still cooling down
+      if (missileAmmo <= 0) {
+        // no ammo
+        const ui = document.getElementById('missileCountUI');
+        ui.textContent = 'No missiles';
+        return;
       }
+      if (now - lastMissileTime < missileCooldownMs) {
+        // still cooling down — show brief feedback
+        const rem = ((missileCooldownMs - (now - lastMissileTime))/1000).toFixed(1);
+        const ui = document.getElementById('missileCountUI');
+        ui.textContent = 'Cooldown ' + rem + 's';
+        ui.style.transform = 'scale(1.05)';
+        setTimeout(()=> ui.style.transform = '', 160);
+        return;
+      }
+
+      // Launch!
       lastMissileTime = now;
-    
-      missileAmmo--;
-      updateMissileUI();
-    
-      const missileMat = new THREE.MeshStandardMaterial({ color: 0xff0000 });
+      missileAmmo--; updateMissileUI();
+      const missileMat = new THREE.MeshStandardMaterial({color:0xff0000});
       const missile = new THREE.Mesh(missileGeometry, missileMat);
       missile.scale.set(0.4, 0.4, 0.4);
-    
-      const dir = new THREE.Vector3(0, 0, -1)
-        .applyQuaternion(camera.quaternion)
-        .normalize();
-    
-      missile.position.copy(
-        camera.position.clone().add(dir.clone().multiplyScalar(10))
-      );
-    
+      const dir = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
+      missile.position.copy(camera.position.clone().add(dir.clone().multiplyScalar(10)));
       missiles.push({
         mesh: missile,
         vel: dir.multiplyScalar(missileSpeed),
         target: spaceship,
-        life: 5000, // ms
+        life: 5000 // In milliseconds
       });
-    
       scene.add(missile);
     }
-
-    
     function enemyShoot(){
       if(gameOver || !spaceship) return;
       const bulletGeom = new THREE.SphereGeometry(2,8,8);
@@ -503,6 +526,7 @@
       setTimeout(enemyShoot, delay);
     }
     setTimeout(enemyShoot, 1200);
+
     // Model forward
     const modelForwardLocal = new THREE.Vector3(0, -1, 0);
     function alignShipToVelocity(t=0.35){
@@ -572,6 +596,27 @@
     let last = performance.now();
     let gameOver = false;
     let trailTimer = 0;
+
+    // Autoshoot state
+    let autoShooting = false;
+    let autoIntervalId = null;
+    const autoShootRateMs = 120; // bullets per 120ms
+    function setAutoShooting(on){
+      const btn = document.getElementById('autoShootBtn');
+      if(on){
+        if(autoIntervalId) clearInterval(autoIntervalId);
+        autoIntervalId = setInterval(()=>{ if(!gameOver) shoot(); else setAutoShooting(false); }, autoShootRateMs);
+        autoShooting = true;
+        btn.classList.add('active');
+      } else {
+        if(autoIntervalId) clearInterval(autoIntervalId);
+        autoIntervalId = null;
+        autoShooting = false;
+        btn.classList.remove('active');
+      }
+    }
+    document.getElementById('autoShootBtn').addEventListener('click', ()=> setAutoShooting(!autoShooting));
+
     function animate(t){
       requestAnimationFrame(animate);
       if(gameOver) return;
@@ -594,7 +639,7 @@
         if(spaceship && b.mesh.position.distanceTo(spaceship.position) < 20){
           scene.remove(b.mesh); bullets.splice(i,1);
           enemyHP--; updateHP();
-          if(enemyHP<=0){ winDiv.style.display='block'; gameOver=true; }
+          if(enemyHP<=0){ winDiv.style.display='block'; gameOver=true; setAutoShooting(false); }
         }
       }
       // missiles
@@ -625,7 +670,7 @@
           missiles.splice(i, 1);
           enemyHP -= 3;
           updateHP();
-          if (enemyHP <= 0) { winDiv.style.display = 'block'; gameOver = true; }
+          if (enemyHP <= 0) { winDiv.style.display = 'block'; gameOver = true; setAutoShooting(false); }
         }
       }
 
@@ -636,7 +681,7 @@
         if(b.mesh.position.distanceTo(camera.position) < 10){
           scene.remove(b.mesh); enemyBullets.splice(i,1);
           playerHP--; updateHP();
-          if(playerHP<=0){ loseDiv.style.display='block'; gameOver=true; }
+          if(playerHP<=0){ loseDiv.style.display='block'; gameOver=true; setAutoShooting(false); }
         }
       }
       updateCamera();
@@ -699,9 +744,10 @@
     // Reset
     function reset(){
       playerHP=20; enemyHP=20; updateHP(); // <-- reset enemy to 20
-      missileAmmo = 3; updateMissileUI();
+      missileAmmo = 4; lastMissileTime = -Infinity; updateMissileUI();
       winDiv.style.display='none'; loseDiv.style.display='none';
       gameOver=false;
+      setAutoShooting(false);
       spaceshipPos = randomUnit().multiplyScalar(sphereRadius*0.4);
       spaceshipVel = randomUnit().multiplyScalar(speed);
       desiredVel = spaceshipVel.clone();
@@ -714,6 +760,7 @@
     // Reset button
     document.getElementById('resetBtn').addEventListener('click', reset);
     document.getElementById('shootBtn').addEventListener('click', shoot);
+    document.getElementById('missileBtn').addEventListener('click', launchMissile);
     document.getElementById('rollLeft').addEventListener('mousedown',()=>pressKey('KeyA'));
     document.getElementById('rollLeft').addEventListener('mouseup',()=>releaseKey('KeyA'));
     document.getElementById('rollRight').addEventListener('mousedown',()=>pressKey('KeyD'));

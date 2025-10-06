@@ -510,12 +510,17 @@
       missile.scale.set(0.4, 0.4, 0.4);
       const dir = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
       missile.position.copy(camera.position.clone().add(dir.clone().multiplyScalar(10)));
+      // when creating missile (inside launchMissile)
       missiles.push({
         mesh: missile,
-        vel: dir.multiplyScalar(missileSpeed),
-        target: spaceship,
-        life: 5000 // In milliseconds
+        // use a clone so we don't mutate dir elsewhere
+        vel: dir.clone().multiplyScalar(missileSpeed),
+        // explicit null if no ship is present
+        target: spaceship || null,
+        life: 5000 // milliseconds
       });
+      scene.add(missile);
+
       scene.add(missile);
     }
 
@@ -699,20 +704,34 @@
         }
       }
       // missiles
-      for (let i = missiles.length - 1; i >= 0; i++) {
+      // missiles (defensive, guards against undefined / stale target)
+      for (let i = missiles.length - 1; i >= 0; i--) {
         const m = missiles[i];
       
+        // If the entry is corrupted or missing, remove it and continue
+        if (!m || !m.mesh) {
+          missiles.splice(i, 1);
+          continue;
+        }
+      
+        // If target reference was removed from the scene, clear it safely
+        if (m.target && !scene.getObjectById(m.target.id)) {
+          m.target = null;
+        }
+      
+        // If we still have a valid target and a live spaceship, steer toward it
         if (m.target && spaceship) {
           const targetDir = m.target.position.clone().sub(m.mesh.position).normalize();
           m.vel.lerp(targetDir.multiplyScalar(missileSpeed), 0.1);
         }
       
-        // Update position
+        // Update missile position
         m.mesh.position.add(m.vel.clone().multiplyScalar(dt * 60));
       
-        // === FIXED ORIENTATION ===
-        const forwardAxis = new THREE.Vector3(0, 1, 0); // adjust if your STL forward is different
+        // Orientation (avoid zero-length dir)
+        const forwardAxis = new THREE.Vector3(0, 1, 0);
         const velDir = m.vel.clone().normalize();
+        if (!velDir.lengthSq()) velDir.set(0, 1, 0);
         m.mesh.quaternion.setFromUnitVectors(forwardAxis, velDir);
       
         // Lifetime and collisions
@@ -721,7 +740,9 @@
           missiles.splice(i, 1);
           continue;
         }
+      
         if (spaceship && m.mesh.position.distanceTo(spaceship.position) < 25) {
+          // hit
           scene.remove(m.mesh);
           missiles.splice(i, 1);
           enemyHP -= 3;
@@ -729,6 +750,7 @@
           if (enemyHP <= 0) { destroyCurrentEnemy(); }
         }
       }
+
 
       for(let i=enemyBullets.length-1;i>=0;i--){
         const b = enemyBullets[i];

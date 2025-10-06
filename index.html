@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Ball Shooter — Fixed</title>
+  <title>Ball Shooter — Smooth Turning & Banking2 (with hero stars)</title>
   <style>
     html,body{height:100%;margin:0;background:#000;color:#ddd;font-family:system-ui,-apple-system,Segoe UI,Roboto;overflow:hidden}
     #overlay{position:fixed;left:12px;top:12px;z-index:10;max-width:420px}
@@ -30,7 +30,6 @@
     .red   { background:#ff2b2b; width:33.3333%; }
     .white { background:#ffffff; width:33.3333%; }
     .green { background:#2ecc40; width:33.3333%; }
-    /* missile UI positioned below crosshair */
     #missileUI{position:fixed; left:50%; top: calc(50% + 24px); transform:translateX(-50%); font-size:13px; color:#fff; z-index:20; text-align:center; padding:6px 10px; background:rgba(0,0,0,0.35); border-radius:8px; pointer-events:none;}
     #arrowIndicator {
       position: fixed;
@@ -55,9 +54,8 @@
         <li>A / D buttons: roll</li>
         <li>Shoot button / Space: fire</li>
         <li>M: launch missile (4 per game)</li>
-        <li>G: move enemy closer</li>
-        <li>H: move enemy away</li>
         <li>R: reset</li>
+        <li>G: steer ship toward crosshair (hold)</li>
       </ul>
       <label for="sensitivity">Rotation sensitivity</label>
       <input id="sensitivity" type="range" min="0.005" max="3" step="0.002" value="0.015">
@@ -68,7 +66,7 @@
     </div>
   </div>
 
-  <div id="hud">
+  <div class="hud-row" id="hud">
     <div class="barContainer">
       <div id="playerBar" class="barSegments">
         <div class="hp red"></div>
@@ -85,10 +83,11 @@
       </div>
     </div>
 
-    <div id="missileUI"><span id="missileCountUI"></span></div>
+    
   </div>
 
   <div id="crosshair"></div>
+  <div id="missileUI"><span id="missileCountUI"></span></div>
   <div id="canvas-container"></div>
   <div id="arrowIndicator"></div>
   <div id="joystick"><div id="stick"></div></div>
@@ -103,7 +102,7 @@
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/js/loaders/STLLoader.js"></script>
   <script>
-    /* Basic scene */
+    /*********************** Basic scene & helpers *************************/
     const container = document.getElementById('canvas-container');
     const scene = new THREE.Scene();
     const renderer = new THREE.WebGLRenderer({antialias:true});
@@ -113,6 +112,7 @@
     const camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.1, 5000);
     camera.position.set(0,0,0);
 
+    // Create simple starfield (points)
     function createStars(){
       const starCount = 3000;
       const geom = new THREE.BufferGeometry();
@@ -128,7 +128,7 @@
     }
     scene.add(createStars());
 
-    /* helper textures (kept minimal here) */
+    // ---------- Improved hero star textures & creation ----------
     function makeRadialTextureStar(size = 256) {
       const c = document.createElement('canvas');
       c.width = c.height = size;
@@ -136,7 +136,9 @@
       const cx = size/2, cy = size/2, r = size/2;
       const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
       g.addColorStop(0.0, 'rgba(255,255,255,1)');
+      g.addColorStop(0.06, 'rgba(255,255,255,1)');
       g.addColorStop(0.12, 'rgba(220,235,255,0.95)');
+      g.addColorStop(0.25, 'rgba(160,200,255,0.65)');
       g.addColorStop(0.5, 'rgba(80,120,180,0.18)');
       g.addColorStop(1.0, 'rgba(0,0,0,0)');
       ctx.fillStyle = g;
@@ -146,9 +148,49 @@
       return tex;
     }
 
-    /* simple bright star creation (kept small) */
+    function makeElongatedFlareTexture(length = 1024, height = 32, color = 'rgba(200,230,255,1)') {
+      const c = document.createElement('canvas');
+      c.width = Math.max(256, Math.round(length));
+      c.height = Math.max(8, Math.round(height));
+      const ctx = c.getContext('2d');
+      const w = c.width, h = c.height;
+      const band = ctx.createLinearGradient(0, 0, w, 0);
+      const col = color;
+      band.addColorStop(0, 'rgba(255,255,255,0)');
+      band.addColorStop(0.12, col.replace(/,1\)$/, ',0.95)'));
+      band.addColorStop(0.5, col.replace(/,1\)$/, ',0.98)'));
+      band.addColorStop(0.88, col.replace(/,1\)$/, ',0.95)'));
+      band.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = band;
+      ctx.fillRect(0, (h*0.5) - (h*0.35), w, h*0.7);
+      const featherRadius = Math.min(w * 0.12, 200);
+      const lgL = ctx.createRadialGradient(0, h/2, 0, 0, h/2, featherRadius);
+      lgL.addColorStop(0, col.replace(/,1\)$/, ',0.95)'));
+      lgL.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = lgL;
+      ctx.fillRect(-featherRadius, 0, featherRadius, h);
+      const lgR = ctx.createRadialGradient(w, h/2, 0, w, h/2, featherRadius);
+      lgR.addColorStop(0, col.replace(/,1\)$/, ',0.95)'));
+      lgR.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = lgR;
+      ctx.fillRect(w, 0, featherRadius, h);
+      const tex = new THREE.CanvasTexture(c);
+      tex.needsUpdate = true;
+      return tex;
+    }
+
     const brightStars = [];
     function createBrightStar(position, scale = 400) {
+      const innerCoreTex = makeRadialTextureStar(128);
+      const innerCoreMat = new THREE.SpriteMaterial({
+        map: innerCoreTex, transparent: true,
+        blending: THREE.AdditiveBlending, depthWrite: false
+      });
+      const innerCore = new THREE.Sprite(innerCoreMat);
+      innerCore.position.copy(position);
+      innerCore.scale.set(scale * 0.06, scale * 0.06, 1);
+      scene.add(innerCore);
+
       const coreTex = makeRadialTextureStar(256);
       const coreMat = new THREE.SpriteMaterial({
         map: coreTex, transparent: true,
@@ -158,18 +200,68 @@
       core.position.copy(position);
       core.scale.set(scale * 0.12, scale * 0.12, 1);
       scene.add(core);
-      brightStars.push(core);
+
+      const haloTex = makeRadialTextureStar(512);
+      const haloMat = new THREE.SpriteMaterial({
+        map: haloTex, transparent: true,
+        blending: THREE.AdditiveBlending, depthWrite: false
+      });
+      const halo = new THREE.Sprite(haloMat);
+      halo.position.copy(position);
+      halo.scale.set(scale * 0.9, scale * 0.56, 1);
+      scene.add(halo);
+
+      const flareTex = makeElongatedFlareTexture(Math.round(scale * 2.4), Math.max(4, Math.round(scale * 0.02)), 'rgba(200,230,255,1)');
+      const flareMat = new THREE.SpriteMaterial({ map: flareTex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
+      const flare = new THREE.Sprite(flareMat);
+      flare.position.copy(position);
+      flare.scale.set(scale * 2.2, scale * 0.03, 1);
+      scene.add(flare);
+
+      const flare2Tex = makeElongatedFlareTexture(Math.round(scale * 1.2), Math.max(2, Math.round(scale * 0.01)), 'rgba(255,255,255,1)');
+      const flare2Mat = new THREE.SpriteMaterial({ map: flare2Tex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
+      const flare2 = new THREE.Sprite(flare2Mat);
+      flare2.position.copy(position);
+      flare2.scale.set(scale * 1.2, scale * 0.015, 1);
+      scene.add(flare2);
+
+      const vflareTex = makeElongatedFlareTexture(Math.round(scale * 0.8), Math.max(2, Math.round(scale * 0.01)), 'rgba(200,230,255,0.9)');
+      const vflareMat = new THREE.SpriteMaterial({ map: vflareTex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
+      const vflare = new THREE.Sprite(vflareMat);
+      vflare.position.copy(position);
+      vflare.scale.set(scale * 0.02, scale * 0.9, 1);
+      vflare.material.rotation = Math.PI / 2;
+      scene.add(vflare);
+
+      const starObj = { innerCore, core, halo, flare, flare2, vflare, baseScale: scale };
+      brightStars.push(starObj);
+      return starObj;
     }
+
+    function updateBrightStars(dt) {
+      const t = performance.now() * 0.001;
+      brightStars.forEach((s, i) => {
+        const flick = 1 + Math.sin(t * (0.9 + i*0.37) + i) * 0.025;
+        s.innerCore.scale.set(s.baseScale * 0.06 * (1.02 + Math.sin(t * 3.2 + i)*0.03), s.baseScale * 0.06 * (1.02 + Math.sin(t * 3.2 + i)*0.03), 1);
+        s.core.scale.set(s.baseScale * 0.12 * flick, s.baseScale * 0.12 * flick, 1);
+        s.halo.scale.set(s.baseScale * 0.9 * (1 + (1-flick)*0.08), s.baseScale * 0.56 * (1 + (1-flick)*0.08), 1);
+        s.flare.material.opacity = 0.9 * (0.85 + 0.15 * Math.sin(t * 1.3 + i));
+        s.flare2.material.opacity = 0.95 * (0.9 + 0.1 * Math.cos(t * 1.7 + i));
+        s.vflare.material.opacity = 0.75 * (0.9 + 0.1 * Math.sin(t * 1.1 + i));
+      });
+    }
+
+    // add a couple of hero stars
     createBrightStar(new THREE.Vector3(-300, 120, -1200), 700);
     createBrightStar(new THREE.Vector3(420, -60, -2000), 420);
 
-    /* lights */
+    /*********************** Lights ****************************************/
     const light = new THREE.PointLight(0xffffff,1.2,0);
     light.position.set(200,200,200);
     scene.add(light);
     scene.add(new THREE.AmbientLight(0xffffff,0.3));
 
-    /* Movement & ship setup */
+    /*********************** Movement & ship setup *************************/
     function randomUnit(){
       const v = new THREE.Vector3(Math.random()*2-1, Math.random()*2-1, Math.random()*2-1);
       return v.normalize();
@@ -179,6 +271,7 @@
     let speed = 3.0;
     let spaceshipVel = randomUnit().multiplyScalar(speed);
 
+    // Smooth steering vars
     let desiredVel = spaceshipVel.clone();
     let nextSteerChange = 0;
     const steerMin = 1000;
@@ -187,6 +280,7 @@
     const maxRoll = 1.0;
     let prevVelDir = spaceshipVel.clone().normalize();
 
+    // Ship & Missile
     let spaceship = null;
     let missileGeometry = null;
     const loader = new THREE.STLLoader();
@@ -220,7 +314,7 @@
         return Promise.all([spaceshipPromise, missilePromise]);
     };
 
-    /* Trail */
+    /*********************** Trail *****************************************/
     const trailParticles = [];
     const trailMaterial = new THREE.MeshBasicMaterial({
       color: 0x00aaff,
@@ -243,7 +337,7 @@
     function updateTrail(dt) {
       for (let i = trailParticles.length - 1; i >= 0; i--) {
         const p = trailParticles[i];
-        p.life -= dt * 0.7;
+        p.life -= dt * 0.7; // fade slower
         if (p.life <= 0) {
           scene.remove(p.mesh);
           trailParticles.splice(i, 1);
@@ -253,19 +347,21 @@
       }
     }
 
-    /* HP, bullets & missiles */
+    /*********************** HP, bullets & missiles *************************/
     let playerHP = 20;
-    let enemyHP = 20;
+    let enemyHP = 20; // <-- changed to 20
     const playerMaxHP = 20;
-    const enemyMaxHP = 20;
+    const enemyMaxHP = 20; // <-- changed to 20
 
     const winDiv = document.getElementById('win');
     const loseDiv = document.getElementById('lose');
 
-    let missileAmmo = 4;
+    // Missile total ammo (per-game)
+    let missileAmmo = 4; // standardize to 4
     const missileCountSpan = document.getElementById('missileCount');
 
-    const missileCooldownMs = 1500;
+    // Missile cooldown (ms)
+    const missileCooldownMs = 1500; // 1.5s cooldown between missile launches
     let lastMissileTime = -Infinity;
 
     function updateMissileUI(){
@@ -284,36 +380,55 @@
         }
       }
     }
+
+    // Periodically update UI countdown so it looks smooth
     setInterval(updateMissileUI, 100);
 
+    // HP bar updater (green -> white -> red)
+    // REPLACE your existing setHPbars(...) with this function:
     function setHPbars(containerId, hp, maxHP){
       const seg = maxHP / 3;
       const redDiv   = document.querySelector(`#${containerId} .red`);
       const whiteDiv = document.querySelector(`#${containerId} .white`);
       const greenDiv = document.querySelector(`#${containerId} .green`);
+    
+      // clamp hp to range
       const clamped = Math.max(0, Math.min(hp, maxHP));
+    
+      // start each segment full
       let r = seg, w = seg, g = seg;
+    
+      // how much HP has been lost (deficit)
       let deficit = maxHP - clamped;
+    
+      // remove from green first
       if(deficit > 0){
         const take = Math.min(deficit, g);
         g -= take;
         deficit -= take;
       }
+    
+      // then remove from white
       if(deficit > 0){
         const take = Math.min(deficit, w);
         w -= take;
         deficit -= take;
       }
+    
+      // then remove from red
       if(deficit > 0){
         const take = Math.min(deficit, r);
         r -= take;
         deficit -= take;
       }
-      const unit = 100 / 3;
+    
+      // Each segment represents 1/3 of the full bar; convert to percent
+      const unit = 100 / 3; // ~33.333...% per full segment
       redDiv.style.width   = (r / seg * unit) + '%';
       whiteDiv.style.width = (w / seg * unit) + '%';
       greenDiv.style.width = (g / seg * unit) + '%';
     }
+
 
     function updateHP(){
       setHPbars('playerBar', playerHP, playerMaxHP);
@@ -322,7 +437,7 @@
     updateHP();
     updateMissileUI();
 
-    /* Controls */
+    /*********************** Controls *************************************/
     let accel = parseFloat(document.getElementById('sensitivity').value);
     const sensitivityInput = document.getElementById('sensitivity');
     sensitivityInput.addEventListener('input', (e) => {
@@ -348,7 +463,7 @@
       if(keys['KeyA']) camera.rotateZ(accel);
       if(keys['KeyD']) camera.rotateZ(-accel);
     }
-
+    // Shooting
     const bullets = [];
     const enemyBullets = [];
     const missiles = [];
@@ -364,15 +479,18 @@
       scene.add(bullet);
     }
 
+    // Missile launch with cooldown check
     function launchMissile(){
       if(!missileGeometry) return;
       const now = performance.now();
       if (missileAmmo <= 0) {
+        // no ammo
         const ui = document.getElementById('missileCountUI');
         ui.textContent = 'No missiles';
         return;
       }
       if (now - lastMissileTime < missileCooldownMs) {
+        // still cooling down — show brief feedback
         const rem = ((missileCooldownMs - (now - lastMissileTime))/1000).toFixed(1);
         const ui = document.getElementById('missileCountUI');
         ui.textContent = 'Cooldown ' + rem + 's';
@@ -381,6 +499,7 @@
         return;
       }
 
+      // Launch!
       lastMissileTime = now;
       missileAmmo--; updateMissileUI();
       const missileMat = new THREE.MeshStandardMaterial({color:0xff0000});
@@ -392,11 +511,10 @@
         mesh: missile,
         vel: dir.multiplyScalar(missileSpeed),
         target: spaceship,
-        life: 5000
+        life: 5000 // In milliseconds
       });
       scene.add(missile);
     }
-
     function enemyShoot(){
       if(gameOver || !spaceship) return;
       const bulletGeom = new THREE.SphereGeometry(2,8,8);
@@ -409,7 +527,9 @@
       const delay = 800 + Math.random()*1200;
       setTimeout(enemyShoot, delay);
     }
+    setTimeout(enemyShoot, 1200);
 
+    // Model forward
     const modelForwardLocal = new THREE.Vector3(0, -1, 0);
     function alignShipToVelocity(t=0.35){
       if(!spaceship) return;
@@ -443,19 +563,42 @@
       else spaceship.quaternion.slerp(targetQ, t);
       prevVelDir.lerp(velDir, 0.15).normalize();
     }
-
+    // Steering
     function pickNewDesired(){
       desiredVel = randomUnit().multiplyScalar(speed);
       nextSteerChange = performance.now() + steerMin + Math.random()*(steerMax - steerMin);
     }
     pickNewDesired();
 
+    // --- NEW: G control config ---
+    // When holding G (KeyG) the spaceship will steer toward a point straight ahead of the camera (crosshair).
+    // distanceAhead = how far in front of the camera to aim (world units)
+    const distanceAhead = 800;
+    const steerTowardCrossLerp = 0.08; // how fast to lerp velocity toward the crosshair-target (0..1)
+    // --- end new config ---
+
     function stepSpaceship(dt){
-      if(performance.now() > nextSteerChange){
-        pickNewDesired();
+      // If player holds G, steer toward the point in front of the camera
+      if (keys['KeyG'] && camera) {
+        // world direction from camera through the crosshair (center)
+        const camForward = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
+        const targetPoint = camera.position.clone().add(camForward.multiplyScalar(distanceAhead));
+        // compute desired velocity toward that targetPoint
+        const desiredToPoint = targetPoint.clone().sub(spaceshipPos).normalize().multiplyScalar(speed);
+        // stronger steering when holding G (smoothed)
+        spaceshipVel.lerp(desiredToPoint, Math.min(1, steerTowardCrossLerp * (dt * 60)));
+        // keep desiredVel consistent so other logic doesn't snap away
+        desiredVel.copy(spaceshipVel);
+        // postpone random steering change while player is forcing the ship
+        nextSteerChange = performance.now() + 400; // short delay so ship doesn't pick random immediately
+      } else {
+        if(performance.now() > nextSteerChange){
+          pickNewDesired();
+        }
+        const lerpAmt = Math.min(1, steerLerpFactor * (dt*60));
+        spaceshipVel.lerp(desiredVel, lerpAmt);
       }
-      const lerpAmt = Math.min(1, steerLerpFactor * (dt*60));
-      spaceshipVel.lerp(desiredVel, lerpAmt);
+
       spaceshipVel.setLength(speed);
       spaceshipPos.add(spaceshipVel.clone().multiplyScalar(dt * 60));
       const dist = spaceshipPos.length();
@@ -473,71 +616,17 @@
         alignShipToVelocity(0.25);
       }
     }
-
-    /* Rocks: irregular floating asteroids */
-    const rocks = [];
-    function makeRockGeometry(radius = 20, detail = 1) {
-      const geom = new THREE.IcosahedronGeometry(radius, Math.max(0, detail));
-      const pos = geom.attributes.position;
-      for (let i = 0; i < pos.count; i++) {
-        const vx = pos.getX(i), vy = pos.getY(i), vz = pos.getZ(i);
-        const dir = new THREE.Vector3(vx, vy, vz).normalize();
-        const offset = (Math.random() * 2 - 1) * radius * (0.15 + Math.random() * 0.6);
-        pos.setXYZ(i, vx + dir.x * offset, vy + dir.y * offset, vz + dir.z * offset);
-      }
-      geom.computeVertexNormals();
-      return geom;
-    }
-
-    function spawnRocks(count = 12) {
-      for (let i = 0; i < count; i++) {
-        const r = Math.random();
-        const size = r < 0.12 ? 120 + Math.random() * 220 : (r < 0.4 ? 30 + Math.random() * 90 : 6 + Math.random() * 40);
-        const geom = makeRockGeometry(size, 1);
-        const mat = new THREE.MeshStandardMaterial({ color: 0x7a6b5b, flatShading: true, metalness: 0.05, roughness: 0.9 });
-        const rock = new THREE.Mesh(geom, mat);
-        const dist = 200 + Math.random() * 2400;
-        const dir = randomUnit();
-        rock.position.copy(dir.multiplyScalar(dist));
-        rock.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
-        rock.userData = {
-          rotSpeed: (Math.random() * 0.8 - 0.4),
-          drift: new THREE.Vector3((Math.random() - 0.5) * 0.4, (Math.random() - 0.5) * 0.4, (Math.random() - 0.5) * 0.4),
-          bobAmp: 2 + Math.random() * Math.max(6, size * 0.12),
-          bobSpeed: 0.1 + Math.random() * 1.2,
-          basePos: rock.position.clone()
-        };
-        scene.add(rock);
-        rocks.push(rock);
-      }
-    }
-    spawnRocks(14);
-
-    function updateRocks(dt) {
-      const t = performance.now() * 0.001;
-      for (let i = 0; i < rocks.length; i++) {
-        const r = rocks[i];
-        const ud = r.userData;
-        r.rotation.x += ud.rotSpeed * dt;
-        r.rotation.y += ud.rotSpeed * 0.6 * dt;
-        ud.basePos.add(ud.drift.clone().multiplyScalar(dt * 12));
-        const bob = Math.sin(t * ud.bobSpeed + i) * ud.bobAmp;
-        r.position.set(ud.basePos.x, ud.basePos.y + bob, ud.basePos.z);
-      }
-    }
-
-    /* Arrow indicator element */
+    // Arrow indicator
     const arrow = document.getElementById('arrowIndicator');
-
-    /* Animation loop and other state */
+    // Animation loop
     let last = performance.now();
     let gameOver = false;
     let trailTimer = 0;
 
-    /* Autoshoot state */
+    // Autoshoot state
     let autoShooting = false;
     let autoIntervalId = null;
-    const autoShootRateMs = 120;
+    const autoShootRateMs = 120; // bullets per 120ms
     function setAutoShooting(on){
       const btn = document.getElementById('autoShootBtn');
       if(on){
@@ -554,9 +643,6 @@
     }
     document.getElementById('autoShootBtn').addEventListener('click', ()=> setAutoShooting(!autoShooting));
 
-    /* Approach controls G/H: move the enemy closer/farther along camera forward */
-    const approachSpeed = 220;
-
     function animate(t){
       requestAnimationFrame(animate);
       if(gameOver) return;
@@ -564,28 +650,14 @@
       const dt = Math.min((now - last)/1000, 0.1);
       last = now;
       stepSpaceship(dt);
-
-      // G/H adjust enemy distance relative to camera forward
-      if (keys['KeyG'] || keys['KeyH']) {
-        const camForward = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
-        if (keys['KeyG']) {
-          spaceshipPos.add(camForward.clone().multiplyScalar(-approachSpeed * dt));
-        }
-        if (keys['KeyH']) {
-          spaceshipPos.add(camForward.clone().multiplyScalar(approachSpeed * dt));
-        }
-        if (spaceship) spaceship.position.copy(spaceshipPos);
-      }
-
+      // spawn trail more frequently
       trailTimer += dt;
-      while (trailTimer > 0.02) {
+      while (trailTimer > 0.02) { // every 0.02s (~50 per second)
         addTrailParticle();
         trailTimer -= 0.02;
       }
       updateTrail(dt);
-      updateRocks(dt);
-
-      // bullets logic
+      // bullets
       for(let i=bullets.length-1;i>=0;i--){
         const b = bullets[i];
         b.mesh.position.add(b.vel.clone().multiplyScalar(dt*60));
@@ -596,18 +668,24 @@
           if(enemyHP<=0){ winDiv.style.display='block'; gameOver=true; setAutoShooting(false); }
         }
       }
-
       // missiles
       for (let i = missiles.length - 1; i >= 0; i--) {
         const m = missiles[i];
+      
         if (m.target) {
           const targetDir = m.target.position.clone().sub(m.mesh.position).normalize();
           m.vel.lerp(targetDir.multiplyScalar(missileSpeed), 0.1);
         }
+      
+        // Update position
         m.mesh.position.add(m.vel.clone().multiplyScalar(dt * 60));
-        const forwardAxis = new THREE.Vector3(0, 1, 0);
+      
+        // === FIXED ORIENTATION ===
+        const forwardAxis = new THREE.Vector3(0, 1, 0); // adjust if your STL forward is different
         const velDir = m.vel.clone().normalize();
         m.mesh.quaternion.setFromUnitVectors(forwardAxis, velDir);
+      
+        // Lifetime and collisions
         if (m.mesh.position.length() > sphereRadius * 2 || (m.life -= dt * 1000) <= 0) {
           scene.remove(m.mesh);
           missiles.splice(i, 1);
@@ -632,36 +710,43 @@
           if(playerHP<=0){ loseDiv.style.display='block'; gameOver=true; setAutoShooting(false); }
         }
       }
-
       updateCamera();
-
-      // arrow indicator
+     // Arrow Indicator
       if (spaceship) {
         const pos = spaceship.position.clone();
         const vector = pos.project(camera);
         const halfW = window.innerWidth / 2;
         const halfH = window.innerHeight / 2;
+        // Convert to screen space
         let x = (vector.x * halfW) + halfW;
         let y = (-vector.y * halfH) + halfH;
+        // Check if target is in front or behind
         let dirX = x - halfW;
         let dirY = y - halfH;
         if (vector.z > 1) {
+          // Behind camera → flip direction
           dirX = -dirX;
           dirY = -dirY;
         }
+        // On screen?
         if (vector.z < 1 &&
             x >= 0 && x <= window.innerWidth &&
             y >= 0 && y <= window.innerHeight) {
+          // On screen → hide arrow
           arrow.style.display = "none";
         } else {
+          // Off screen → show arrow
           arrow.style.display = "block";
           const angle = Math.atan2(dirY, dirX);
+          // Push arrow to screen edge
           const edgeBuffer = 40;
           const slope = dirY / dirX;
           if (Math.abs(dirX) > Math.abs(dirY)) {
+            // hits left/right border
             x = dirX > 0 ? window.innerWidth - edgeBuffer : edgeBuffer;
             y = halfH + slope * (x - halfW);
           } else {
+            // hits top/bottom border
             y = dirY > 0 ? window.innerHeight - edgeBuffer : edgeBuffer;
             x = halfW + (y - halfH) / slope;
           }
@@ -670,10 +755,9 @@
           arrow.style.transform = `rotate(${angle}rad)`;
         }
       }
-
       renderer.render(scene, camera);
     }
-
+    // Main execution
     loadModels().then(() => {
         scene.add(spaceship);
         alignShipToVelocity(1.0);
@@ -683,8 +767,9 @@
         console.error('Error loading models:', error);
     });
 
+    // Reset
     function reset(){
-      playerHP=20; enemyHP=20; updateHP();
+      playerHP=20; enemyHP=20; updateHP(); // <-- reset enemy to 20
       missileAmmo = 4; lastMissileTime = -Infinity; updateMissileUI();
       winDiv.style.display='none'; loseDiv.style.display='none';
       gameOver=false;
@@ -698,7 +783,7 @@
       missiles.forEach(m=>scene.remove(m.mesh)); missiles.length=0;
       trailParticles.forEach(p=>scene.remove(p.mesh)); trailParticles.length=0;
     }
-
+    // Reset button
     document.getElementById('resetBtn').addEventListener('click', reset);
     document.getElementById('shootBtn').addEventListener('click', shoot);
     document.getElementById('missileBtn').addEventListener('click', launchMissile);
@@ -706,7 +791,7 @@
     document.getElementById('rollLeft').addEventListener('mouseup',()=>releaseKey('KeyA'));
     document.getElementById('rollRight').addEventListener('mousedown',()=>pressKey('KeyD'));
     document.getElementById('rollRight').addEventListener('mouseup',()=>releaseKey('KeyD'));
-
+    // Resize
     window.addEventListener('resize',()=>{
       camera.aspect = window.innerWidth/window.innerHeight;
       camera.updateProjectionMatrix();

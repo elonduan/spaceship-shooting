@@ -48,7 +48,7 @@
 <body>
   <div id="overlay">
     <div class="panel">
-      <div><strong>Ball Shooter Competition — Smooth Turning - 1.5</strong></div>
+      <div><strong>Ball Shooter Competition — Smooth Turning - </strong></div>
       <ul style="margin:8px 0 0 18px;font-size:13px">
         <li>Arrow keys / Joystick: pitch & yaw</li>
         <li>A / D buttons: roll</li>
@@ -92,8 +92,6 @@
   <div id="joystick"><div id="stick"></div></div>
   <div id="buttons">
     <button id="shootBtn">Shoot</button>
-    <button id="rollLeft">A</button>
-    <button id="rollRight">D</button>
     <button id="missileBtn">M</button>
     <button id="autoShootBtn">Auto</button>
   </div>
@@ -261,29 +259,8 @@
     scene.add(new THREE.AmbientLight(0xffffff,0.3));
 
     /* Rocks: irregular floating asteroids */
-    const rocks = [];
-    function makeRockGeometry(radius = 20, detail = 1) {
-      // Start from an icosahedron then perturb vertices for an irregular look
-      const geom = new THREE.IcosahedronGeometry(radius, Math.max(0, detail));
-      const pos = geom.attributes.position;
-      for (let i = 0; i < pos.count; i++) {
-        const vx = pos.getX(i), vy = pos.getY(i), vz = pos.getZ(i);
-        // push vertex along its normal by a random fraction of radius
-        const dir = new THREE.Vector3(vx, vy, vz).normalize();
-        const offset = (Math.random() * 2 - 1) * radius * (0.15 + Math.random() * 0.6); // irregularity scales with size
-        pos.setXYZ(i, vx + dir.x * offset, vy + dir.y * offset, vz + dir.z * offset);
-      }
-      geom.computeVertexNormals();
-      return geom;
-    }
-
-    function spawnRocks(count = 12) {
-      for (let i = 0; i < count; i++) {
-        // size varies widely: a few large chunks and many small pebbles
-        const r = Math.random();
-        const size = r < 0.12 ? 120 + Math.random() * 220 : (r < 0.4 ? 30 + Math.random() * 90 : 6 + Math.random() * 40);
-        const geom = makeRockGeometry(size, 1);
-        const mat = new THREE.MeshStandardMaterial({ color: 0x7a6b5b, flatShading: true, metalness: 0.05, roughness: 0.9 });
+    
+    );
         const rock = new THREE.Mesh(geom, mat);
         // place at a random distance and direction
         const dist = 200 + Math.random() * 2400;
@@ -305,22 +282,8 @@
     }
 
     // spawn a modest field of rocks
-    spawnRocks(14);
+    
 
-    function updateRocks(dt) {
-      const t = performance.now() * 0.001;
-      for (let i = 0; i < rocks.length; i++) {
-        const r = rocks[i];
-        const ud = r.userData;
-        // rotate
-        r.rotation.x += ud.rotSpeed * dt;
-        r.rotation.y += ud.rotSpeed * 0.6 * dt;
-        // slowly drift the base position so rocks don't feel perfectly static
-        ud.basePos.add(ud.drift.clone().multiplyScalar(dt * 12));
-        // bobbing offset
-        const bob = Math.sin(t * ud.bobSpeed + i) * ud.bobAmp;
-        r.position.set(ud.basePos.x, ud.basePos.y + bob, ud.basePos.z);
-      }
     }
 
     /* Movement & ship setup */
@@ -523,8 +486,7 @@
       if(keys['ArrowUp']) camera.rotateX(accel);
       if(keys['ArrowLeft']) camera.rotateY(accel);
       if(keys['ArrowRight']) camera.rotateY(-accel);
-      if(keys['KeyA']) camera.rotateZ(accel);
-      if(keys['KeyD']) camera.rotateZ(-accel);
+      
     }
     // Shooting
     const bullets = [];
@@ -710,7 +672,6 @@
         trailTimer -= 0.02;
       }
       updateTrail(dt);
-      if (typeof updateRocks === 'function') updateRocks(dt);
 
       // bullets
       for(let i=bullets.length-1;i>=0;i--){
@@ -831,10 +792,7 @@
     document.getElementById('resetBtn').addEventListener('click', reset);
     document.getElementById('shootBtn').addEventListener('click', shoot);
     document.getElementById('missileBtn').addEventListener('click', launchMissile);
-    document.getElementById('rollLeft').addEventListener('mousedown',()=>pressKey('KeyA'));
-    document.getElementById('rollLeft').addEventListener('mouseup',()=>releaseKey('KeyA'));
-    document.getElementById('rollRight').addEventListener('mousedown',()=>pressKey('KeyD'));
-    document.getElementById('rollRight').addEventListener('mouseup',()=>releaseKey('KeyD'));
+    
     // Resize
     window.addEventListener('resize',()=>{
       camera.aspect = window.innerWidth/window.innerHeight;

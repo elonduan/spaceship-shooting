@@ -48,7 +48,7 @@
 <body>
   <div id="overlay">
     <div class="panel">
-      <div><strong>Ball Shooter Competition — Smooth Turning - 1.5</strong></div>
+      <div><strong>Ball Shooter Competition — Smooth Turning - 3</strong></div>
       <ul style="margin:8px 0 0 18px;font-size:13px">
         <li>Arrow keys / Joystick: pitch & yaw</li>
         <li>A / D buttons: roll</li>
@@ -602,6 +602,9 @@
     let autoShooting = false;
     let autoIntervalId = null;
     const autoShootRateMs = 120; // bullets per 120ms
+    // Approach speed: how fast the enemy moves closer/farther when pressing G/H (units per second)
+    const approachSpeed = 220;
+
     function setAutoShooting(on){
       const btn = document.getElementById('autoShootBtn');
       if(on){
@@ -625,6 +628,19 @@
       const dt = Math.min((now - last)/1000, 0.1);
       last = now;
       stepSpaceship(dt);
+      // Player thrust keys G/H move the enemy closer/farther relative to the camera
+      if (keys['KeyG'] || keys['KeyH']) {
+        const camForward = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
+        if (keys['KeyG']) {
+          // move spaceship toward camera (closer)
+          spaceshipPos.add(camForward.clone().multiplyScalar(-approachSpeed * dt));
+        }
+        if (keys['KeyH']) {
+          // move spaceship away from camera (farther)
+          spaceshipPos.add(camForward.clone().multiplyScalar(approachSpeed * dt));
+        }
+        if (spaceship) spaceship.position.copy(spaceshipPos);
+      }
       // spawn trail more frequently
       trailTimer += dt;
       while (trailTimer > 0.02) { // every 0.02s (~50 per second)

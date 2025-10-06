@@ -48,7 +48,7 @@
 <body>
   <div id="overlay">
     <div class="panel">
-      <div><strong>Ball Shooter Competition — Smooth Turning - 3</strong></div>
+      <div><strong>Ball Shooter Competition — Smooth Turning - 1.5</strong></div>
       <ul style="margin:8px 0 0 18px;font-size:13px">
         <li>Arrow keys / Joystick: pitch & yaw</li>
         <li>A / D buttons: roll</li>
@@ -260,7 +260,7 @@
     scene.add(light);
     scene.add(new THREE.AmbientLight(0xffffff,0.3));
 
-    /*********************** Movement & ship setup *************************/
+    /*********************** Rocks (irregular floating asteroids)\n    /*********************** Rocks (irregular floating asteroids) ***********************/\n    const rocks = [];\n    function makeRockGeometry(radius = 20, detail = 1) {\n      // Start from an icosahedron then perturb vertices for an irregular look\n      const geom = new THREE.IcosahedronGeometry(radius, Math.max(0, detail));\n      const pos = geom.attributes.position;\n      for (let i = 0; i < pos.count; i++) {\n        const vx = pos.getX(i), vy = pos.getY(i), vz = pos.getZ(i);\n        // push vertex along its normal by a random fraction of radius\n        const dir = new THREE.Vector3(vx, vy, vz).normalize();\n        const offset = (Math.random() * 2 - 1) * radius * (0.15 + Math.random() * 0.6); // irregularity scales with size\n        pos.setXYZ(i, vx + dir.x * offset, vy + dir.y * offset, vz + dir.z * offset);\n      }\n      geom.computeVertexNormals();\n      return geom;\n    }\n\n    function spawnRocks(count = 12) {\n      for (let i = 0; i < count; i++) {\n        // size varies widely: a few large chunks and many small pebbles\n        const r = Math.random();\n        const size = r < 0.12 ? 120 + Math.random() * 220 : (r < 0.4 ? 30 + Math.random() * 90 : 6 + Math.random() * 40);\n        const geom = makeRockGeometry(size, 1);\n        const mat = new THREE.MeshStandardMaterial({ color: 0x7a6b5b, flatShading: true, metalness: 0.05, roughness: 0.9 });\n        const rock = new THREE.Mesh(geom, mat);\n        // place at a random distance and direction\n        const dist = 200 + Math.random() * 2400;\n        const dir = randomUnit();\n        rock.position.copy(dir.multiplyScalar(dist));\n        rock.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);\n        rock.scale.set(1,1,1);\n        // store simple motion parameters\n        rock.userData = {\n          rotSpeed: (Math.random() * 0.8 - 0.4),\n          drift: new THREE.Vector3((Math.random() - 0.5) * 0.4, (Math.random() - 0.5) * 0.4, (Math.random() - 0.5) * 0.4),\n          bobAmp: 2 + Math.random() * Math.max(6, size * 0.12),\n          bobSpeed: 0.1 + Math.random() * 1.2,\n          basePos: rock.position.clone()\n        };\n        scene.add(rock);\n        rocks.push(rock);\n      }\n    }\n\n    // spawn a modest field of rocks\n    spawnRocks(14);\n\n    /*********************** Movement & ship setup *************************/ *************************/
     function randomUnit(){
       const v = new THREE.Vector3(Math.random()*2-1, Math.random()*2-1, Math.random()*2-1);
       return v.normalize();
@@ -647,7 +647,7 @@
         addTrailParticle();
         trailTimer -= 0.02;
       }
-      updateTrail(dt);
+      updateTrail(dt);\n      // update floating rocks\n      if (typeof updateRocks === 'function') updateRocks(dt);
       // bullets
       for(let i=bullets.length-1;i>=0;i--){
         const b = bullets[i];

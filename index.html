@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Ball Shooter — Smooth Turning & Banking2 (fixed)</title>
+  <title>Ball Shooter — Smooth Turning & Banking2 (fixed pickups)</title>
   <style>
     html,body{height:100%;margin:0;background:#000;color:#ddd;font-family:system-ui,-apple-system,Segoe UI,Roboto;overflow:hidden}
     #overlay{position:fixed;left:12px;top:12px;z-index:10;max-width:420px}
@@ -58,15 +58,14 @@
         <li>M: launch missile (4 per game)</li>
         <li>R: reset</li>
         <li>G: steer ship toward crosshair (hold)</li>
-        <li>world record: 3</li>
       </ul>
       <label for="sensitivity">Rotation sensitivity</label>
-      <input id="sensitivity" type="range" min="0.005" max="0.05" step="0.002" value="0.015">
+      <input id="sensitivity" type="range" min="0.005" max="3" step="0.002" value="0.015">
       <button id="resetBtn">Reset</button>
       <div style="margin-top:8px">Missiles left: <span id="missileCount">4</span></div>
       <div id="defeatedCounter">Defeated ships: <span id="defeatedCount">0</span></div>
-      <div id="win">You destroyed the spaceship — you win! </div>
-      <div id="lose">The spaceship destroyed you! </div>
+      <div id="win">You destroyed the spaceship — you win! 🎉</div>
+      <div id="lose">The spaceship destroyed you! ❌</div>
     </div>
   </div>
 
@@ -132,7 +131,7 @@
     }
     scene.add(createStars());
 
-    // (star creation code omitted in this summary - it's identical to your original, kept below)
+    // ---------- Improved hero star textures & creation ----------
     function makeRadialTextureStar(size = 256) {
       const c = document.createElement('canvas');
       c.width = c.height = size;
@@ -511,17 +510,13 @@
       missile.scale.set(0.4, 0.4, 0.4);
       const dir = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
       missile.position.copy(camera.position.clone().add(dir.clone().multiplyScalar(10)));
-      // when creating missile (inside launchMissile)
+      // <<< explicit safe target and cloned velocity to avoid mutation issues >>>
       missiles.push({
         mesh: missile,
-        // use a clone so we don't mutate dir elsewhere
         vel: dir.clone().multiplyScalar(missileSpeed),
-        // explicit null if no ship is present
         target: spaceship || null,
         life: 5000 // milliseconds
       });
-      scene.add(missile);
-
       scene.add(missile);
     }
 
@@ -637,6 +632,17 @@
         scene.remove(enemyBullets[i].mesh);
         enemyBullets.splice(i, 1);
       }
+
+      // --- NEW: reward player on destroy ---
+      // +2 missiles
+      missileAmmo += 2;
+      // add 1/6 of max HP (rounded), clamp to max
+      const hpGain = Math.round(playerMaxHP / 6);
+      playerHP = Math.min(playerMaxHP, playerHP + hpGain);
+      updateMissileUI();
+      updateHP();
+      // --- end reward ---
+
       defeatedCount++;
       updateDefeatedUI();
       winDiv.style.display = 'block';
@@ -704,44 +710,43 @@
           }
         }
       }
-      // missiles
       // missiles (defensive, guards against undefined / stale target)
       for (let i = missiles.length - 1; i >= 0; i--) {
         const m = missiles[i];
-      
+
         // If the entry is corrupted or missing, remove it and continue
         if (!m || !m.mesh) {
           missiles.splice(i, 1);
           continue;
         }
-      
+
         // If target reference was removed from the scene, clear it safely
         if (m.target && !scene.getObjectById(m.target.id)) {
           m.target = null;
         }
-      
+
         // If we still have a valid target and a live spaceship, steer toward it
         if (m.target && spaceship) {
           const targetDir = m.target.position.clone().sub(m.mesh.position).normalize();
           m.vel.lerp(targetDir.multiplyScalar(missileSpeed), 0.1);
         }
-      
+
         // Update missile position
         m.mesh.position.add(m.vel.clone().multiplyScalar(dt * 60));
-      
+
         // Orientation (avoid zero-length dir)
         const forwardAxis = new THREE.Vector3(0, 1, 0);
         const velDir = m.vel.clone().normalize();
         if (!velDir.lengthSq()) velDir.set(0, 1, 0);
         m.mesh.quaternion.setFromUnitVectors(forwardAxis, velDir);
-      
+
         // Lifetime and collisions
         if (m.mesh.position.length() > sphereRadius * 2 || (m.life -= dt * 1000) <= 0) {
           scene.remove(m.mesh);
           missiles.splice(i, 1);
           continue;
         }
-      
+
         if (spaceship && m.mesh.position.distanceTo(spaceship.position) < 25) {
           // hit
           scene.remove(m.mesh);
@@ -751,7 +756,6 @@
           if (enemyHP <= 0) { destroyCurrentEnemy(); }
         }
       }
-
 
       for(let i=enemyBullets.length-1;i>=0;i--){
         const b = enemyBullets[i];

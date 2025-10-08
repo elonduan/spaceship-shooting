@@ -45,6 +45,9 @@
     }
     /* defeated counter style */
     #defeatedCounter { margin-top:8px; font-weight:700; font-size:13px; color:#fff;}
+    /* small best score area */
+    #bestScoreDisplay { margin-top:8px; font-weight:700; font-size:13px; color:#ffd700; }
+    #playerName { width:120px; margin-left:6px; padding:3px 6px; border-radius:6px; border:1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.03); color:#fff; }
   </style>
 </head>
 <body>
@@ -61,10 +64,17 @@
         <li>WORLD RECORD IS 6</li>
       </ul>
       <label for="sensitivity">Rotation sensitivity</label>
-      <input id="sensitivity" type="range" min="0.005" max="3" step="0.002" value="0.015">
+      <input id="sensitivity" type="range" min="0.005" max="0.05" step="0.002" value="0.015">
       <button id="resetBtn">Reset</button>
       <div style="margin-top:8px">Missiles left: <span id="missileCount">4</span></div>
       <div id="defeatedCounter">Defeated ships: <span id="defeatedCount">0</span></div>
+
+      <!-- Player name + best score display (sheet.best integration) -->
+      <label style="margin-top:8px">Name:
+        <input id="playerName" type="text" maxlength="20" value="Player">
+      </label>
+      <div id="bestScoreDisplay">Best score: —</div>
+
       <div id="win">You destroyed the spaceship — you win! 🎉</div>
       <div id="lose">The spaceship destroyed you! ❌</div>
     </div>
@@ -86,8 +96,6 @@
         <div class="hp green"></div>
       </div>
     </div>
-
-    
   </div>
 
   <div id="crosshair"></div>
@@ -106,6 +114,12 @@
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/js/loaders/STLLoader.js"></script>
   <script>
+    /*********************** CONFIG: set your sheet.best endpoint here ***********************/
+    // Replace the URL below with your sheet.best API endpoint, e.g.
+    // 'https://sheet.best/api/sheets/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'
+    const SHEET_API_URL = 'https://sheet.best/api/sheets/YOUR_SHEET_ID_HERE';
+    /***************************************************************************************/
+
     /*********************** Basic scene & helpers *************************/
     const container = document.getElementById('canvas-container');
     const scene = new THREE.Scene();
@@ -621,7 +635,72 @@
     // Defeated ships counter & helper
     let defeatedCount = 0;
     const defeatedEl = document.getElementById('defeatedCount');
-    function updateDefeatedUI(){ defeatedEl.textContent = defeatedCount; }
+
+    // Best score state (sheet.best + local fallback)
+    const bestScoreDisplay = document.getElementById('bestScoreDisplay');
+    let bestScore = parseInt(localStorage.getItem('bestScore') || '0', 10) || 0;
+
+    async function loadBestFromSheet() {
+      if (!SHEET_API_URL || SHEET_API_URL.includes('YOUR_SHEET_ID_HERE')) {
+        // no endpoint configured — just show local best
+        bestScoreDisplay.textContent = 'Best score: ' + bestScore + ' (local)';
+        return;
+      }
+      try {
+        const res = await fetch(SHEET_API_URL);
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const rows = await res.json();
+        if (Array.isArray(rows) && rows.length) {
+          // Find row with max numeric score
+          const bestRow = rows.reduce((max, r) => {
+            const sc = Number(r.score);
+            return (isFinite(sc) && sc > Number(max.score || -Infinity)) ? r : max;
+          }, rows[0]);
+          const s = parseInt(bestRow.score, 10) || 0;
+          bestScore = Math.max(bestScore, s);
+          const by = bestRow.name ? (' by ' + bestRow.name) : '';
+          bestScoreDisplay.textContent = 'Best score: ' + bestScore + by;
+          localStorage.setItem('bestScore', String(bestScore));
+        } else {
+          bestScoreDisplay.textContent = 'Best score: ' + bestScore + ' (local)';
+        }
+      } catch (err) {
+        console.warn('Failed to load sheet.best scores:', err);
+        bestScoreDisplay.textContent = 'Best score: ' + bestScore + ' (local)';
+      }
+    }
+
+    async function postScoreToSheet(name, score) {
+      if (!SHEET_API_URL || SHEET_API_URL.includes('YOUR_SHEET_ID_HERE')) {
+        // endpoint not configured, skip
+        return;
+      }
+      try {
+        await fetch(SHEET_API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: name || 'Player', score: score, date: new Date().toISOString() })
+        });
+      } catch (err) {
+        console.warn('Failed to post score to sheet.best:', err);
+      }
+    }
+
+    function updateDefeatedUI(){ 
+      defeatedEl.textContent = defeatedCount;
+      // If player achieved a new best locally (or from sheet), update and push to sheet
+      if (defeatedCount > bestScore) {
+        bestScore = defeatedCount;
+        bestScoreDisplay.textContent = 'Best score: ' + bestScore + ' (you)';
+        localStorage.setItem('bestScore', String(bestScore));
+        // post to sheet (non-blocking)
+        const playerName = (document.getElementById('playerName') || {}).value || 'Player';
+        postScoreToSheet(playerName, bestScore);
+      }
+    }
+
+    // Initialize best score from sheet/local
+    loadBestFromSheet();
 
     function destroyCurrentEnemy(){
       if (!spaceship) return;

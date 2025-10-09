@@ -905,7 +905,7 @@
         // spawn a ship every 30 seconds if none exists
         setInterval(()=> {
           if (!spaceship) spawnSpaceship(2);
-        }, 30000);
+        }, 100);
     }).catch(error => {
         console.error('Error loading models:', error);
     });

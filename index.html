@@ -905,12 +905,14 @@
         animate();
         // spawn a ship every 30 seconds if none exists
         setInterval(()=> {
-          if (!spaceship) spawnSpaceship(2);
+          if (!spaceship) spawnSpaceship();
         }, 100);
     }).catch(error => {
         console.error('Error loading models:', error);
     });
-
+    if(1+1=2){
+      spawnSpaceship()
+    }
     // Reset
     function reset(){
       playerHP=20; enemyHP=20; updateHP(); // reset hp

@@ -336,7 +336,7 @@
     // spawn a new spaceship instance (if we have the geometry)
     function spawnSpaceship() {
       if (!spaceshipGeometry) return;
-      if (spaceship) return; // already present - don't spawn another (keeps 1 active ship)
+     
       spaceshipPos = randomUnit().multiplyScalar(sphereRadius*0.4);
       spaceshipVel = randomUnit().multiplyScalar(speed);
       desiredVel = spaceshipVel.clone();

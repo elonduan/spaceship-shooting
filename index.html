@@ -455,8 +455,8 @@
     const playerMaxShield = 2;
     const enemyMaxShield = 12;
 
-    const shieldRegenDelayMs = 3300;
-    const shieldRegenRatePerSec = 2.0;
+    const shieldRegenDelayMs = 3500;
+    const shieldRegenRatePerSec = 1.6;
     let lastPlayerDamageTime = -Infinity;
     let lastEnemyDamageTime = -Infinity;
 
@@ -631,7 +631,7 @@
       bullet.position.copy(spaceship.position);
       enemyBullets.push({mesh:bullet,vel:dir.multiplyScalar(bulletSpeed*0.8)});
       scene.add(bullet);
-      const delay = 800 + Math.random()*1200;
+      const delay = 400 + Math.random()*1200;
       setTimeout(enemyShoot, delay);
     }
 

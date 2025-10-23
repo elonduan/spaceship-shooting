@@ -450,13 +450,13 @@
     const playerMaxHP = 20;
     const enemyMaxHP = 10;
 
-    let playerShield = 12;
+    let playerShield = 2;
     let enemyShield = 12;
-    const playerMaxShield = 12;
+    const playerMaxShield = 2;
     const enemyMaxShield = 12;
 
-    const shieldRegenDelayMs = 1500;
-    const shieldRegenRatePerSec = 4.0;
+    const shieldRegenDelayMs = 3300;
+    const shieldRegenRatePerSec = 2.0;
     let lastPlayerDamageTime = -Infinity;
     let lastEnemyDamageTime = -Infinity;
 
@@ -544,11 +544,11 @@
 
     function updateShieldRegen(dt){
       const now = performance.now();
-      if ((now - lastPlayerDamageTime + 10) > shieldRegenDelayMs && playerShield < playerMaxShield && !gameOver) {
+      if ((now - lastPlayerDamageTime) > shieldRegenDelayMs && playerShield < playerMaxShield && !gameOver) {
         playerShield = Math.min(playerMaxShield, playerShield + shieldRegenRatePerSec * dt);
         updateHP();
       }
-      if ((now - lastEnemyDamageTime+10) > shieldRegenDelayMs && enemyShield < enemyMaxShield && !gameOver) {
+      if ((now - lastEnemyDamageTime) > shieldRegenDelayMs && enemyShield < enemyMaxShield && !gameOver) {
         enemyShield = Math.min(enemyMaxShield, enemyShield + shieldRegenRatePerSec * dt);
         updateHP();
       }

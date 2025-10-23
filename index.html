@@ -24,36 +24,9 @@
     #buttons button { width:70px; height:70px; border-radius:50%; border:none; background:rgba(255,255,255,0.2); color:#fff; font-size:18px;}
     #buttons button.active { box-shadow:0 0 18px rgba(255,255,255,0.15); background:rgba(255,255,255,0.28); }
     #hud { position:fixed; top:10px; left:0; right:0; display:flex; justify-content:space-between; padding:0 20px; z-index:15; align-items:center; gap:12px; }
-    .barContainer {
-    width: 180px;
-    height: 20px;
-    background: rgba(255,255,255,0.12);
-    border: 1px solid #888;
-    border-radius: 10px;
-    overflow: hidden;
-    position: relative;
-    }
-  
-    /* Base bar (red underneath) */
-    .hpBar .red {
-      position: absolute;
-      left: 0;
-      top: 0;
-      width: 100%;
-      height: 100%;
-      background: #ff2b2b;
-    }
-    
-    /* Foreground (white on top, shrinks with HP) */
-    .hpBar .white {
-      position: absolute;
-      left: 0;
-      top: 0;
-      height: 100%;
-      background: #ffffff;
-      transition: width 150ms linear;
-    }
-
+    .barContainer { width:180px; height:20px; background:rgba(255,255,255,0.12); border:1px solid #888; border-radius:10px; overflow:hidden; display:flex; align-items:center;}
+    .barSegments { display:flex; height:100%; width:100%; }
+    .hp { height:100%; transition: width 120ms linear; flex: 0 0 auto; }
     .red   { background:#ff2b2b; width:33.3333%; }
     .white { background:#ffffff; width:33.3333%; }
     .green { background:#2ecc40; width:33.3333%; }
@@ -111,18 +84,20 @@
 
   <div class="hud-row" id="hud">
     <div class="barContainer">
-  <div id="playerBar" class="hpBar">
-    <div class="hp red"></div>
-    <div class="hp white"></div>
-  </div>
-</div>
+      <div id="playerBar" class="barSegments">
+        <div class="hp red"></div>
+        <div class="hp white"></div>
+        <div class="hp green"></div>
+      </div>
+    </div>
 
-<div class="barContainer">
-  <div id="enemyBar" class="hpBar">
-    <div class="hp red"></div>
-    <div class="hp white"></div>
-  </div>
-</div>
+    <div class="barContainer">
+      <div id="enemyBar" class="barSegments">
+        <div class="hp red"></div>
+        <div class="hp white"></div>
+        <div class="hp green"></div>
+      </div>
+    </div>
   </div>
 
   <div id="crosshair"></div>
@@ -483,17 +458,31 @@
     }
     setInterval(updateMissileUI, 100);
 
-    function setHPbars(containerId, hp, maxHP) {
-    const redDiv   = document.querySelector(`#${containerId} .red`);
-    const whiteDiv = document.querySelector(`#${containerId} .white`);
-  
-    const clamped = Math.max(0, Math.min(hp, maxHP));
-    const percent = (clamped / maxHP) * 100;
-  
-    redDiv.style.width = '100%';        // red always full
-    whiteDiv.style.width = percent + '%'; // white overlays and shrinks
+    function setHPbars(containerId, hp, maxHP){
+      const seg = maxHP / 3;
+      const redDiv   = document.querySelector(`#${containerId} .red`);
+      const whiteDiv = document.querySelector(`#${containerId} .white`);
+      const greenDiv = document.querySelector(`#${containerId} .green`);
+      const clamped = Math.max(0, Math.min(hp, maxHP));
+      let r = seg, w = seg, g = seg;
+      let deficit = maxHP - clamped;
+      if(deficit > 0){
+        const take = Math.min(deficit, g);
+        g -= take; deficit -= take;
+      }
+      if(deficit > 0){
+        const take = Math.min(deficit, w);
+        w -= take; deficit -= take;
+      }
+      if(deficit > 0){
+        const take = Math.min(deficit, r);
+        r -= take; deficit -= take;
+      }
+      const unit = 100 / 3;
+      redDiv.style.width   = (r / seg * unit) + '%';
+      whiteDiv.style.width = (w / seg * unit) + '%';
+      greenDiv.style.width = (g / seg * unit) + '%';
     }
-
     function updateHP(){
       setHPbars('playerBar', playerHP, playerMaxHP);
       setHPbars('enemyBar', enemyHP, enemyMaxHP);
@@ -860,3 +849,6 @@
   </script>
 </body>
 </html>
+
+
+

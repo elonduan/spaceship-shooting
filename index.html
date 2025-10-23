@@ -720,7 +720,7 @@
         enemyBullets.splice(i,1);
       }
       missileAmmo += 2;
-      const hpGain = Math.round(playerMaxHP / 6);
+      const hpGain = Math.round(playerMaxHP / 10);
       playerHP = Math.min(playerMaxHP, playerHP + hpGain);
       playerShield = Math.min(playerMaxShield, playerShield + Math.round(playerMaxShield * 0.15));
       updateMissileUI();

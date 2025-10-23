@@ -544,7 +544,7 @@
 
     function updateShieldRegen(dt){
       const now = performance.now();
-      if ((now - lastPlayerDamageTime) > shieldRegenDelayMs && playerShield < playerMaxShield && !gameOver) {
+      if ((now - lastPlayerDamageTime + 2) > shieldRegenDelayMs && playerShield < playerMaxShield && !gameOver) {
         playerShield = Math.min(playerMaxShield, playerShield + shieldRegenRatePerSec * dt);
         updateHP();
       }

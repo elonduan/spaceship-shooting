@@ -43,11 +43,11 @@
       pointer-events: none;
       display: none;
     }
-    /* defeated counter style */
     #defeatedCounter { margin-top:8px; font-weight:700; font-size:13px; color:#fff;}
-    /* small best score area */
-    #bestScoreDisplay { margin-top:8px; font-weight:700; font-size:13px; color:#ffd700; }
     #playerName { width:120px; margin-left:6px; padding:3px 6px; border-radius:6px; border:1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.03); color:#fff; }
+    /* Leaderboard container */
+    #leaderboard { margin-top:8px; font-weight:700; font-size:13px; color:#ffd700; }
+    #leaderboardList { margin-top:4px; padding-left:18px; color:#fff; font-weight:400; font-size:12px; }
   </style>
 </head>
 <body>
@@ -68,11 +68,14 @@
       <div style="margin-top:8px">Missiles left: <span id="missileCount">4</span></div>
       <div id="defeatedCounter">Defeated ships: <span id="defeatedCount">0</span></div>
 
-      <!-- Player name + best score display (sheet.best integration) -->
+      <!-- Player name + leaderboard display -->
       <label style="margin-top:8px">Name:
         <input id="playerName" type="text" maxlength="20" value="Player">
       </label>
-      <div id="bestScoreDisplay">Best score: —</div>
+      <div id="leaderboard">
+        <div>Leaderboard:</div>
+        <ol id="leaderboardList"></ol>
+      </div>
 
       <div id="win">You destroyed the spaceship — you win! 🎉</div>
       <div id="lose">The spaceship destroyed you! ❌</div>
@@ -114,12 +117,64 @@
   <script src="https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/js/loaders/STLLoader.js"></script>
   <script>
     /*********************** CONFIG: set your sheet.best endpoint here ***********************/
-    // Replace the URL below with your sheet.best API endpoint, e.g.
-    // https://api.sheetbest.com/sheets/aa59165b-06c2-4f38-892f-7c29c4c69273
     const SHEET_API_URL = 'https://api.sheetbest.com/sheets/eab9fbde-78f6-4bcb-bb78-a557cbd672fa';
-    /***************************************************************************************/
+    /************************************************************************/
 
-    /*********************** Basic scene & helpers *************************/
+    /*********************** Leaderboard Fetch & Display *************************/
+    async function loadLeaderboard() {
+      try {
+        const res = await fetch(SHEET_API_URL);
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const rows = await res.json();
+
+        // Map & sort
+        const sorted = rows
+          .filter(r => r.name && r.score)
+          .map(r => ({
+            name: String(r.name).trim(),
+            score: parseFloat(r.score)
+          }))
+          .filter(e => !isNaN(e.score))
+          .sort((a,b) => b.score - a.score);
+
+        const top = sorted.slice(0,10);
+        const listEl = document.getElementById('leaderboardList');
+        listEl.innerHTML = '';
+
+        if (top.length === 0) {
+          listEl.innerHTML = '<li>No scores yet</li>';
+        } else {
+          top.forEach((entry, idx) => {
+            const li = document.createElement('li');
+            li.textContent = `${entry.name} — ${entry.score}`;
+            if (idx === 0) li.style.color = '#ffd700';
+            else if (idx === 1) li.style.color = '#c0c0c0';
+            else if (idx === 2) li.style.color = '#cd7f32';
+            // else default color
+            listEl.appendChild(li);
+          });
+        }
+      } catch (err) {
+        console.warn('Failed to load leaderboard:', err);
+      }
+    }
+
+    async function postScoreToSheet(name, score) {
+      try {
+        await fetch(SHEET_API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: name || 'Player', score: score, date: new Date().toISOString() })
+        });
+        // After posting, refresh the leaderboard
+        loadLeaderboard();
+      } catch (err) {
+        console.warn('Failed to post score to sheet.best:', err);
+      }
+    }
+
+    /*********************** (Rest of your game code) *************************/
+
     const container = document.getElementById('canvas-container');
     const scene = new THREE.Scene();
     const renderer = new THREE.WebGLRenderer({antialias:true});
@@ -145,7 +200,6 @@
     }
     scene.add(createStars());
 
-    // ---------- Improved hero star textures & creation ----------
     function makeRadialTextureStar(size = 256) {
       const c = document.createElement('canvas');
       c.width = c.height = size;
@@ -259,26 +313,26 @@
       const t = performance.now() * 0.001;
       brightStars.forEach((s, i) => {
         const flick = 1 + Math.sin(t * (0.9 + i*0.37) + i) * 0.025;
-        s.innerCore.scale.set(s.baseScale * 0.06 * (1.02 + Math.sin(t * 3.2 + i)*0.03), s.baseScale * 0.06 * (1.02 + Math.sin(t * 3.2 + i)*0.03), 1);
-        s.core.scale.set(s.baseScale * 0.12 * flick, s.baseScale * 0.12 * flick, 1);
-        s.halo.scale.set(s.baseScale * 0.9 * (1 + (1-flick)*0.08), s.baseScale * 0.56 * (1 + (1-flick)*0.08), 1);
+        s.innerCore.scale.set(s.baseScale * 0.06 * (1.02 + Math.sin(t * 3.2 + i)*0.03),
+                              s.baseScale * 0.06 * (1.02 + Math.sin(t * 3.2 + i)*0.03),
+                              1);
+        s.core.scale.set(s.baseScale * 0.12 * flick,
+                         s.baseScale * 0.12 * flick,
+                         1);
+        s.halo.scale.set(s.baseScale * 0.9 * (1 + (1-flick)*0.08),
+                         s.baseScale * 0.56 * (1 + (1-flick)*0.08),
+                         1);
         s.flare.material.opacity = 0.9 * (0.85 + 0.15 * Math.sin(t * 1.3 + i));
         s.flare2.material.opacity = 0.95 * (0.9 + 0.1 * Math.cos(t * 1.7 + i));
         s.vflare.material.opacity = 0.75 * (0.9 + 0.1 * Math.sin(t * 1.1 + i));
       });
     }
 
-    // add a couple of hero stars
-    createBrightStar(new THREE.Vector3(-300, 120, -1200), 700);
-    createBrightStar(new THREE.Vector3(420, -60, -2000), 420);
-
-    /*********************** Lights ****************************************/
     const light = new THREE.PointLight(0xffffff,1.2,0);
     light.position.set(200,200,200);
     scene.add(light);
     scene.add(new THREE.AmbientLight(0xffffff,0.3));
 
-    /*********************** Movement & ship setup *************************/
     function randomUnit(){
       const v = new THREE.Vector3(Math.random()*2-1, Math.random()*2-1, Math.random()*2-1);
       return v.normalize();
@@ -287,8 +341,6 @@
     let spaceshipPos = randomUnit().multiplyScalar(sphereRadius*0.4);
     let speed = 3.0;
     let spaceshipVel = randomUnit().multiplyScalar(speed);
-
-    // Smooth steering vars
     let desiredVel = spaceshipVel.clone();
     let nextSteerChange = 0;
     const steerMin = 1000;
@@ -296,46 +348,39 @@
     const steerLerpFactor = 0.015;
     const maxRoll = 1.0;
     let prevVelDir = spaceshipVel.clone().normalize();
-
-    // Ship & Missile geometry holders
-    let spaceship = null;            // current active ship Mesh (or null)
-    let spaceshipGeometry = null;    // loaded geometry to clone from
-    let spaceshipMaterial = null;    // base material to use for clones
+    let spaceship = null;
+    let spaceshipGeometry = null;
+    let spaceshipMaterial = null;
     let missileGeometry = null;
     const loader = new THREE.STLLoader();
 
     const loadModels = () => {
-        const spaceshipPromise = new Promise((resolve, reject) => {
-            loader.load('./res/spaceship.stl', (geometry) => {
-                geometry.computeBoundingBox();
-                const bb = geometry.boundingBox;
-                const center = new THREE.Vector3(); bb.getCenter(center);
-                geometry.translate(-center.x, -center.y, -center.z);
-                // store geometry and material, but DO NOT add a mesh yet — we'll spawn instances
-                spaceshipGeometry = geometry;
-                spaceshipMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff });
-                resolve();
-            }, undefined, reject);
-        });
-
-        const missilePromise = new Promise((resolve, reject) => {
-            loader.load('./res/missile.stl', (geometry) => {
-                geometry.computeBoundingBox();
-                const bb = geometry.boundingBox;
-                const center = new THREE.Vector3(); bb.getCenter(center);
-                geometry.translate(-center.x, -center.y, -center.z);
-                missileGeometry = geometry;
-                resolve();
-            }, undefined, reject);
-        });
-
-        return Promise.all([spaceshipPromise, missilePromise]);
+      const spaceshipPromise = new Promise((resolve, reject) => {
+        loader.load('./res/spaceship.stl', (geometry) => {
+          geometry.computeBoundingBox();
+          const bb = geometry.boundingBox;
+          const center = new THREE.Vector3(); bb.getCenter(center);
+          geometry.translate(-center.x, -center.y, -center.z);
+          spaceshipGeometry = geometry;
+          spaceshipMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff });
+          resolve();
+        }, undefined, reject);
+      });
+      const missilePromise = new Promise((resolve, reject) => {
+        loader.load('./res/missile.stl', (geometry) => {
+          geometry.computeBoundingBox();
+          const bb = geometry.boundingBox;
+          const center = new THREE.Vector3(); bb.getCenter(center);
+          geometry.translate(-center.x, -center.y, -center.z);
+          missileGeometry = geometry;
+          resolve();
+        }, undefined, reject);
+      });
+      return Promise.all([spaceshipPromise, missilePromise]);
     };
 
-    // spawn a new spaceship instance (if we have the geometry)
     function spawnSpaceship() {
       if (!spaceshipGeometry) return;
-     
       spaceshipPos = randomUnit().multiplyScalar(sphereRadius*0.4);
       spaceshipVel = randomUnit().multiplyScalar(speed);
       desiredVel = spaceshipVel.clone();
@@ -346,14 +391,10 @@
       enemyHP = enemyMaxHP;
       updateHP();
       scene.add(spaceship);
-      scene.add(spaceship);
-      // start enemy firing loop shortly after spawn
       setTimeout(enemyShoot, 1200);
-      // hide win message if any
       winDiv.style.display = 'none';
     }
 
-    /*********************** Trail *****************************************/
     const trailParticles = [];
     const trailMaterial = new THREE.MeshBasicMaterial({
       color: 0x00aaff,
@@ -376,7 +417,7 @@
     function updateTrail(dt) {
       for (let i = trailParticles.length - 1; i >= 0; i--) {
         const p = trailParticles[i];
-        p.life -= dt * 0.7; // fade slower
+        p.life -= dt * 0.7;
         if (p.life <= 0) {
           scene.remove(p.mesh);
           trailParticles.splice(i, 1);
@@ -386,21 +427,17 @@
       }
     }
 
-    /*********************** HP, bullets & missiles *************************/
     let playerHP = 20;
-    let enemyHP = 20; // <-- changed to 20
+    let enemyHP = 20;
     const playerMaxHP = 20;
-    const enemyMaxHP = 20; // <-- changed to 20
+    const enemyMaxHP = 20;
 
     const winDiv = document.getElementById('win');
     const loseDiv = document.getElementById('lose');
 
-    // Missile total ammo (per-game)
-    let missileAmmo = 4; // standardize to 4
+    let missileAmmo = 4;
     const missileCountSpan = document.getElementById('missileCount');
-
-    // Missile cooldown (ms)
-    const missileCooldownMs = 1500; // 1.5s cooldown between missile launches
+    const missileCooldownMs = 1500;
     let lastMissileTime = -Infinity;
 
     function updateMissileUI(){
@@ -419,17 +456,13 @@
         }
       }
     }
-
-    // Periodically update UI countdown so it looks smooth
     setInterval(updateMissileUI, 100);
 
-    // HP bar updater (green -> white -> red)
     function setHPbars(containerId, hp, maxHP){
       const seg = maxHP / 3;
       const redDiv   = document.querySelector(`#${containerId} .red`);
       const whiteDiv = document.querySelector(`#${containerId} .white`);
       const greenDiv = document.querySelector(`#${containerId} .green`);
-    
       const clamped = Math.max(0, Math.min(hp, maxHP));
       let r = seg, w = seg, g = seg;
       let deficit = maxHP - clamped;
@@ -450,7 +483,6 @@
       whiteDiv.style.width = (w / seg * unit) + '%';
       greenDiv.style.width = (g / seg * unit) + '%';
     }
-
     function updateHP(){
       setHPbars('playerBar', playerHP, playerMaxHP);
       setHPbars('enemyBar', enemyHP, enemyMaxHP);
@@ -458,7 +490,6 @@
     updateHP();
     updateMissileUI();
 
-    /*********************** Controls *************************************/
     let accel = parseFloat(document.getElementById('sensitivity').value);
     const sensitivityInput = document.getElementById('sensitivity');
     sensitivityInput.addEventListener('input', (e) => {
@@ -484,7 +515,6 @@
       if(keys['KeyA']) camera.rotateZ(accel);
       if(keys['KeyD']) camera.rotateZ(-accel);
     }
-    // Shooting
     const bullets = [];
     const enemyBullets = [];
     const missiles = [];
@@ -499,8 +529,6 @@
       bullets.push({mesh:bullet,vel:dir.multiplyScalar(bulletSpeed)});
       scene.add(bullet);
     }
-
-    // Missile launch with cooldown check
     function launchMissile(){
       if(!missileGeometry) return;
       const now = performance.now();
@@ -517,7 +545,6 @@
         setTimeout(()=> ui.style.transform = '', 160);
         return;
       }
-
       lastMissileTime = now;
       missileAmmo--; updateMissileUI();
       const missileMat = new THREE.MeshStandardMaterial({color:0xff0000});
@@ -525,17 +552,14 @@
       missile.scale.set(0.4, 0.4, 0.4);
       const dir = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
       missile.position.copy(camera.position.clone().add(dir.clone().multiplyScalar(10)));
-      // <<< explicit safe target and cloned velocity to avoid mutation issues >>>
       missiles.push({
         mesh: missile,
         vel: dir.clone().multiplyScalar(missileSpeed),
         target: spaceship || null,
-        life: 5000 // milliseconds
+        life: 5000
       });
       scene.add(missile);
     }
-
-    // Enemy shooting (fires while the ship exists)
     function enemyShoot(){
       if(!spaceship || gameOver) return;
       const bulletGeom = new THREE.SphereGeometry(2,8,8);
@@ -548,8 +572,6 @@
       const delay = 800 + Math.random()*1200;
       setTimeout(enemyShoot, delay);
     }
-
-    // Model forward
     const modelForwardLocal = new THREE.Vector3(0, -1, 0);
     function alignShipToVelocity(t=0.35){
       if(!spaceship) return;
@@ -583,37 +605,22 @@
       else spaceship.quaternion.slerp(targetQ, t);
       prevVelDir.lerp(velDir, 0.15).normalize();
     }
-    // Steering
-    function pickNewDesired(){
-      desiredVel = randomUnit().multiplyScalar(speed);
-      nextSteerChange = performance.now() + steerMin + Math.random()*(steerMax - steerMin);
-    }
-    pickNewDesired();
-
-    // --- NEW: G control config ---
-    const distanceAhead = 800;
-    const steerTowardCrossLerp = 0.08;
-    // --- end new config ---
-
     function stepSpaceship(dt){
-      if (!spaceship) return; // no active ship to step
-
-      // G steering override
+      if (!spaceship) return;
       if (keys['KeyG'] && camera) {
         const camForward = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
-        const targetPoint = camera.position.clone().add(camForward.multiplyScalar(distanceAhead));
+        const targetPoint = camera.position.clone().add(camForward.multiplyScalar(800));
         const desiredToPoint = targetPoint.clone().sub(spaceshipPos).normalize().multiplyScalar(speed);
-        spaceshipVel.lerp(desiredToPoint, Math.min(1, steerTowardCrossLerp * (dt * 60)));
+        spaceshipVel.lerp(desiredToPoint, Math.min(1, 0.08 * (dt * 60)));
         desiredVel.copy(spaceshipVel);
         nextSteerChange = performance.now() + 400;
       } else {
         if(performance.now() > nextSteerChange){
-          pickNewDesired();
+          desiredVel = randomUnit().multiplyScalar(speed);
+          nextSteerChange = performance.now() + steerMin + Math.random()*(steerMax - steerMin);
         }
-        const lerpAmt = Math.min(1, steerLerpFactor * (dt*60));
-        spaceshipVel.lerp(desiredVel, lerpAmt);
+        spaceshipVel.lerp(desiredVel, Math.min(1, steerLerpFactor * (dt*60)));
       }
-
       spaceshipVel.setLength(speed);
       spaceshipPos.add(spaceshipVel.clone().multiplyScalar(dt * 60));
       const dist = spaceshipPos.length();
@@ -632,116 +639,46 @@
       }
     }
 
-    // Defeated ships counter & helper
     let defeatedCount = 0;
     const defeatedEl = document.getElementById('defeatedCount');
 
-    // Best score state (sheet.best + local fallback)
-    const bestScoreDisplay = document.getElementById('bestScoreDisplay');
-    let bestScore = parseInt(localStorage.getItem('bestScore') || '0', 10) || 0;
-
-    async function loadBestFromSheet() {
-      if (!SHEET_API_URL || SHEET_API_URL.includes('YOUR_SHEET_ID_HERE')) {
-        // no endpoint configured — just show local best
-        bestScoreDisplay.textContent = 'Best score: ' + bestScore + ' (local)';
-        return;
-      }
-      try {
-        const res = await fetch(SHEET_API_URL);
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-        const rows = await res.json();
-        if (Array.isArray(rows) && rows.length) {
-          // Find row with max numeric score
-          const bestRow = rows.reduce((max, r) => {
-            const sc = Number(r.score);
-            return (isFinite(sc) && sc > Number(max.score || -Infinity)) ? r : max;
-          }, rows[0]);
-          const s = parseInt(bestRow.score, 10) || 0;
-          bestScore = Math.max(bestScore, s);
-          const by = bestRow.name ? (' by ' + bestRow.name) : '';
-          bestScoreDisplay.textContent = 'Best score: ' + bestScore + by;
-          localStorage.setItem('bestScore', String(bestScore));
-        } else {
-          bestScoreDisplay.textContent = 'Best score: ' + bestScore + ' (local)';
-        }
-      } catch (err) {
-        console.warn('Failed to load sheet.best scores:', err);
-        bestScoreDisplay.textContent = 'Best score: ' + bestScore + ' (local)';
-      }
-    }
-
-    async function postScoreToSheet(name, score) {
-      if (!SHEET_API_URL || SHEET_API_URL.includes('YOUR_SHEET_ID_HERE')) {
-        // endpoint not configured, skip
-        return;
-      }
-      try {
-        await fetch(SHEET_API_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name: name || 'Player', score: score, date: new Date().toISOString() })
-        });
-      } catch (err) {
-        console.warn('Failed to post score to sheet.best:', err);
-      }
-    }
-
-    function updateDefeatedUI(){ 
+    async function updateDefeatedUI(){ 
       defeatedEl.textContent = defeatedCount;
-      // If player achieved a new best locally (or from sheet), update and push to sheet
-      if (defeatedCount > bestScore) {
-        bestScore = defeatedCount;
-        bestScoreDisplay.textContent = 'Best score: ' + bestScore + ' (you)';
-        localStorage.setItem('bestScore', String(bestScore));
-        // post to sheet (non-blocking)
-        const playerName = (document.getElementById('playerName') || {}).value || 'Player';
-        postScoreToSheet(playerName, bestScore);
+      const playerName = (document.getElementById('playerName') || {}).value || 'Player';
+      // Post score only when we surpass current top of leaderboard? But for simplicity: always post at end of play.
+      if(defeatedCount > 0) {
+        // Post new score
+        await postScoreToSheet(playerName, defeatedCount);
       }
     }
-
-    // Initialize best score from sheet/local
-    loadBestFromSheet();
 
     function destroyCurrentEnemy(){
       if (!spaceship) return;
-      // remove mesh and clear variables
       scene.remove(spaceship);
       spaceship = null;
-      // cleanup any enemy bullets still in flight
-      for (let i = enemyBullets.length - 1; i >= 0; i--) {
+      for (let i = enemyBullets.length - 1; i >= 0; i--){
         scene.remove(enemyBullets[i].mesh);
-        enemyBullets.splice(i, 1);
+        enemyBullets.splice(i,1);
       }
-
-      // --- NEW: reward player on destroy ---
-      // +2 missiles
       missileAmmo += 2;
-      // add 1/6 of max HP (rounded), clamp to max
       const hpGain = Math.round(playerMaxHP / 6);
       playerHP = Math.min(playerMaxHP, playerHP + hpGain);
       updateMissileUI();
       updateHP();
-      // --- end reward ---
-
       defeatedCount++;
       updateDefeatedUI();
       winDiv.style.display = 'block';
-      // hide brief popup after 1.8s
       setTimeout(()=> { if(winDiv) winDiv.style.display = 'none'; }, 1800);
     }
 
-    // --- IMPORTANT: declare arrow BEFORE animate so animate can use it ---
     const arrow = document.getElementById('arrowIndicator');
-
-    // Animation loop
     let last = performance.now();
     let gameOver = false;
     let trailTimer = 0;
-
-    // Autoshoot state
     let autoShooting = false;
     let autoIntervalId = null;
-    const autoShootRateMs = 120; // bullets per 120ms
+    const autoShootRateMs = 120;
+
     function setAutoShooting(on){
       const btn = document.getElementById('autoShootBtn');
       if(on){
@@ -765,19 +702,13 @@
       const dt = Math.min((now - last)/1000, 0.1);
       last = now;
 
-      // Update only if spaceship exists
       stepSpaceship(dt);
 
-      // spawn trail more frequently
       trailTimer += dt;
-      while (trailTimer > 0.02) { // every 0.02s (~50 per second)
-        addTrailParticle();
-        trailTimer -= 0.02;
-      }
+      while (trailTimer > 0.02) { addTrailParticle(); trailTimer -= 0.02; }
       updateTrail(dt);
       updateBrightStars(dt);
 
-      // bullets
       for(let i=bullets.length-1;i>=0;i--){
         const b = bullets[i];
         b.mesh.position.add(b.vel.clone().multiplyScalar(dt*60));
@@ -785,50 +716,33 @@
         if(spaceship && b.mesh.position.distanceTo(spaceship.position) < 20){
           scene.remove(b.mesh); bullets.splice(i,1);
           enemyHP--; updateHP();
-          if(enemyHP<=0){
-            destroyCurrentEnemy();
-          }
+          if(enemyHP<=0){ destroyCurrentEnemy(); }
         }
       }
-      // missiles (defensive, guards against undefined / stale target)
       for (let i = missiles.length - 1; i >= 0; i--) {
         const m = missiles[i];
-
-        // If the entry is corrupted or missing, remove it and continue
         if (!m || !m.mesh) {
           missiles.splice(i, 1);
           continue;
         }
-
-        // If target reference was removed from the scene, clear it safely
         if (m.target && !scene.getObjectById(m.target.id)) {
           m.target = null;
         }
-
-        // If we still have a valid target and a live spaceship, steer toward it
         if (m.target && spaceship) {
           const targetDir = m.target.position.clone().sub(m.mesh.position).normalize();
           m.vel.lerp(targetDir.multiplyScalar(missileSpeed), 0.1);
         }
-
-        // Update missile position
         m.mesh.position.add(m.vel.clone().multiplyScalar(dt * 60));
-
-        // Orientation (avoid zero-length dir)
         const forwardAxis = new THREE.Vector3(0, 1, 0);
         const velDir = m.vel.clone().normalize();
         if (!velDir.lengthSq()) velDir.set(0, 1, 0);
         m.mesh.quaternion.setFromUnitVectors(forwardAxis, velDir);
-
-        // Lifetime and collisions
         if (m.mesh.position.length() > sphereRadius * 2 || (m.life -= dt * 1000) <= 0) {
           scene.remove(m.mesh);
           missiles.splice(i, 1);
           continue;
         }
-
         if (spaceship && m.mesh.position.distanceTo(spaceship.position) < 25) {
-          // hit
           scene.remove(m.mesh);
           missiles.splice(i, 1);
           enemyHP -= 3;
@@ -836,7 +750,6 @@
           if (enemyHP <= 0) { destroyCurrentEnemy(); }
         }
       }
-
       for(let i=enemyBullets.length-1;i>=0;i--){
         const b = enemyBullets[i];
         b.mesh.position.add(b.vel.clone().multiplyScalar(dt*60));
@@ -848,42 +761,32 @@
         }
       }
       updateCamera();
-     // Arrow Indicator
       if (spaceship) {
         const pos = spaceship.position.clone();
         const vector = pos.project(camera);
         const halfW = window.innerWidth / 2;
         const halfH = window.innerHeight / 2;
-        // Convert to screen space
         let x = (vector.x * halfW) + halfW;
         let y = (-vector.y * halfH) + halfH;
-        // Check if target is in front or behind
         let dirX = x - halfW;
         let dirY = y - halfH;
         if (vector.z > 1) {
-          // Behind camera → flip direction
           dirX = -dirX;
           dirY = -dirY;
         }
-        // On screen?
         if (vector.z < 1 &&
             x >= 0 && x <= window.innerWidth &&
             y >= 0 && y <= window.innerHeight) {
-          // On screen → hide arrow
           arrow.style.display = "none";
         } else {
-          // Off screen → show arrow
           arrow.style.display = "block";
           const angle = Math.atan2(dirY, dirX);
-          // Push arrow to screen edge
           const edgeBuffer = 40;
           const slope = dirY / dirX;
           if (Math.abs(dirX) > Math.abs(dirY)) {
-            // hits left/right border
             x = dirX > 0 ? window.innerWidth - edgeBuffer : edgeBuffer;
             y = halfH + slope * (x - halfW);
           } else {
-            // hits top/bottom border
             y = dirY > 0 ? window.innerHeight - edgeBuffer : edgeBuffer;
             x = halfW + (y - halfH) / slope;
           }
@@ -897,22 +800,18 @@
       renderer.render(scene, camera);
     }
 
-    // Main execution
     loadModels().then(() => {
-        // spawn first ship immediately
-        spawnSpaceship(2);
-        animate();
-        // spawn a ship every 30 seconds if none exists
-        setInterval(()=> {
-          if (!spaceship) spawnSpaceship();
-        }, 100);
+      spawnSpaceship();
+      animate();
+      setInterval(()=> {
+        if (!spaceship) spawnSpaceship();
+      }, 100);
     }).catch(error => {
-        console.error('Error loading models:', error);
+      console.error('Error loading models:', error);
     });
-    
-    // Reset
+
     function reset(){
-      playerHP=20; enemyHP=20; updateHP(); // reset hp
+      playerHP=20; enemyHP=20; updateHP();
       missileAmmo = 4; lastMissileTime = -Infinity; updateMissileUI();
       winDiv.style.display='none'; loseDiv.style.display='none';
       gameOver=false;
@@ -921,21 +820,17 @@
       spaceshipVel = randomUnit().multiplyScalar(speed);
       desiredVel = spaceshipVel.clone();
       if(spaceship) {
-        // put ship to new pos
         spaceship.position.copy(spaceshipPos);
       } else {
-        // if no ship, spawn one immediately
-        spawnSpaceship(2);
-        spawnSpaceship(2);
+        spawnSpaceship();
+        spawnSpaceship();
       }
       bullets.forEach(b=>scene.remove(b.mesh)); bullets.length=0;
       enemyBullets.forEach(b=>scene.remove(b.mesh)); enemyBullets.length=0;
       missiles.forEach(m=>scene.remove(m.mesh)); missiles.length=0;
       trailParticles.forEach(p=>scene.remove(p.mesh)); trailParticles.length=0;
-      // reset defeated counter
       defeatedCount = 0; updateDefeatedUI();
     }
-    // Reset button
     document.getElementById('resetBtn').addEventListener('click', reset);
     document.getElementById('shootBtn').addEventListener('click', shoot);
     document.getElementById('missileBtn').addEventListener('click', launchMissile);
@@ -943,12 +838,14 @@
     document.getElementById('rollLeft').addEventListener('mouseup',()=>releaseKey('KeyA'));
     document.getElementById('rollRight').addEventListener('mousedown',()=>pressKey('KeyD'));
     document.getElementById('rollRight').addEventListener('mouseup',()=>releaseKey('KeyD'));
-    // Resize
     window.addEventListener('resize',()=>{
       camera.aspect = window.innerWidth/window.innerHeight;
       camera.updateProjectionMatrix();
       renderer.setSize(window.innerWidth, window.innerHeight);
     });
+
+    // Initial load of leaderboard
+    loadLeaderboard();
   </script>
 </body>
 </html>

@@ -869,7 +869,7 @@
         const velDir = m.vel.clone().normalize();
         if (velDir.lengthSq() > 1e-8) {
           try {
-            const modelForward = new THREE.Vector3(0,0,1);
+            const modelForward = new THREE.Vector3(0,1,0);
             m.mesh.quaternion.setFromUnitVectors(modelForward, velDir);
           } catch (err) {
             m.mesh.lookAt(m.mesh.position.clone().add(velDir));

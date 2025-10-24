@@ -424,7 +424,7 @@
           const bb = geometry.boundingBox;
           const center = new THREE.Vector3(); bb.getCenter(center);
           geometry.translate(-center.x, -center.y, -center.z);
-          missileGeometry = geometry;
+          missileGeometry = geometry; // store original - clone when creating meshes
           resolve();
         }, undefined, reject);
       });
@@ -597,13 +597,13 @@
     function pressKey(code){ keys[code] = true; }
     function releaseKey(code){ keys[code] = false; }
 
-    // --- capture keydown to handle pause and block inputs while paused ---
+    // ---- pause system state early so other handlers can reference it
     const pauseScreenEl = document.getElementById('pauseScreen');
     const resumeBtn = document.getElementById('resumeBtn');
     let isPaused = false;
     let pausedAutoShooting = false;
 
-    // capture listener runs before other keydown handlers
+    // capture keydown to handle pause and block inputs while paused
     window.addEventListener('keydown', (e) => {
       // toggle on 'p' (either lower or upper)
       if (e.key && e.key.toLowerCase() === 'p') {
@@ -621,12 +621,14 @@
 
     // original key handlers (they will still be invoked when not paused)
     window.addEventListener('keydown',(e)=>{
+      if(isPaused) return;
       if(e.code === 'Space'){ shoot(); }
       if(e.code === 'KeyM'){ launchMissile(); }
       else if(e.key === 'r' || e.key === 'R'){ reset(); }
       else pressKey(e.code);
     });
     window.addEventListener('keyup',(e)=>{
+      if(isPaused) return;
       if(e.code !== 'Space' && e.code !== 'KeyM') releaseKey(e.code);
     });
 
@@ -638,13 +640,15 @@
       if(keys['KeyA']) camera.rotateZ(accel);
       if(keys['KeyD']) camera.rotateZ(-accel);
     }
+
+    // ---------- projectiles ----------
     const bullets = [];
     const enemyBullets = [];
     const missiles = [];
     const bulletSpeed = 80;
     const missileSpeed = 4;
+
     function shoot(){
-      // block shooting while paused just in case (extra guard)
       if (isPaused) return;
       const bulletGeom = new THREE.SphereGeometry(2,8,8);
       const bulletMat = new THREE.MeshBasicMaterial({color:0xffff00});
@@ -654,6 +658,7 @@
       bullets.push({mesh:bullet,vel:dir.multiplyScalar(bulletSpeed)});
       scene.add(bullet);
     }
+
     function launchMissile(){
       if (isPaused) return;
       if(!missileGeometry) return;
@@ -673,19 +678,30 @@
       }
       lastMissileTime = now;
       missileAmmo--; updateMissileUI();
-      const missileMat = new THREE.MeshStandardMaterial({color:0xff0000});
-      const missile = new THREE.Mesh(missileGeometry, missileMat);
+
+      // clone missile geometry to avoid sharing / hidden-geometry issues
+      const geom = missileGeometry.clone();
+      const missileMat = new THREE.MeshStandardMaterial({
+        color:0xff0000,
+        side: THREE.DoubleSide,
+        metalness: 0.2,
+        roughness: 0.6
+      });
+      const missile = new THREE.Mesh(geom, missileMat);
       missile.scale.set(0.4, 0.4, 0.4);
+      // place in front of camera
       const dir = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
       missile.position.copy(camera.position.clone().add(dir.clone().multiplyScalar(10)));
+      const initialVel = dir.clone().multiplyScalar(missileSpeed);
       missiles.push({
         mesh: missile,
-        vel: dir.clone().multiplyScalar(missileSpeed),
+        vel: initialVel,
         target: spaceship || null,
         life: 5000
       });
       scene.add(missile);
     }
+
     function enemyShoot(){
       if(!spaceship || gameOver) return;
       const bulletGeom = new THREE.SphereGeometry(2,8,8);
@@ -819,6 +835,64 @@
     }
     document.getElementById('autoShootBtn').addEventListener('click', ()=> setAutoShooting(!autoShooting));
 
+    // ----- missile update helper -----
+    function updateMissiles(dt) {
+      for (let i = missiles.length - 1; i >= 0; i--) {
+        const m = missiles[i];
+        if (!m || !m.mesh) {
+          missiles.splice(i, 1);
+          continue;
+        }
+
+        // If recorded target was removed, try to retarget current spaceship
+        if (m.target && !scene.getObjectById(m.target.id)) {
+          m.target = (typeof spaceship !== 'undefined' && spaceship) ? spaceship : null;
+        }
+        if (!m.target && (typeof spaceship !== 'undefined' && spaceship)) {
+          m.target = spaceship;
+        }
+
+        // Homing: steer toward target if present
+        if (m.target && spaceship) {
+          const desiredDir = m.target.position.clone().sub(m.mesh.position).normalize();
+          const desiredVel = desiredDir.clone().multiplyScalar(missileSpeed);
+          // smooth steering
+          m.vel.lerp(desiredVel, 0.08);
+          // keep near desired speed
+          if (m.vel.length() > 0.0001) m.vel.setLength(Math.min(missileSpeed, Math.max(0.8, m.vel.length())));
+        }
+
+        // Move missile
+        m.mesh.position.add(m.vel.clone().multiplyScalar(dt * 60));
+
+        // Orient missile to velocity (assume model forward is +Z; adjust if needed)
+        const velDir = m.vel.clone().normalize();
+        if (velDir.lengthSq() > 1e-8) {
+          try {
+            const modelForward = new THREE.Vector3(0,0,1);
+            m.mesh.quaternion.setFromUnitVectors(modelForward, velDir);
+          } catch (err) {
+            m.mesh.lookAt(m.mesh.position.clone().add(velDir));
+          }
+        }
+
+        // Lifetime & bounds
+        m.life -= dt * 1000;
+        if (m.mesh.position.length() > sphereRadius * 2 || m.life <= 0) {
+          scene.remove(m.mesh);
+          missiles.splice(i, 1);
+          continue;
+        }
+
+        // Collision with spaceship
+        if (spaceship && m.mesh.position.distanceTo(spaceship.position) < 25) {
+          scene.remove(m.mesh);
+          missiles.splice(i, 1);
+          damageEnemy(3);
+        }
+      }
+    }
+
     function animate(t){
       requestAnimationFrame(animate);
 
@@ -827,7 +901,6 @@
         return;
       }
 
-      // don't completely block animation if gameOver so HUD/timers can still update
       const now = t || performance.now();
       const dt = Math.min((now - last)/1000, 0.1);
       last = now;
@@ -856,35 +929,10 @@
           damageEnemy(1);
         }
       }
-      for (let i = missiles.length - 1; i >= 0; i++) {
-        const m = missiles[i];
-        if (!m || !m.mesh) {
-          missiles.splice(i, 1);
-          continue;
-        }
-        if (m.target && !scene.getObjectById(m.target.id)) {
-          m.target = null;
-        }
-        if (m.target && spaceship) {
-          const targetDir = m.target.position.clone().sub(m.mesh.position).normalize();
-          m.vel.lerp(targetDir.multiplyScalar(missileSpeed), 0.1);
-        }
-        m.mesh.position.add(m.vel.clone().multiplyScalar(dt * 60));
-        const forwardAxis = new THREE.Vector3(0, 1, 0);
-        const velDir = m.vel.clone().normalize();
-        if (!velDir.lengthSq()) velDir.set(0, 1, 0);
-        m.mesh.quaternion.setFromUnitVectors(forwardAxis, velDir);
-        if (m.mesh.position.length() > sphereRadius * 2 || (m.life -= dt * 1000) <= 0) {
-          scene.remove(m.mesh);
-          missiles.splice(i, 1);
-          continue;
-        }
-        if (spaceship && m.mesh.position.distanceTo(spaceship.position) < 25) {
-          scene.remove(m.mesh);
-          missiles.splice(i, 1);
-          damageEnemy(3);
-        }
-      }
+
+      // update missiles each frame
+      updateMissiles(dt);
+
       for(let i=enemyBullets.length-1;i>=0;i--){
         const b = enemyBullets[i];
         b.mesh.position.add(b.vel.clone().multiplyScalar(dt*60));

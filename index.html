@@ -174,6 +174,7 @@
   <div id="pauseScreen" role="dialog" aria-hidden="true">
     <div class="errorText">ERROR: 404 Page not fond </div>
     <p>Click here to learn more</p>
+    <button id="resumeBtn">Resume (P)</button>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
@@ -444,7 +445,8 @@
       enemyShield = enemyMaxShield;
       updateHP();
       scene.add(spaceship);
-      setTimeout(enemyShoot, 3000);
+      // schedule enemy shooting using configured delay
+      setTimeout(enemyShoot, Math.max(100, enemyFireDelay + (Math.random()*400 - 200)));
       winDiv.style.display = 'none';
     }
 
@@ -480,28 +482,35 @@
       }
     }
 
-    // --- PLAYER / ENEMY HP & SHIELD ---
+    // --- PLAYER / ENEMY HP & SHIELD & SCALING ---
+    let playerMaxHP = 20;
     let playerHP = 20;
+    let enemyMaxHP = 10;
     let enemyHP = 10;
-    const playerMaxHP = 20;
-    const enemyMaxHP = 10;
 
+    let playerMaxShield = 2;
     let playerShield = 2;
+    let enemyMaxShield = 12;
     let enemyShield = 12;
-    const playerMaxShield = 2;
-    const enemyMaxShield = 12;
 
-    const shieldRegenDelayMs = 3500;
-    const shieldRegenRatePerSec = 1.6;
+    // shield regen
+    let shieldRegenDelayMs = 3500;
+    let shieldRegenRatePerSec = 1.6;
     let lastPlayerDamageTime = -Infinity;
     let lastEnemyDamageTime = -Infinity;
+
+    // damage values that scale
+    let bulletDamage = 1;
+    let missileDamage = 3;
+    let enemyDamage = 1.0;
+    let enemyFireDelay = 3000;
 
     const winDiv = document.getElementById('win');
     const loseDiv = document.getElementById('lose');
 
     let missileAmmo = 4;
     const missileCountSpan = document.getElementById('missileCount');
-    const missileCooldownMs = 1500;
+    let missileCooldownMs = 1500;
     let lastMissileTime = -Infinity;
 
     function updateMissileUI(){
@@ -711,7 +720,9 @@
       bullet.position.copy(spaceship.position);
       enemyBullets.push({mesh:bullet,vel:dir.multiplyScalar(bulletSpeed*0.8)});
       scene.add(bullet);
-      const delay = 400 + Math.random()*1200;
+      // use enemyFireDelay with a little random jitter
+      const jitter = Math.random()*800 - 400;
+      const delay = Math.max(150, enemyFireDelay + jitter);
       setTimeout(enemyShoot, delay);
     }
 
@@ -782,12 +793,14 @@
       }
     }
 
+    // defeated counter + leaderboard posting
     let defeatedCount = 0;
     const defeatedEl = document.getElementById('defeatedCount');
 
     async function updateDefeatedUI(){ 
-      defeatedEl.textContent = defeatedCount;
+      if (defeatedEl) defeatedEl.textContent = defeatedCount;
       const playerName = (document.getElementById('playerName') || {}).value || 'Player';
+      // only post if we have at least 1 defeated ship
       if(defeatedCount > 0) await postScoreToSheet(playerName, defeatedCount);
     }
 
@@ -799,23 +812,46 @@
         scene.remove(enemyBullets[i].mesh);
         enemyBullets.splice(i,1);
       }
+
+      // reward player
       missileAmmo += 2;
-      shieldRegenRatePerSec +=0.1;
-      damageEnemy+=0.1;
-      playerMaxShield += 0.1;
-      playerShield+=2
-      
-      
-      
+
+      // small HP heal and shield top-up
       const hpGain = Math.round(playerMaxHP / 10);
       playerHP = Math.min(playerMaxHP, playerHP + hpGain);
       playerShield = Math.min(playerMaxShield, playerShield + Math.round(playerMaxShield * 0.15));
+
+      // update UI and HUD
       updateMissileUI();
       updateHP();
+
+      // increment defeated and post
       defeatedCount++;
       updateDefeatedUI();
+
+      // show win banner briefly
       winDiv.style.display = 'block';
       setTimeout(()=> { if(winDiv) winDiv.style.display = 'none'; }, 1800);
+
+      // -----------------------------
+      // Player scaling (upgrades)
+      // -----------------------------
+      // Slightly increase player shield capacity, regen, and damage
+      playerMaxShield += 0.25;                          // small permanent boost
+      playerShield = Math.min(playerMaxShield, playerShield + 0.25);
+      shieldRegenRatePerSec += 0.08;                    // faster regen
+      bulletDamage += 0.12;                             // player's bullet damage increases
+      missileDamage += 0.25;                            // missile damage increases
+
+      // -----------------------------
+      // Enemy scaling (difficulty)
+      // -----------------------------
+      enemyMaxHP += 1.5;                                // enemy gets more HP
+      enemyMaxShield += 1.0;                            // enemy gets more shield
+      enemyDamage += 0.12;                              // enemy bullet damage up
+      enemyFireDelay = Math.max(400, enemyFireDelay - 120); // enemy shoots faster (min cap)
+
+      console.log(`[SCALE] defeated=${defeatedCount} playerMaxShield=${playerMaxShield.toFixed(2)} bulletDmg=${bulletDamage.toFixed(2)} enemyHP=${enemyMaxHP.toFixed(1)} enemyDelay=${enemyFireDelay}`);
     }
 
     const arrow = document.getElementById('arrowIndicator');
@@ -895,7 +931,7 @@
         if (spaceship && m.mesh.position.distanceTo(spaceship.position) < 25) {
           scene.remove(m.mesh);
           missiles.splice(i, 1);
-          damageEnemy(3);
+          damageEnemy(missileDamage);
         }
       }
     }
@@ -933,7 +969,7 @@
         if(b.mesh.position.length()>sphereRadius*2){ scene.remove(b.mesh); bullets.splice(i,1); continue; }
         if(spaceship && b.mesh.position.distanceTo(spaceship.position) < 20){
           scene.remove(b.mesh); bullets.splice(i,1);
-          damageEnemy(1);
+          damageEnemy(bulletDamage);
         }
       }
 
@@ -946,7 +982,7 @@
         if(b.mesh.position.length()>sphereRadius*2){ scene.remove(b.mesh); enemyBullets.splice(i,1); continue; }
         if(b.mesh.position.distanceTo(camera.position) < 10){
           scene.remove(b.mesh); enemyBullets.splice(i,1);
-          damagePlayer(1);
+          damagePlayer(enemyDamage);
         }
       }
       updateCamera();
@@ -1062,13 +1098,17 @@
       }
     }
 
-    resumeBtn.addEventListener('click', () => togglePause(false));
+    if (resumeBtn) {
+      resumeBtn.addEventListener('click', () => togglePause(false));
+    }
 
     // allow pressing P to resume as well (we already intercept P in capture listener)
     // ensure overlay is focusable for accessibility
-    pauseScreenEl.addEventListener('keydown', (e) => {
-      if (e.key && e.key.toLowerCase() === 'p') togglePause(false);
-    });
+    if (pauseScreenEl) {
+      pauseScreenEl.addEventListener('keydown', (e) => {
+        if (e.key && e.key.toLowerCase() === 'p') togglePause(false);
+      });
+    }
 
   })(); // end IIFE
   </script>

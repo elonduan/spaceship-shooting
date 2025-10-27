@@ -503,7 +503,7 @@
     let bulletDamage = 1;
     let missileDamage = 3;
     let enemyDamage = 1.0;
-    let enemyFireDelay = 3000;
+    let enemyFireDelay = 2000;
 
     const winDiv = document.getElementById('win');
     const loseDiv = document.getElementById('lose');
@@ -848,7 +848,7 @@
       // -----------------------------
       enemyMaxHP += 1.5;                                // enemy gets more HP
       enemyMaxShield += 1.0;                            // enemy gets more shield
-      enemyDamage += 0.12;                              // enemy bullet damage up
+      enemyDamage += 0.2;                              // enemy bullet damage up
       enemyFireDelay = Math.max(400, enemyFireDelay - 120); // enemy shoots faster (min cap)
 
       console.log(`[SCALE] defeated=${defeatedCount} playerMaxShield=${playerMaxShield.toFixed(2)} bulletDmg=${bulletDamage.toFixed(2)} enemyHP=${enemyMaxHP.toFixed(1)} enemyDelay=${enemyFireDelay}`);

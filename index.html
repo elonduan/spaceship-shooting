@@ -182,6 +182,11 @@
   <script src="https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/js/loaders/STLLoader.js"></script>
 
   <script>
+    function preload() {
+    soundFormats('mp3', 'wav', 'ogg');
+    click = loadSound('https://actions.google.com/sounds/v1/impacts/crash.ogg');
+}
+
   (function(){ // IIFE -> keep all variables scoped, avoids duplicate identifier errors
 
     // If you want to override the sheet url globally, set window.SHEET_API_URL before this script runs.
@@ -971,6 +976,7 @@
         if(spaceship && b.mesh.position.distanceTo(spaceship.position) < 20){
           scene.remove(b.mesh); bullets.splice(i,1);
           damageEnemy(bulletDamage);
+          
         }
       }
 
@@ -984,6 +990,7 @@
         if(b.mesh.position.distanceTo(camera.position) < 10){
           scene.remove(b.mesh); enemyBullets.splice(i,1);
           damagePlayer(enemyDamage);
+          click.play();
         }
       }
       updateCamera();

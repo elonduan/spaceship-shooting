@@ -115,7 +115,7 @@
   <div id="overlay">
     <div class="panel">
       &nbsp;
-      <div><strong>Ball Shooter Competition — Made by Elon - 2</strong></div>
+      <div><strong>Ball Shooter Competition — Made by Elon - 3</strong></div>
       <ul style="margin:8px 0 0 18px;font-size:13px">
         <li>Arrow keys / Joystick: pitch & yaw</li>
         <li>A / D buttons: roll</li>
@@ -187,7 +187,7 @@
     
     function preload() {
     soundFormats('mp3', 'wav', 'ogg');
-    click = loadSound('https://actions.google.com/sounds/v1/impacts/crash.ogg');
+    crash = loadSound('https://actions.google.com/sounds/v1/impacts/crash.ogg');
     }
 
   (function(){ // IIFE -> keep all variables scoped, avoids duplicate identifier errors
@@ -941,6 +941,7 @@
           scene.remove(m.mesh);
           missiles.splice(i, 1);
           damageEnemy(missileDamage);
+          click.play();
         }
       }
     }

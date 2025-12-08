@@ -877,7 +877,7 @@
       const btn = document.getElementById('autoShootBtn');
       if(on){
         if(autoIntervalId) clearInterval(autoIntervalId);
-        autoIntervalId = setInterval(()=>{ if(!gameOver)(); else setAutoShooting(false); }, autoShootRateMs);
+        autoIntervalId = setInterval(()=>{ if(!gameOver) shoot(); else setAutoShooting(false); }, autoShootRateMs);
         autoShooting = true;
         btn.classList.add('active');
       } else {

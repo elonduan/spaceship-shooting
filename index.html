@@ -115,7 +115,7 @@
   <div id="overlay">
     <div class="panel">
       &nbsp;
-      <div><strong>Ball Shooter Competition — Made by Elon - 8</strong></div>
+      <div><strong>Ball Shooter Competition — Made by Elon - 9</strong></div>
       <ul style="margin:8px 0 0 18px;font-size:13px">
         <li>Arrow keys / Joystick: pitch & yaw</li>
         <li>A / D buttons: roll</li>
@@ -185,6 +185,7 @@
   <script>
     const missileExplosion = new Audio("https://actions.google.com/sounds/v1/weapons/big_explosion_cut_off.ogg");
     const bulletShooting = new Audio("https://actions.google.com/sounds/v1/weapons/automatic_gun.ogg");
+    const missileFollowExp = new Audio("https://actions.google.com/sounds/v1/weapons/rifle_shot_echo.ogg");
   </script>
   <script>
     
@@ -674,6 +675,8 @@
       bullet.position.copy(camera.position);
       bullets.push({mesh:bullet,vel:dir.multiplyScalar(bulletSpeed)});
       scene.add(bullet);
+      bulletShooting.currentTime = 0;
+      bulletShooting.play();
     }
 
     function launchMissile(){
@@ -874,13 +877,9 @@
       const btn = document.getElementById('autoShootBtn');
       if(on){
         if(autoIntervalId) clearInterval(autoIntervalId);
-        autoIntervalId = setInterval(()=>{ if(!gameOver) shoot(); else setAutoShooting(false); }, autoShootRateMs);
+        autoIntervalId = setInterval(()=>{ if(!gameOver)(); else setAutoShooting(false); }, autoShootRateMs);
         autoShooting = true;
         btn.classList.add('active');
-        if (autoShooting = true){
-          bulletShooting.currentTime = 0;
-          bulletShooting.play();
-        }
       } else {
         if(autoIntervalId) clearInterval(autoIntervalId);
         autoIntervalId = null;
@@ -945,7 +944,9 @@
           missiles.splice(i, 1);
           damageEnemy(missileDamage);
           missileExplosion.currentTime = 0;
+          missileFollowExp.play();
           missileExplosion.play();
+          missileFollowExp.play();
         }
       }
     }

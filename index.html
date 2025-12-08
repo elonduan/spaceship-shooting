@@ -806,6 +806,8 @@
 
     // defeated counter + leaderboard posting
     let defeatedCount = 0;
+    let isBossLevel = false;
+    let boss = null;
     const defeatedEl = document.getElementById('defeatedCount');
 
     async function updateDefeatedUI(){ 
@@ -840,6 +842,20 @@
       defeatedCount++;
       updateDefeatedUI();
 
+      if (isBossLevel) {
+        // boss destroyed
+        isBossLevel = false;
+        boss = null;
+        defeatedCount++; 
+        spawnNextEnemy(); 
+        return;
+      }
+
+      if (defeatedCount % 4 === 0) {
+        spawnBoss();
+        } else {
+        spawnNextEnemy();
+      }
       // show win banner briefly
       winDiv.style.display = 'block';
       setTimeout(()=> { if(winDiv) winDiv.style.display = 'none'; }, 1800);
@@ -858,8 +874,8 @@
       // Enemy scaling (difficulty)
       // -----------------------------
       if(defeatedCount==5){
-        enemyMaxHP += 50;                                // enemy gets more HP
-        enemyMaxShield += 30;   
+        enemyMaxHP = 50;                                // enemy gets more HP
+        enemyMaxShield = 30;   
       }
       
       enemyMaxHP += 1.5 + Math.random()*2;                                // enemy gets more HP

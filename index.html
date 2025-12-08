@@ -857,8 +857,8 @@
       // -----------------------------
       // Enemy scaling (difficulty)
       // -----------------------------
-      enemyMaxHP += 1.5 + Math.random()*0.1;                                // enemy gets more HP
-      enemyMaxShield += Math.random()*4;                            // enemy gets more shield
+      enemyMaxHP += 1.5 + Math.random()*2;                                // enemy gets more HP
+      enemyMaxShield += Math.random()*4+0.5;                            // enemy gets more shield
       enemyDamage += 0.1;                              // enemy bullet damage up
       enemyFireDelay = Math.max(500, enemyFireDelay - 100); // enemy shoots faster (min cap)
 

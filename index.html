@@ -115,7 +115,7 @@
   <div id="overlay">
     <div class="panel">
       &nbsp;
-      <div><strong>Ball Shooter Competition — Made by Elon - 5</strong></div>
+      <div><strong>Ball Shooter Competition — Made by Elon - 6</strong></div>
       <ul style="margin:8px 0 0 18px;font-size:13px">
         <li>Arrow keys / Joystick: pitch & yaw</li>
         <li>A / D buttons: roll</li>
@@ -183,7 +183,8 @@
   <script src="https://cdn.jsdelivr.net/npm/p5@1.5.0/lib/p5.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/js/loaders/STLLoader.js"></script>
   <script>
-  const crash = new Audio("https://actions.google.com/sounds/v1/impacts/crash.ogg");
+    const missileExplosion = new Audio("https://actions.google.com/sounds/v1/weapons/big_explosion_cut_off.ogg");
+    const bulletShooting = new Audio("https://actions.google.com/sounds/v1/weapons/automatic_gun.ogg");
   </script>
   <script>
     
@@ -876,6 +877,7 @@
         autoIntervalId = setInterval(()=>{ if(!gameOver) shoot(); else setAutoShooting(false); }, autoShootRateMs);
         autoShooting = true;
         btn.classList.add('active');
+        bulletShooting.play()
       } else {
         if(autoIntervalId) clearInterval(autoIntervalId);
         autoIntervalId = null;
@@ -939,8 +941,8 @@
           scene.remove(m.mesh);
           missiles.splice(i, 1);
           damageEnemy(missileDamage);
-          crash.currentTime = 0;
-          crash.play();
+          missileExplosion.currentTime = 0;
+          missileExplosion.play();
         }
       }
     }

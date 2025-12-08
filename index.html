@@ -857,6 +857,11 @@
       // -----------------------------
       // Enemy scaling (difficulty)
       // -----------------------------
+      if(defeatedCount==5){
+      enemyMaxHP += 50;                                // enemy gets more HP
+      enemyMaxShield += 30;   
+      }
+      
       enemyMaxHP += 1.5 + Math.random()*2;                                // enemy gets more HP
       enemyMaxShield += Math.random()*4+0.5;                            // enemy gets more shield
       enemyDamage += 0.1;                              // enemy bullet damage up

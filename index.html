@@ -512,7 +512,7 @@
 
     // damage values that scale
     let bulletDamage = 1;
-    let missileDamage = 3;
+    let missileDamage = 5;
     let enemyDamage = 1.0;
     let enemyFireDelay = 1300;
 
@@ -939,7 +939,7 @@
         }
 
         // Collision with spaceship
-        if (spaceship && m.mesh.position.distanceTo(spaceship.position) < 25) {
+        if (spaceship && m.mesh.position.distanceTo(spaceship.position) < 55) {
           scene.remove(m.mesh);
           missiles.splice(i, 1);
           damageEnemy(missileDamage);
@@ -982,7 +982,7 @@
         const b = bullets[i];
         b.mesh.position.add(b.vel.clone().multiplyScalar(dt*60));
         if(b.mesh.position.length()>sphereRadius*2){ scene.remove(b.mesh); bullets.splice(i,1); continue; }
-        if(spaceship && b.mesh.position.distanceTo(spaceship.position) < 20){
+        if(spaceship && b.mesh.position.distanceTo(spaceship.position) < 50){
           scene.remove(b.mesh); bullets.splice(i,1);
           damageEnemy(bulletDamage);
           

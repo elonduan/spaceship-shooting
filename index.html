@@ -184,7 +184,6 @@
   <script src="https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/js/loaders/STLLoader.js"></script>
   <script>
     const missileExplosion = new Audio("https://actions.google.com/sounds/v1/weapons/big_explosion_cut_off.ogg");
-    const bulletShooting = new Audio("https://actions.google.com/sounds/v1/weapons/automatic_gun.ogg");
     const missileFollowExp = new Audio("https://actions.google.com/sounds/v1/weapons/rifle_shot_echo.ogg");
   </script>
   <script>
@@ -667,7 +666,6 @@
     const missileSpeed = 4.5;
 
     function shoot(){
-      bulletShooting.play();
       if (isPaused) return;
       const bulletGeom = new THREE.SphereGeometry(2,8,8);
       const bulletMat = new THREE.MeshBasicMaterial({color:0xffff00});

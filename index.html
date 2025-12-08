@@ -982,7 +982,7 @@
         const b = bullets[i];
         b.mesh.position.add(b.vel.clone().multiplyScalar(dt*60));
         if(b.mesh.position.length()>sphereRadius*2){ scene.remove(b.mesh); bullets.splice(i,1); continue; }
-        if(spaceship && b.mesh.position.distanceTo(spaceship.position) < 50){
+        if(spaceship && b.mesh.position.distanceTo(spaceship.position) < 35){
           scene.remove(b.mesh); bullets.splice(i,1);
           damageEnemy(bulletDamage);
           

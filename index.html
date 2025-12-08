@@ -595,7 +595,19 @@
       }
       enemyHP = Math.max(0, enemyHP);
       updateHP();
-      if (enemyHP <= 0) destroyCurrentEnemy();
+      if (enemyHP <= 0){
+        if (isBossLevel) {
+          boss.hp--;
+      
+          if (boss.hp <= 0) {
+              scene.remove(boss);
+              destroyCurrentEnemy(); // boss fully defeated
+          }
+      
+        } else {
+          destroyCurrentEnemy(); // normal enemy
+        }
+      };
     }
 
     function updateShieldRegen(dt){
@@ -972,6 +984,20 @@
       }
     }
 
+
+    function spawnBoss() {
+      isBossLevel = true;
+  
+      // Example BIG ENEMY
+      const geometry = new THREE.SphereGeometry(2.5, 32, 32);
+      const material = new THREE.MeshStandardMaterial({ color: 0xff2222 });
+      boss = new THREE.Mesh(geometry, material);
+      boss.position.set(0, 0, -40);
+      scene.add(boss);
+  
+      boss.hp = 10;  // boss health
+    }
+    
     function animate(t){
       requestAnimationFrame(animate);
 
@@ -994,6 +1020,12 @@
       stepSpaceship(dt);
       updateShieldRegen(dt);
 
+
+      if (isBossLevel && boss) {
+        boss.position.z += 0.08;   // slow forward movement
+        boss.position.x = Math.sin(Date.now() * 0.002) * 8;  // left-right pattern
+      }
+      
       trailTimer += dt;
       while (trailTimer > 0.02) { addTrailParticle(); trailTimer -= 0.02; }
       updateTrail(dt);

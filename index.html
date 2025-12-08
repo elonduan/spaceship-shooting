@@ -115,7 +115,7 @@
   <div id="overlay">
     <div class="panel">
       &nbsp;
-      <div><strong>Ball Shooter Competition — Made by Elon - 4</strong></div>
+      <div><strong>Ball Shooter Competition — Made by Elon - 5</strong></div>
       <ul style="margin:8px 0 0 18px;font-size:13px">
         <li>Arrow keys / Joystick: pitch & yaw</li>
         <li>A / D buttons: roll</li>
@@ -182,13 +182,11 @@
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/p5@1.5.0/lib/p5.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/js/loaders/STLLoader.js"></script>
-
+  <script>
+  const crash = new Audio("https://actions.google.com/sounds/v1/impacts/crash.ogg");
+  </script>
   <script>
     
-    function preload() {
-    soundFormats('mp3', 'wav', 'ogg');
-    crash = loadSound('https://actions.google.com/sounds/v1/impacts/crash.ogg');
-    }
 
   (function(){ // IIFE -> keep all variables scoped, avoids duplicate identifier errors
 
@@ -941,6 +939,7 @@
           scene.remove(m.mesh);
           missiles.splice(i, 1);
           damageEnemy(missileDamage);
+          crash.currentTime = 0;
           crash.play();
         }
       }

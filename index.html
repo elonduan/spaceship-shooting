@@ -848,19 +848,19 @@
       // Player scaling (upgrades)
       // -----------------------------
       // Slightly increase player shield capacity, regen, and damage
-      playerMaxShield += 0.6;                          // small permanent boost
+      playerMaxShield += Math.random();                          // small permanent boost
       playerShield = Math.min(playerMaxShield, playerShield + 0.6);
-      shieldRegenRatePerSec += 0.08;                    // faster regen
-      bulletDamage += 0.12;                             // player's bullet damage increases
-      missileDamage += 0.25;                            // missile damage increases
+      shieldRegenRatePerSec += Math.random()*0.1;                    // faster regen
+      bulletDamage += Math.random();                             // player's bullet damage increases
+      missileDamage += Math.random()*0.5;                            // missile damage increases
 
       // -----------------------------
       // Enemy scaling (difficulty)
       // -----------------------------
-      enemyMaxHP += 1.5;                                // enemy gets more HP
-      enemyMaxShield += 1.0;                            // enemy gets more shield
-      enemyDamage += 0.2;                              // enemy bullet damage up
-      enemyFireDelay = Math.max(400, enemyFireDelay - 120); // enemy shoots faster (min cap)
+      enemyMaxHP += 1.5 + Math.random()*0.1;                                // enemy gets more HP
+      enemyMaxShield += Math.random()*4;                            // enemy gets more shield
+      enemyDamage += 0.1;                              // enemy bullet damage up
+      enemyFireDelay = Math.max(500, enemyFireDelay - 100); // enemy shoots faster (min cap)
 
       console.log(`[SCALE] defeated=${defeatedCount} playerMaxShield=${playerMaxShield.toFixed(2)} bulletDmg=${bulletDamage.toFixed(2)} enemyHP=${enemyMaxHP.toFixed(1)} enemyDelay=${enemyFireDelay}`);
     }

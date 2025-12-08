@@ -115,7 +115,7 @@
   <div id="overlay">
     <div class="panel">
       &nbsp;
-      <div><strong>Ball Shooter Competition — Made by Elon - 7</strong></div>
+      <div><strong>Ball Shooter Competition — Made by Elon - 8</strong></div>
       <ul style="margin:8px 0 0 18px;font-size:13px">
         <li>Arrow keys / Joystick: pitch & yaw</li>
         <li>A / D buttons: roll</li>
@@ -877,7 +877,7 @@
         autoIntervalId = setInterval(()=>{ if(!gameOver) shoot(); else setAutoShooting(false); }, autoShootRateMs);
         autoShooting = true;
         btn.classList.add('active');
-        while (autoShooting = true){
+        if (autoShooting = true){
           bulletShooting.currentTime = 0;
           bulletShooting.play();
         }

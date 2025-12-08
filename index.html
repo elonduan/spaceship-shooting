@@ -188,6 +188,7 @@
   <script>
     const missileExplosion = new Audio("https://actions.google.com/sounds/v1/weapons/big_explosion_cut_off.ogg");
     const missileFollowExp = new Audio("https://actions.google.com/sounds/v1/weapons/rifle_shot_echo.ogg");
+    const destruction = new Audio("https://pixabay.com/sound-effects/explosion-fx-343683/")
   </script>
   <script>
     
@@ -1008,6 +1009,7 @@
         if(b.mesh.position.distanceTo(camera.position) < 10){
           scene.remove(b.mesh); enemyBullets.splice(i,1);
           damagePlayer(enemyDamage);
+          sssss
         }
       }
       updateCamera();

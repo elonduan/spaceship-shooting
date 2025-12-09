@@ -632,6 +632,8 @@
       bullet.position.copy(camera.position);
       bullets.push({mesh:bullet,vel:dir.multiplyScalar(bulletSpeed)});
       scene.add(bullet);
+      missileExplosion.currentTime = 0;
+      missileFollowExp.play();
     }
 
     function launchMissile(){
@@ -896,9 +898,8 @@
           missiles.splice(i, 1);
           damageEnemy(missileDamage);
           missileExplosion.currentTime = 0;
-          missileFollowExp.currentTime = 0;
           missileExplosion.play();
-          missileFollowExp.play();
+
         }
       }
     }

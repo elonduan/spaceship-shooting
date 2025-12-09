@@ -467,7 +467,7 @@
     let bulletDamage = 1;
     let missileDamage = 5;
     let enemyDamage = 1.0;
-    let enemyFireDelay = 1300;
+    let enemyFireDelay = 650;
 
     const winDiv = document.getElementById('win');
     const loseDiv = document.getElementById('lose');
@@ -944,7 +944,7 @@
         const b = bullets[i];
         b.mesh.position.add(b.vel.clone().multiplyScalar(dt*60));
         if(b.mesh.position.length()>sphereRadius*2){ scene.remove(b.mesh); bullets.splice(i,1); continue; }
-        if(spaceship && b.mesh.position.distanceTo(spaceship.position) < 27){
+        if(spaceship && b.mesh.position.distanceTo(spaceship.position) < 30){
           scene.remove(b.mesh); bullets.splice(i,1);
           damageEnemy(bulletDamage);
           
@@ -958,7 +958,7 @@
         const b = enemyBullets[i];
         b.mesh.position.add(b.vel.clone().multiplyScalar(dt*60));
         if(b.mesh.position.length()>sphereRadius*2){ scene.remove(b.mesh); enemyBullets.splice(i,1); continue; }
-        if(b.mesh.position.distanceTo(camera.position) < 10){
+        if(b.mesh.position.distanceTo(camera.position) < 5){
           scene.remove(b.mesh); enemyBullets.splice(i,1);
           damagePlayer(enemyDamage);
         }

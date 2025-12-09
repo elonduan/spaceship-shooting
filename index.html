@@ -893,11 +893,14 @@
       if (!enemy) return;
     
       scene.remove(enemy.mesh);
-    
+      let x = Math.random()
+      let choice
+      if(x<=0.5){choice = 1}else{choice=1}
+      
       const idx = enemies.indexOf(enemy);
       if (idx !== -1) enemies.splice(idx, 1);
       // keep selected index valid
-      if (selectedEnemyIndex >= enemies.length) selectedEnemyIndex = 0;
+      if (selectedEnemyIndex >= enemies.length) selectedEnemyIndex = choice;
 
     
       // kill all enemy bullets (same behaviour as before)

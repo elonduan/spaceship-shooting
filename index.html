@@ -113,7 +113,7 @@
   <div id="overlay">
     <div class="panel">
       &nbsp;
-      <div><strong>Ball Shooter Competition — Made by Elon - 7</strong></div>
+      <div><strong>Ball Shooter Competition — Made by Elon - 8</strong></div>
       <ul style="margin:8px 0 0 18px;font-size:13px">
         <li>Arrow keys / Joystick: pitch & yaw</li>
         <li>A / D buttons: roll</li>
@@ -620,7 +620,7 @@
     const missiles = [];
     const bulletSpeed = 125;
     const missileSpeed = 4.5;
-    const accuracy = 1
+    let accuracy = 1
 
     function shoot(){
       if (isPaused) return;
@@ -765,9 +765,7 @@
     async function updateDefeatedUI(){ 
       if (defeatedEl) defeatedEl.textContent = defeatedCount;
       const playerName = (document.getElementById('playerName') || {}).value || 'Player';
-      // only post if we have at least 1 defeated ship
-      if(defeatedCount > 0) await postScoreToSheet(playerName, defeatedCount);
-    }
+
 
     function destroyCurrentEnemy(){
       if (!spaceship) return;
@@ -818,7 +816,7 @@
       enemyMaxShield *= 1.2;                            // enemy gets more shield
       enemyDamage += 0.1;                              // enemy bullet damage up
       enemyFireDelay = Math.max(500, enemyFireDelay - 100); // enemy shoots faster (min cap)
-      accuracy += 0.5
+      accuracy += 0.5;
       console.log(`[SCALE] defeated=${defeatedCount} playerMaxShield=${playerMaxShield.toFixed(2)} bulletDmg=${bulletDamage.toFixed(2)} enemyHP=${enemyMaxHP.toFixed(1)} enemyDelay=${enemyFireDelay} accuracy=${accuracy}`);
     }
 

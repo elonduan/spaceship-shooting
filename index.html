@@ -355,17 +355,17 @@
       return v.normalize();
     }
     const sphereRadius = 500;
-    let spaceshipPos = randomUnit().multiplyScalar(sphereRadius*0.4);
-    let speed = 3.0;
-    let spaceshipVel = randomUnit().multiplyScalar(speed);
-    let desiredVel = spaceshipVel.clone();
-    let nextSteerChange = 0;
+    const enemySpeed = 3.0;
+    
     const steerMin = 1000;
     const steerMax = 3000;
     const steerLerpFactor = 0.015;
     const maxRoll = 1.0;
-    let prevVelDir = spaceshipVel.clone().normalize();
-    let spaceship = null;
+    
+    // always keep 2 enemies
+    const MAX_ENEMIES = 2;
+    const enemies = [];  // each enemy: { mesh, pos, vel, desiredVel, nextSteerChange, prevVelDir, hp, shield }
+
     let spaceshipGeometry = null;
     let spaceshipMaterial = null;
     let missileGeometry = null;
@@ -396,23 +396,52 @@
       return Promise.all([spaceshipPromise, missilePromise]);
     };
 
-    function spawnSpaceship() {
-      if (!spaceshipGeometry) return;
-      spaceshipPos = randomUnit().multiplyScalar(sphereRadius*0.4);
-      spaceshipVel = randomUnit().multiplyScalar(speed);
-      desiredVel = spaceshipVel.clone();
+    function createEnemy() {
+      if (!spaceshipGeometry) return null;
+    
+      const pos = randomUnit().multiplyScalar(sphereRadius * 0.4);
+      const vel = randomUnit().multiplyScalar(enemySpeed);
       const mesh = new THREE.Mesh(spaceshipGeometry, spaceshipMaterial.clone());
       mesh.scale.set(0.5, 0.5, 0.5);
-      mesh.position.copy(spaceshipPos);
-      spaceship = mesh;
-      enemyHP = enemyMaxHP;
-      enemyShield = enemyMaxShield;
-      updateHP();
-      scene.add(spaceship);
-      // schedule enemy shooting using configured delay
-      setTimeout(enemyShoot, Math.max(100, enemyFireDelay + (Math.random()*400 - 200)));
-      winDiv.style.display = 'none';
+      mesh.position.copy(pos);
+    
+      const enemy = {
+        mesh,
+        pos,
+        vel,
+        desiredVel: vel.clone(),
+        nextSteerChange: performance.now() + steerMin + Math.random() * (steerMax - steerMin),
+        prevVelDir: vel.clone().normalize(),
+        hp: enemyMaxHP,
+        shield: enemyMaxShield
+      };
+    
+      scene.add(mesh);
+      enemyShoot(enemy);         // start that enemy shooting
+      return enemy;
     }
+    
+    function ensureEnemies() {
+      while (enemies.length < MAX_ENEMIES) {
+        const e = createEnemy();
+        if (e) enemies.push(e);
+      }
+    }
+    
+    function getPrimaryEnemy() {
+      // we use the closest enemy to the camera as the "main" one for the HUD & arrow
+      let best = null;
+      let bestDist = Infinity;
+      enemies.forEach(e => {
+        const d = e.mesh.position.distanceTo(camera.position);
+        if (d < bestDist) {
+          bestDist = d;
+          best = e;
+        }
+      });
+      return best;
+    }
+
 
     const trailParticles = [];
     const trailMaterial = new THREE.MeshBasicMaterial({
@@ -423,16 +452,17 @@
     const trailGeom = new THREE.SphereGeometry(5, 10, 10);
     const BACK_OFFSET = 4.5;
     const DOWN_OFFSET = 7.5;
-    function addTrailParticle() {
-      if (!spaceship) return;
+    function addTrailParticle(enemy) {
+      if (!enemy || !enemy.mesh) return;
       const localOffset = new THREE.Vector3(0, BACK_OFFSET, -DOWN_OFFSET);
-      const worldOffset = localOffset.applyQuaternion(spaceship.quaternion);
-      const worldPos = spaceship.position.clone().add(worldOffset);
+      const worldOffset = localOffset.applyQuaternion(enemy.mesh.quaternion);
+      const worldPos = enemy.mesh.position.clone().add(worldOffset);
       const particle = new THREE.Mesh(trailGeom, trailMaterial.clone());
       particle.position.copy(worldPos);
       trailParticles.push({mesh: particle, life: 1.0});
       scene.add(particle);
     }
+    
     function updateTrail(dt) {
       for (let i = trailParticles.length - 1; i >= 0; i--) {
         const p = trailParticles[i];
@@ -508,8 +538,15 @@
 
     function updateHP(){
       setShieldAndHP('playerBar', playerShield, playerMaxShield, playerHP, playerMaxHP);
-      setShieldAndHP('enemyBar',  enemyShield,  enemyMaxShield,  enemyHP,  enemyMaxHP);
+    
+      const primary = getPrimaryEnemy();
+      if (primary) {
+        setShieldAndHP('enemyBar', primary.shield, enemyMaxShield, primary.hp, enemyMaxHP);
+      } else {
+        setShieldAndHP('enemyBar', 0, enemyMaxShield, 0, enemyMaxHP);
+      }
     }
+
     updateHP();
     updateMissileUI();
 
@@ -535,22 +572,27 @@
       }
     }
     
-    function damageEnemy(amount){
+    function damageEnemy(enemy, amount){
+      if (!enemy) return;
       lastEnemyDamageTime = performance.now();
-      if (enemyShield > 0) {
-        enemyShield -= amount;
-        if (enemyShield < 0) {
-          const leftover = -enemyShield;
-          enemyShield = 0;
-          enemyHP -= leftover;
+    
+      if (enemy.shield > 0) {
+        enemy.shield -= amount;
+        if (enemy.shield < 0) {
+          const leftover = -enemy.shield;
+          enemy.shield = 0;
+          enemy.hp -= leftover;
         }
       } else {
-        enemyHP -= amount;
+        enemy.hp -= amount;
       }
-      enemyHP = Math.max(0, enemyHP);
+    
+      enemy.hp = Math.max(0, enemy.hp);
       updateHP();
-      if (enemyHP <= 0) destroyCurrentEnemy(); // normal enemy
+    
+      if (enemy.hp <= 0) destroyEnemy(enemy);
     }
+
 
     function updateShieldRegen(dt){
       const now = performance.now();
@@ -558,9 +600,15 @@
         playerShield = Math.min(playerMaxShield, playerShield + shieldRegenRatePerSec * dt);
         updateHP();
       }
-      if ((now - lastEnemyDamageTime) > shieldRegenDelayMs && enemyShield < enemyMaxShield && !gameOver) {
-        enemyShield = Math.min(enemyMaxShield, enemyShield + shieldRegenRatePerSec * dt);
-        updateHP();
+      if ((now - lastEnemyDamageTime) > shieldRegenDelayMs && !gameOver) {
+        let changed = false;
+        enemies.forEach(e => {
+          if (e.shield < enemyMaxShield) {
+            e.shield = Math.min(enemyMaxShield, e.shield + shieldRegenRatePerSec * dt);
+            changed = true;
+          }
+        });
+        if (changed) updateHP();
       }
     }
 
@@ -673,37 +721,43 @@
       missiles.push({
         mesh: missile,
         vel: initialVel,
-        target: spaceship || null,
+        target: getPrimaryEnemy() || null,
         life: 5000
       });
+
       scene.add(missile);
     }
 
-    function enemyShoot(){
-      if(!spaceship || gameOver) return;
+    function enemyShoot(enemy){
+      if(!enemy || !enemy.mesh || gameOver) return;
+    
       const bulletGeom = new THREE.SphereGeometry(2,8,8);
       const bulletMat = new THREE.MeshBasicMaterial({color:0x00ffff});
       const bullet = new THREE.Mesh(bulletGeom, bulletMat);
-      const dir = camera.position.clone().sub(spaceship.position).normalize();
-      bullet.position.copy(spaceship.position);
+      const dir = camera.position.clone().sub(enemy.mesh.position).normalize();
+      bullet.position.copy(enemy.mesh.position);
       enemyBullets.push({mesh:bullet,vel:dir.multiplyScalar(bulletSpeed*0.8)});
       scene.add(bullet);
-      // use enemyFireDelay with a little random jitter
+    
       const jitter = Math.random()*800 - 400;
       const delay = Math.max(150, enemyFireDelay + jitter);
-      setTimeout(enemyShoot, delay);
+      setTimeout(()=> enemyShoot(enemy), delay);
     }
 
+
     const modelForwardLocal = new THREE.Vector3(0, -1, 0);
-    function alignShipToVelocity(t=0.35){
-      if(!spaceship) return;
-      if(spaceshipVel.lengthSq() < 1e-6) return;
-      const velDir = spaceshipVel.clone().normalize();
+    
+    function alignShipToVelocity(enemy, t = 0.35){
+      if(!enemy || !enemy.mesh) return;
+      if(enemy.vel.lengthSq() < 1e-6) return;
+      const velDir = enemy.vel.clone().normalize();
+    
       const meshWorldPos = new THREE.Vector3();
-      spaceship.getWorldPosition(meshWorldPos);
+      enemy.mesh.getWorldPosition(meshWorldPos);
       const forwardLocalPoint = modelForwardLocal.clone();
-      const forwardWorldPoint = spaceship.localToWorld(forwardLocalPoint.clone());
+      const forwardWorldPoint = enemy.mesh.localToWorld(forwardLocalPoint.clone());
       const forwardWorld = forwardWorldPoint.sub(meshWorldPos).normalize();
+    
       let qdelta = new THREE.Quaternion();
       if(forwardWorld.dot(velDir) < -0.9999){
         const tmp = new THREE.Vector3(1,0,0);
@@ -713,53 +767,61 @@
       } else {
         qdelta.setFromUnitVectors(forwardWorld, velDir);
       }
-      const prev = prevVelDir.clone();
+    
+      const prev = enemy.prevVelDir.clone();
       const cur = velDir.clone();
       const angleBetween = Math.acos(Math.min(Math.max(prev.dot(cur), -1), 1));
       const turnAxis = new THREE.Vector3().crossVectors(prev, cur);
       const sign = Math.sign(turnAxis.dot(new THREE.Vector3(0,1,0)) || 1);
       const desiredRoll = Math.max(-maxRoll, Math.min(maxRoll, sign * angleBetween * 1.8));
       const rollQuat = new THREE.Quaternion().setFromAxisAngle(velDir.clone(), desiredRoll);
-      const currentQ = spaceship.quaternion.clone();
+    
+      const currentQ = enemy.mesh.quaternion.clone();
       const baseTargetQ = qdelta.multiply(currentQ);
       const targetQ = rollQuat.multiply(baseTargetQ);
-      if(t >= 1) spaceship.quaternion.copy(targetQ);
-      else spaceship.quaternion.slerp(targetQ, t);
-      prevVelDir.lerp(velDir, 0.15).normalize();
+    
+      if(t >= 1) enemy.mesh.quaternion.copy(targetQ);
+      else enemy.mesh.quaternion.slerp(targetQ, t);
+    
+      enemy.prevVelDir.lerp(velDir, 0.15).normalize();
     }
-    function stepSpaceship(dt){
-      if (!spaceship) return;
-      if (keys['KeyG'] && camera) {
+    
+    function stepEnemy(enemy, dt, isPrimary){
+      if (!enemy || !enemy.mesh) return;
+    
+      if (isPrimary && keys['KeyG'] && camera) {
         const camForward = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
         const targetPoint = camera.position.clone().add(camForward.multiplyScalar(800));
-        const desiredToPoint = targetPoint.clone().sub(spaceshipPos).normalize().multiplyScalar(speed);
-        spaceshipVel.lerp(desiredToPoint, Math.min(1, 0.08 * (dt * 60)));
-        desiredVel.copy(spaceshipVel);
-        nextSteerChange = performance.now() + 400;
+        const desiredToPoint = targetPoint.clone().sub(enemy.pos).normalize().multiplyScalar(enemySpeed);
+        enemy.vel.lerp(desiredToPoint, Math.min(1, 0.08 * (dt * 60)));
+        enemy.desiredVel.copy(enemy.vel);
+        enemy.nextSteerChange = performance.now() + 400;
       } else {
-        if(performance.now() > nextSteerChange){
-          desiredVel = randomUnit().multiplyScalar(speed);
-          nextSteerChange = performance.now() + steerMin + Math.random()*(steerMax - steerMin);
+        if(performance.now() > enemy.nextSteerChange){
+          enemy.desiredVel = randomUnit().multiplyScalar(enemySpeed);
+          enemy.nextSteerChange = performance.now() + steerMin + Math.random()*(steerMax - steerMin);
         }
-        spaceshipVel.lerp(desiredVel, Math.min(1, steerLerpFactor * (dt*60)));
+        enemy.vel.lerp(enemy.desiredVel, Math.min(1, steerLerpFactor * (dt*60)));
       }
-      spaceshipVel.setLength(speed);
-      spaceshipPos.add(spaceshipVel.clone().multiplyScalar(dt * 60));
-      const dist = spaceshipPos.length();
+    
+      enemy.vel.setLength(enemySpeed);
+      enemy.pos.add(enemy.vel.clone().multiplyScalar(dt * 60));
+    
+      const dist = enemy.pos.length();
       if(dist >= sphereRadius){
-        const normal = spaceshipPos.clone().normalize();
-        spaceshipPos.copy(normal.clone().multiplyScalar(sphereRadius - 1));
-        const v = spaceshipVel.clone();
+        const normal = enemy.pos.clone().normalize();
+        enemy.pos.copy(normal.clone().multiplyScalar(sphereRadius - 1));
+        const v = enemy.vel.clone();
         const dot = v.dot(normal);
         const reflected = v.clone().sub(normal.clone().multiplyScalar(2*dot));
-        spaceshipVel.copy(reflected.setLength(speed));
-        desiredVel.copy(spaceshipVel);
+        enemy.vel.copy(reflected.setLength(enemySpeed));
+        enemy.desiredVel.copy(enemy.vel);
       }
-      if(spaceship){
-        spaceship.position.copy(spaceshipPos);
-        alignShipToVelocity(0.25);
-      }
+    
+      enemy.mesh.position.copy(enemy.pos);
+      alignShipToVelocity(enemy, 0.25);
     }
+
 
     // defeated counter + leaderboard posting
     let defeatedCount = 0;
@@ -774,59 +836,63 @@
 
 
     
-    function destroyCurrentEnemy(){
-      if (!spaceship) return;
-      scene.remove(spaceship);
-      spaceship = null;
+    function destroyEnemy(enemy){
+      if (!enemy) return;
+    
+      scene.remove(enemy.mesh);
+    
+      const idx = enemies.indexOf(enemy);
+      if (idx !== -1) enemies.splice(idx, 1);
+    
+      // kill all enemy bullets (same behaviour as before)
       for (let i = enemyBullets.length - 1; i >= 0; i--){
         scene.remove(enemyBullets[i].mesh);
         enemyBullets.splice(i,1);
       }
-
+    
       // reward player
       missileAmmo += 2;
-
+    
       // small HP heal and shield top-up
       const hpGain = Math.round(playerMaxHP / 10);
       playerHP = Math.min(playerMaxHP, playerHP + hpGain);
       playerShield = Math.min(playerMaxShield, playerShield + Math.round(playerMaxShield * 0.15));
-
+    
       // update UI and HUD
       updateMissileUI();
       updateHP();
-
+    
       // increment defeated and post
       defeatedCount++;
       updateDefeatedUI();
-
-
-
+    
       // show win banner briefly
       winDiv.style.display = 'block';
       setTimeout(()=> { if(winDiv) winDiv.style.display = 'none'; }, 1800);
-
+    
       // -----------------------------
       // Player scaling (upgrades)
       // -----------------------------
-      // Slightly increase player shield capacity, regen, and damage
-      playerMaxShield += Math.random();                          // small permanent boost
+      playerMaxShield += Math.random();
       playerShield = Math.min(playerMaxShield, playerShield + 0.6);
-      shieldRegenRatePerSec += Math.random()*0.1;                    // faster regen
-      bulletDamage += Math.random();                             // player's bullet damage increases
-      missileDamage += Math.random()*0.5;                            // missile damage increases
-
+      shieldRegenRatePerSec += Math.random()*0.1;
+      bulletDamage += Math.random();
+      missileDamage += Math.random()*0.5;
+    
       // -----------------------------
       // Enemy scaling (difficulty)
       // -----------------------------
-
-      
-      enemyMaxHP *= 1.2;                                // enemy gets more HP
-      enemyMaxShield *= 1.2;                            // enemy gets more shield
-      enemyDamage += 0.1;                              // enemy bullet damage up
-      enemyFireDelay = Math.max(500, enemyFireDelay - 100); // enemy shoots faster (min cap)
+      enemyMaxHP *= 1.2;
+      enemyMaxShield *= 1.2;
+      enemyDamage += 0.1;
+      enemyFireDelay = Math.max(500, enemyFireDelay - 100);
       accuracy += 0.5;
       console.log(`[SCALE] defeated=${defeatedCount} playerMaxShield=${playerMaxShield.toFixed(2)} bulletDmg=${bulletDamage.toFixed(2)} enemyHP=${enemyMaxHP.toFixed(1)} enemyDelay=${enemyFireDelay} accuracy=${accuracy}`);
+    
+      // make sure we always have 2 enemies
+      ensureEnemies();
     }
+
 
     const arrow = document.getElementById('arrowIndicator');
     let last = performance.now();
@@ -860,29 +926,24 @@
           missiles.splice(i, 1);
           continue;
         }
-
-        // If recorded target was removed, try to retarget current spaceship
-        if (m.target && !scene.getObjectById(m.target.id)) {
-          m.target = (typeof spaceship !== 'undefined' && spaceship) ? spaceship : null;
+    
+        // retarget if needed
+        if (!m.target || !enemies.includes(m.target)) {
+          m.target = getPrimaryEnemy() || null;
         }
-        if (!m.target && (typeof spaceship !== 'undefined' && spaceship)) {
-          m.target = spaceship;
-        }
-
-        // Homing: steer toward target if present
-        if (m.target && spaceship) {
-          const desiredDir = m.target.position.clone().sub(m.mesh.position).normalize();
+    
+        // homing
+        if (m.target && m.target.mesh) {
+          const desiredDir = m.target.mesh.position.clone().sub(m.mesh.position).normalize();
           const desiredVel = desiredDir.clone().multiplyScalar(missileSpeed);
-          // smooth steering
           m.vel.lerp(desiredVel, 0.08);
-          // keep near desired speed
           if (m.vel.length() > 0.0001) m.vel.setLength(Math.min(missileSpeed, Math.max(0.8, m.vel.length())));
         }
-
-        // Move missile
+    
+        // move
         m.mesh.position.add(m.vel.clone().multiplyScalar(dt * 60));
-
-        // Orient missile to velocity (assume model forward is +Z; adjust if needed)
+    
+        // orient
         const velDir = m.vel.clone().normalize();
         if (velDir.lengthSq() > 1e-8) {
           try {
@@ -892,31 +953,40 @@
             m.mesh.lookAt(m.mesh.position.clone().add(velDir));
           }
         }
-
-        // Lifetime & bounds
+    
+        // lifetime & bounds
         m.life -= dt * 1000;
         if (m.mesh.position.length() > sphereRadius * 2 || m.life <= 0) {
           scene.remove(m.mesh);
           missiles.splice(i, 1);
           continue;
         }
-
-        // Collision with spaceship
-        if (spaceship && m.mesh.position.distanceTo(spaceship.position) < 55) {
-          scene.remove(m.mesh);
-          missiles.splice(i, 1);
-          damageEnemy(missileDamage);
-          missileExplosion.currentTime = 0;
-          missileExplosion..cloneNode(true).play();
-
+    
+        // collision with any enemy
+        let hit = false;
+        for (const enemy of enemies) {
+          if (enemy.mesh && m.mesh.position.distanceTo(enemy.mesh.position) < 55) {
+            scene.remove(m.mesh);
+            missiles.splice(i, 1);
+            damageEnemy(enemy, missileDamage);
+            missileExplosion.currentTime = 0;
+            missileExplosion.cloneNode(true).play();
+            hit = true;
+            break;
+          }
         }
+        if (hit) continue;
       }
     }
+
+
 
 
     
     
     function animate(t){
+
+      ensureEnemies();
       requestAnimationFrame(animate);
 
       // If paused, don't progress game state — the overlay already covers the canvas.
@@ -935,14 +1005,21 @@
         return;
       }
 
-      stepSpaceship(dt);
+      enemies.forEach((enemy, idx) => {
+        stepEnemy(enemy, dt, idx === 0);
+      });
+
       updateShieldRegen(dt);
 
 
       
       
       trailTimer += dt;
-      while (trailTimer > 0.02) { addTrailParticle(); trailTimer -= 0.02; }
+      while (trailTimer > 0.02) {
+        enemies.forEach(e => addTrailParticle(e));
+        trailTimer -= 0.02;
+      }
+
       updateTrail(dt);
       updateBrightStars(dt);
 
@@ -950,11 +1027,18 @@
         const b = bullets[i];
         b.mesh.position.add(b.vel.clone().multiplyScalar(dt*60));
         if(b.mesh.position.length()>sphereRadius*2){ scene.remove(b.mesh); bullets.splice(i,1); continue; }
-        if(spaceship && b.mesh.position.distanceTo(spaceship.position) < 30){
-          scene.remove(b.mesh); bullets.splice(i,1);
-          damageEnemy(bulletDamage);
-          
+        let hitEnemy = null;
+        for (const enemy of enemies) {
+          if (enemy.mesh && b.mesh.position.distanceTo(enemy.mesh.position) < 30) {
+            hitEnemy = enemy;
+            break;
+          }
         }
+        if (hitEnemy) {
+          scene.remove(b.mesh); bullets.splice(i,1);
+          damageEnemy(hitEnemy, bulletDamage);
+        }
+
       }
 
       // update missiles each frame
@@ -970,8 +1054,9 @@
         }
       }
       updateCamera();
-      if (spaceship) {
-        const pos = spaceship.position.clone();
+      const primary = getPrimaryEnemy();
+      if (primary && primary.mesh) {
+        const pos = primary.mesh.position.clone();
         const vector = pos.project(camera);
         const halfW = window.innerWidth / 2;
         const halfH = window.innerHeight / 2;
@@ -1006,23 +1091,26 @@
       } else {
         arrow.style.display = "none";
       }
+
       renderer.render(scene, camera);
       // update missile UI on frame to keep UI snappy
       updateMissileUI();
     }
 
     loadModels().then(() => {
-      spawnSpaceship();
+      ensureEnemies();  // create 2 enemies
       animate();
-      setInterval(()=> { if (!spaceship) spawnSpaceship(); }, 5000);
-    }).catch(error => {
-      console.error('Error loading models:', error);
     });
+
 
     function reset(){
       playerHP = playerMaxHP; enemyHP = enemyMaxHP;
       playerShield = playerMaxShield; enemyShield = enemyMaxShield;
       updateHP();
+      enemies.forEach(e => { scene.remove(e.mesh); });
+      enemies.length = 0;
+      ensureEnemies();
+
       missileAmmo = 4; lastMissileTime = -Infinity; updateMissileUI();
       winDiv.style.display='none'; loseDiv.style.display='none';
       gameOver=false;
@@ -1093,7 +1181,6 @@
         if (e.key && e.key.toLowerCase() === 'p') togglePause(false);
       });
     }
-
   })(); // end IIFE
   </script>
 </body>

@@ -25,6 +25,12 @@
     #buttons button.active { box-shadow:0 0 18px rgba(255,255,255,0.15); background:rgba(255,255,255,0.28); }
     #hud { position:fixed; top:10px; left:0; right:0; display:flex; justify-content:space-between; padding:0 20px; z-index:15; align-items:center; gap:12px; }
 
+
+
+    #enemyBar1.selected, #enemyBar2.selected {
+      box-shadow: 0 0 10px rgba(255,255,0,0.9);
+    }
+
     .barContainer {
       width: 180px;
       height: 44px;
@@ -113,7 +119,7 @@
   <div id="overlay">
     <div class="panel">
       &nbsp;
-      <div><strong>Ball Shooter Competition — Made by Elon - 10</strong></div>
+      <div><strong>Ball Shooter Competition — Made by Elon - 1</strong></div>
       <ul style="margin:8px 0 0 18px;font-size:13px">
         <li>Arrow keys / Joystick: pitch & yaw</li>
         <li>A / D buttons: roll</li>
@@ -148,14 +154,24 @@
         <div class="bar health" id="playerHealthBar"></div>
       </div>
     </div>
-
+  
+    <!-- Enemy 1 -->
     <div class="barContainer">
-      <div id="enemyBar" class="hpStack">
-        <div class="bar shield" id="enemyShieldBar"></div>
-        <div class="bar health" id="enemyHealthBar"></div>
+      <div id="enemyBar1" class="hpStack">
+        <div class="bar shield"></div>
+        <div class="bar health"></div>
+      </div>
+    </div>
+  
+    <!-- Enemy 2 -->
+    <div class="barContainer">
+      <div id="enemyBar2" class="hpStack">
+        <div class="bar shield"></div>
+        <div class="bar health"></div>
       </div>
     </div>
   </div>
+
 
   <div id="crosshair"></div>
   <div id="missileUI"><span id="missileCountUI"></span></div>
@@ -365,6 +381,7 @@
     // always keep 2 enemies
     const MAX_ENEMIES = 2;
     const enemies = [];  // each enemy: { mesh, pos, vel, desiredVel, nextSteerChange, prevVelDir, hp, shield }
+    let selectedEnemyIndex = 0; // which enemy is currently "pinged"
 
     let spaceshipGeometry = null;
     let spaceshipMaterial = null;
@@ -429,18 +446,11 @@
     }
     
     function getPrimaryEnemy() {
-      // we use the closest enemy to the camera as the "main" one for the HUD & arrow
-      let best = null;
-      let bestDist = Infinity;
-      enemies.forEach(e => {
-        const d = e.mesh.position.distanceTo(camera.position);
-        if (d < bestDist) {
-          bestDist = d;
-          best = e;
-        }
-      });
-      return best;
+      if (enemies.length === 0) return null;
+      if (selectedEnemyIndex >= enemies.length) selectedEnemyIndex = 0;
+      return enemies[selectedEnemyIndex];
     }
+
 
 
     const trailParticles = [];
@@ -537,15 +547,34 @@
     }
 
     function updateHP(){
+      // player bar
       setShieldAndHP('playerBar', playerShield, playerMaxShield, playerHP, playerMaxHP);
     
-      const primary = getPrimaryEnemy();
-      if (primary) {
-        setShieldAndHP('enemyBar', primary.shield, enemyMaxShield, primary.hp, enemyMaxHP);
+      // enemy 1
+      const e0 = enemies[0];
+      if (e0) {
+        setShieldAndHP('enemyBar1', e0.shield, enemyMaxShield, e0.hp, enemyMaxHP);
       } else {
-        setShieldAndHP('enemyBar', 0, enemyMaxShield, 0, enemyMaxHP);
+        setShieldAndHP('enemyBar1', 0, enemyMaxShield, 0, enemyMaxHP);
       }
+    
+      // enemy 2
+      const e1 = enemies[1];
+      if (e1) {
+        setShieldAndHP('enemyBar2', e1.shield, enemyMaxShield, e1.hp, enemyMaxHP);
+      } else {
+        setShieldAndHP('enemyBar2', 0, enemyMaxShield, 0, enemyMaxHP);
+      }
+    
+      // highlight currently selected enemy
+      ['enemyBar1','enemyBar2'].forEach((id, idx) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        if (idx === selectedEnemyIndex && enemies[idx]) el.classList.add('selected');
+        else el.classList.remove('selected');
+      });
     }
+
 
     updateHP();
     updateMissileUI();
@@ -644,11 +673,35 @@
     // original key handlers (they will still be invoked when not paused)
     window.addEventListener('keydown',(e)=>{
       if(isPaused) return;
-      if(e.code === 'Space'){ shoot(); }
-      if(e.code === 'KeyM'){ launchMissile(); }
-      else if(e.key === 'r' || e.key === 'R'){ reset(); }
-      else pressKey(e.code);
+    
+      if(e.code === 'Space'){ 
+        shoot();
+        return;
+      }
+    
+      if(e.code === 'KeyM'){ 
+        launchMissile();
+        return;
+      }
+    
+      if(e.code === 'KeyC'){
+        // cycle selected enemy
+        if (enemies.length > 0) {
+          selectedEnemyIndex = (selectedEnemyIndex + 1) % enemies.length;
+          updateHP();
+        }
+        return;
+      }
+    
+      if(e.key === 'r' || e.key === 'R'){ 
+        reset();
+        return;
+      }
+    
+      // movement / roll keys
+      pressKey(e.code);
     });
+
     window.addEventListener('keyup',(e)=>{
       if(isPaused) return;
       if(e.code !== 'Space' && e.code !== 'KeyM') releaseKey(e.code);
@@ -843,6 +896,9 @@
     
       const idx = enemies.indexOf(enemy);
       if (idx !== -1) enemies.splice(idx, 1);
+      // keep selected index valid
+      if (selectedEnemyIndex >= enemies.length) selectedEnemyIndex = 0;
+
     
       // kill all enemy bullets (same behaviour as before)
       for (let i = enemyBullets.length - 1; i >= 0; i--){
@@ -1110,6 +1166,9 @@
       enemies.forEach(e => { scene.remove(e.mesh); });
       enemies.length = 0;
       ensureEnemies();
+      selectedEnemyIndex = 0;
+      updateHP();
+
 
       missileAmmo = 4; lastMissileTime = -Infinity; updateMissileUI();
       winDiv.style.display='none'; loseDiv.style.display='none';

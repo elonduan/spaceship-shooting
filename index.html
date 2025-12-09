@@ -620,6 +620,7 @@
     const missiles = [];
     const bulletSpeed = 125;
     const missileSpeed = 4.5;
+    const accuracy = 1
 
     function shoot(){
       if (isPaused) return;
@@ -817,7 +818,7 @@
       enemyMaxShield *= 1.2;                            // enemy gets more shield
       enemyDamage += 0.1;                              // enemy bullet damage up
       enemyFireDelay = Math.max(500, enemyFireDelay - 100); // enemy shoots faster (min cap)
-
+      accuracy += 0.5
       console.log(`[SCALE] defeated=${defeatedCount} playerMaxShield=${playerMaxShield.toFixed(2)} bulletDmg=${bulletDamage.toFixed(2)} enemyHP=${enemyMaxHP.toFixed(1)} enemyDelay=${enemyFireDelay}`);
     }
 
@@ -958,7 +959,7 @@
         const b = enemyBullets[i];
         b.mesh.position.add(b.vel.clone().multiplyScalar(dt*60));
         if(b.mesh.position.length()>sphereRadius*2){ scene.remove(b.mesh); enemyBullets.splice(i,1); continue; }
-        if(b.mesh.position.distanceTo(camera.position) < 1){
+        if(b.mesh.position.distanceTo(camera.position) < accuracy){
           scene.remove(b.mesh); enemyBullets.splice(i,1);
           damagePlayer(enemyDamage);
         }

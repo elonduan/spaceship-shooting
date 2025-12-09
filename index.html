@@ -743,10 +743,6 @@
     let defeatedCount = 0;
     const defeatedEl = document.getElementById('defeatedCount');
 
-    async function updateDefeatedUI(){ 
-      if (defeatedEl) defeatedEl.textContent = defeatedCount;
-      const playerName = (document.getElementById('playerName') || {}).value || 'Player';
-    }
 
     function destroyCurrentEnemy(){
       if (!spaceship) return;
@@ -957,7 +953,7 @@
           dirX = -dirX;
           dirY = -dirY;
         }
-        if (vector.z < 1 &&
+        if (vector.z < 3.3 &&
             x >= 0 && x <= window.innerWidth &&
             y >= 0 && y <= window.innerHeight) {
           arrow.style.display = "none";

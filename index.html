@@ -601,7 +601,7 @@
     const missiles = [];
     const bulletSpeed = 125;
     const missileSpeed = 4.5;
-    let accuracy = 1
+    let accuracy = 3.3
 
     function shoot(){
       if (isPaused) return;
@@ -953,7 +953,7 @@
           dirX = -dirX;
           dirY = -dirY;
         }
-        if (vector.z < 3.3 &&
+        if (vector.z < 1 &&
             x >= 0 && x <= window.innerWidth &&
             y >= 0 && y <= window.innerHeight) {
           arrow.style.display = "none";

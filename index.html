@@ -1083,7 +1083,6 @@
     async function updateDefeatedUI(){ 
       defeatedEl.textContent = defeatedCount;
       const playerName = (document.getElementById('playerName') || {}).value || 'Player';
-      if(defeatedCount > 0) await postScoreToSheet(playerName, defeatedCount);
     }
 
 

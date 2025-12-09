@@ -76,8 +76,6 @@
     }
     #defeatedCounter { margin-top:8px; font-weight:700; font-size:13px; color:#fff;}
     #playerName { width:120px; margin-left:6px; padding:3px 6px; border-radius:6px; border:1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.03); color:#fff; }
-    #leaderboard { margin-top:8px; font-weight:700; font-size:13px; color:#ffd700; }
-    #leaderboardList { margin-top:4px; padding-left:18px; color:#fff; font-weight:400; font-size:12px; }
 
     /* Pause overlay style (error screen) */
     #pauseScreen {
@@ -136,10 +134,7 @@
       <label style="margin-top:8px">Name:
         <input id="playerName" type="text" maxlength="20" value="Player">
       </label>
-      <div id="leaderboard">
-        <div>Leaderboard:</div>
-        <ol id="leaderboardList"></ol>
-      </div>
+
 
       <div id="win">You destroyed the spaceship — you win! 🎉</div>
       <div id="lose">The spaceship destroyed you! </div>
@@ -194,50 +189,8 @@
 
   (function(){ // IIFE -> keep all variables scoped, avoids duplicate identifier errors
 
-    // If you want to override the sheet url globally, set window.SHEET_API_URL before this script runs.
-    const SHEET_API_URL = window.SHEET_API_URL || 'https://api.sheetbest.com/sheets/eab9fbde-78f6-4bcb-bb78-a557cbd672fa';
 
-    async function loadLeaderboard() {
-      try {
-        const res = await fetch(SHEET_API_URL);
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-        const rows = await res.json();
-        const sorted = rows
-          .filter(r => r.name && r.score)
-          .map(r => ({ name: String(r.name).trim(), score: parseFloat(r.score) }))
-          .filter(e => !isNaN(e.score))
-          .sort((a,b) => b.score - a.score);
-        const top = sorted.slice(0,10);
-        const listEl = document.getElementById('leaderboardList');
-        listEl.innerHTML = '';
-        if (top.length === 0) listEl.innerHTML = '<li>No scores yet</li>';
-        else {
-          top.forEach((entry, idx) => {
-            const li = document.createElement('li');
-            li.textContent = `${entry.name} — ${entry.score}`;
-            if (idx === 0) li.style.color = '#ffd700';
-            else if (idx === 1) li.style.color = '#c0c0c0';
-            else if (idx === 2) li.style.color = '#cd7f32';
-            listEl.appendChild(li);
-          });
-        }
-      } catch (err) {
-        console.warn('Failed to load leaderboard:', err);
-      }
-    }
 
-    async function postScoreToSheet(name, score) {
-      try {
-        await fetch(SHEET_API_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name: name || 'Player', score: score, date: new Date().toISOString() })
-        });
-        loadLeaderboard();
-      } catch (err) {
-        console.warn('Failed to post score to sheet.best:', err);
-      }
-    }
 
     /*********************** Game setup ***********************/
     const container = document.getElementById('canvas-container');
@@ -1096,7 +1049,7 @@
       renderer.setSize(window.innerWidth, window.innerHeight);
     });
 
-    loadLeaderboard();
+
 
     // ---- Pause system functions (toggle + resume button) ----
     function togglePause(forceState) {

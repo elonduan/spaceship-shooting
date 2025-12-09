@@ -766,6 +766,14 @@
     const defeatedEl = document.getElementById('defeatedCount');
 
 
+    async function updateDefeatedUI(){ 
+      defeatedEl.textContent = defeatedCount;
+      const playerName = (document.getElementById('playerName') || {}).value || 'Player';
+      if(defeatedCount > 0) await postScoreToSheet(playerName, defeatedCount);
+    }
+
+
+    
     function destroyCurrentEnemy(){
       if (!spaceship) return;
       scene.remove(spaceship);
@@ -789,6 +797,7 @@
 
       // increment defeated and post
       defeatedCount++;
+      updateDefeatedUI();
 
 
 
@@ -1030,7 +1039,7 @@
       enemyBullets.forEach(b=>scene.remove(b.mesh)); enemyBullets.length=0;
       missiles.forEach(m=>scene.remove(m.mesh)); missiles.length=0;
       trailParticles.forEach(p=>scene.remove(p.mesh)); trailParticles.length=0;
-      defeatedCount = 0; 
+      defeatedCount = 0; updateDefeatedUI();
     }
     document.getElementById('resetBtn').addEventListener('click', reset);
     document.getElementById('shootBtn').addEventListener('click', shoot);

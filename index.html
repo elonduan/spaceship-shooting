@@ -513,26 +513,7 @@
     updateHP();
     updateMissileUI();
 
-    function damagePlayer(amount){
-      lastPlayerDamageTime = performance.now();
-      if (playerShield > 0) {
-        playerShield -= amount;
-        if (playerShield < 0) {
-          const leftover = -playerShield;
-          playerShield = 0;
-          playerHP -= leftover;
-        }
-      } else {
-        playerHP -= amount;
-      }
-      playerHP = Math.max(0, playerHP);
-      updateHP();
-      if (playerHP <= 0) {
-        loseDiv.style.display='block';
-        gameOver = true;
-        setAutoShooting(false);
-      }
-    }
+zzz
 
     function damageEnemy(amount){
       lastEnemyDamageTime = performance.now();
@@ -1087,7 +1068,7 @@
       });
     }
 
-  })(); // end IIFE
+  )(); // end IIFE
   </script>
 </body>
 </html>

@@ -819,7 +819,7 @@
       enemyDamage += 0.1;                              // enemy bullet damage up
       enemyFireDelay = Math.max(500, enemyFireDelay - 100); // enemy shoots faster (min cap)
       accuracy += 0.5
-      console.log(`[SCALE] defeated=${defeatedCount} playerMaxShield=${playerMaxShield.toFixed(2)} bulletDmg=${bulletDamage.toFixed(2)} enemyHP=${enemyMaxHP.toFixed(1)} enemyDelay=${enemyFireDelay}`);
+      console.log(`[SCALE] defeated=${defeatedCount} playerMaxShield=${playerMaxShield.toFixed(2)} bulletDmg=${bulletDamage.toFixed(2)} enemyHP=${enemyMaxHP.toFixed(1)} enemyDelay=${enemyFireDelay} accuracy=${accuracy}`);
     }
 
     const arrow = document.getElementById('arrowIndicator');

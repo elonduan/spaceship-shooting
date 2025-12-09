@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Ball Shooter </title>
+  <title>Ball Shooter</title>
   <style>
     html,body{height:100%;margin:0;background:#000;color:#ddd;font-family:system-ui,-apple-system,Segoe UI,Roboto;overflow:hidden}
     #overlay{position:fixed;left:12px;top:12px;z-index:10;max-width:420px}
@@ -24,12 +24,6 @@
     #buttons button { width:70px; height:70px; border-radius:50%; border:none; background:rgba(255,255,255,0.2); color:#fff; font-size:18px;}
     #buttons button.active { box-shadow:0 0 18px rgba(255,255,255,0.15); background:rgba(255,255,255,0.28); }
     #hud { position:fixed; top:10px; left:0; right:0; display:flex; justify-content:space-between; padding:0 20px; z-index:15; align-items:center; gap:12px; }
-
-
-
-    #enemyBar1.selected, #enemyBar2.selected {
-      box-shadow: 0 0 10px rgba(255,255,0,0.9);
-    }
 
     .barContainer {
       width: 180px;
@@ -67,6 +61,10 @@
       box-shadow: inset 0 0 6px rgba(0,0,0,0.15);
     }
 
+    #enemyBar1.selected, #enemyBar2.selected {
+      box-shadow: 0 0 10px rgba(255,255,0,0.9);
+    }
+
     #missileUI{position:fixed; left:50%; top: calc(50% + 24px); transform:translateX(-50%); font-size:13px; color:#fff; z-index:20; text-align:center; padding:6px 10px; background:rgba(0,0,0,0.35); border-radius:8px; pointer-events:none;}
     #arrowIndicator {
       position: fixed;
@@ -85,7 +83,7 @@
 
     /* Pause overlay style (error screen) */
     #pauseScreen {
-      display: none; /* toggled by JS */
+      display: none;
       position: fixed;
       inset: 0;
       z-index: 9999;
@@ -112,6 +110,7 @@
       border-radius: 8px;
       cursor: pointer;
     }
+
     #screenFlash {
       position: fixed;
       inset: 0;
@@ -121,12 +120,11 @@
       z-index: 9998;
       transition: opacity 0.12s ease-out;
     }
-
   </style>
-
 </head>
-  <div id="screenFlash"></div>
 <body>
+  <div id="screenFlash"></div>
+
   <div id="overlay">
     <div class="panel">
       &nbsp;
@@ -138,6 +136,7 @@
         <li>M: launch missile (4 per game)</li>
         <li>R: reset</li>
         <li>G: steer ship toward crosshair (hold)</li>
+        <li>C: change target ship</li>
         <li>WARNING: TURNING SOUND ON WILL NOT BE GOOD IN CLASS</li>
         <li>WORLD RECORD IS 5</li>
         <li>EMAIL TO ME IF YOU BEAT IT</li>
@@ -152,7 +151,6 @@
         <input id="playerName" type="text" maxlength="20" value="Player">
       </label>
 
-
       <div id="win">You destroyed the spaceship — you win! 🎉</div>
       <div id="lose">The spaceship destroyed you! </div>
     </div>
@@ -165,7 +163,7 @@
         <div class="bar health" id="playerHealthBar"></div>
       </div>
     </div>
-  
+
     <!-- Enemy 1 -->
     <div class="barContainer">
       <div id="enemyBar1" class="hpStack">
@@ -173,7 +171,7 @@
         <div class="bar health"></div>
       </div>
     </div>
-  
+
     <!-- Enemy 2 -->
     <div class="barContainer">
       <div id="enemyBar2" class="hpStack">
@@ -182,7 +180,6 @@
       </div>
     </div>
   </div>
-
 
   <div id="crosshair"></div>
   <div id="missileUI"><span id="missileCountUI"></span></div>
@@ -210,15 +207,9 @@
   <script>
     const missileExplosion = new Audio("https://actions.google.com/sounds/v1/weapons/big_explosion_cut_off.ogg");
     const missileFollowExp = new Audio("https://actions.google.com/sounds/v1/weapons/auto_bullets_flyby_short.ogg");
-
   </script>
   <script>
-    
-
-  (function(){ // IIFE -> keep all variables scoped, avoids duplicate identifier errors
-
-
-
+  (function(){
 
     /*********************** Game setup ***********************/
     const container = document.getElementById('canvas-container');
@@ -378,13 +369,12 @@
     scene.add(light);
     scene.add(new THREE.AmbientLight(0xffffff,0.3));
 
-
     // ---------- DAMAGE / VFX SYSTEM ----------
     const smokeParticles = [];
     const explosionParticles = [];
     const shockwaves = [];
-    
-    // big white flash overlay
+    const sparkParticles = [];
+
     const screenFlashEl = document.getElementById('screenFlash');
     function screenFlash() {
       if (!screenFlashEl) return;
@@ -393,75 +383,105 @@
         screenFlashEl.style.opacity = '0';
       }, 120);
     }
-    
-    // --- SMOKE (fades & disappears) ---
+
+    // SMOKE
     const smokeGeo = new THREE.SphereGeometry(6, 10, 10);
-    
+
     function addSmokeAt(position) {
       const mat = new THREE.MeshBasicMaterial({
         color: 0x444444,
         transparent: true,
         opacity: 0.9
       });
-    
+
       const m = new THREE.Mesh(smokeGeo, mat);
       m.position.copy(position);
-    
-      // slight random offset
+
       m.position.x += (Math.random() - 0.5) * 10;
       m.position.y += (Math.random() - 0.5) * 6;
       m.position.z += (Math.random() - 0.5) * 10;
-    
-      m.life = 1.6 + Math.random() * 0.6; // seconds
+
+      m.life = 1.6 + Math.random() * 0.6;
       m.maxLife = m.life;
-    
-      // upward + slight drift
+
       m.velocity = new THREE.Vector3(
         (Math.random() - 0.5) * 3,
         10 + Math.random() * 8,
         (Math.random() - 0.5) * 3
       );
-    
+
       scene.add(m);
       smokeParticles.push(m);
     }
-    
-    // helper to use enemy easily
+
     function addSmoke(enemy, dt = 0.016) {
       if (!enemy || !enemy.mesh) return;
-      // rate-limit a bit: dt used if you want to do “continuous” smoke
       if (Math.random() < dt * 25) {
         addSmokeAt(enemy.mesh.position);
       }
     }
-    
+
     function updateSmoke(dt) {
       for (let i = smokeParticles.length - 1; i >= 0; i--) {
         const p = smokeParticles[i];
-    
-        // move
         p.position.add(p.velocity.clone().multiplyScalar(dt * 60));
-    
-        // fade
         p.life -= dt;
         const ratio = Math.max(0, p.life / p.maxLife);
         p.material.opacity = ratio;
-    
-        // expand a bit
         p.scale.multiplyScalar(1 + dt * 0.8);
-    
         if (p.life <= 0) {
           scene.remove(p);
           smokeParticles.splice(i, 1);
         }
       }
     }
-    
-    // --- EXPLOSION FRAGMENTS + SMOKE ---
+
+    // SPARKS
+    function addSparks(enemy, count = 4) {
+      if (!enemy || !enemy.mesh) return;
+      const basePos = enemy.mesh.position;
+      for (let i = 0; i < count; i++) {
+        const size = 2 + Math.random() * 3;
+        const geo = new THREE.SphereGeometry(size, 6, 6);
+        const mat = new THREE.MeshBasicMaterial({
+          color: 0xffaa33,
+          transparent: true,
+          opacity: 1.0
+        });
+        const p = new THREE.Mesh(geo, mat);
+        p.position.copy(basePos);
+        p.position.x += (Math.random() - 0.5) * 8;
+        p.position.y += (Math.random() - 0.5) * 4;
+        p.position.z += (Math.random() - 0.5) * 8;
+        p.velocity = new THREE.Vector3(
+          (Math.random() - 0.5) * 40,
+          20 + Math.random() * 30,
+          (Math.random() - 0.5) * 40
+        );
+        p.life = 0.6 + Math.random() * 0.3;
+        scene.add(p);
+        sparkParticles.push(p);
+      }
+    }
+
+    function updateSparks(dt) {
+      for (let i = sparkParticles.length - 1; i >= 0; i--) {
+        const p = sparkParticles[i];
+        p.position.add(p.velocity.clone().multiplyScalar(dt * 60));
+        p.life -= dt * 1.8;
+        p.material.opacity = Math.max(0, p.life);
+        p.scale.multiplyScalar(1 - dt * 2.2);
+        if (p.life <= 0) {
+          scene.remove(p);
+          sparkParticles.splice(i, 1);
+        }
+      }
+    }
+
+    // EXPLOSION + SHOCKWAVE
     function spawnExplosion(position) {
       const pos = position.clone();
-    
-      // fragments / orange fireballs
+
       const count = 40;
       for (let i = 0; i < count; i++) {
         const size = 4 + Math.random() * 8;
@@ -471,36 +491,29 @@
           transparent: true,
           opacity: 1.0
         });
-    
         const m = new THREE.Mesh(geo, mat);
         m.position.copy(pos);
         m.position.x += (Math.random() - 0.5) * 8;
         m.position.y += (Math.random() - 0.5) * 8;
         m.position.z += (Math.random() - 0.5) * 8;
-    
         m.velocity = new THREE.Vector3(
           (Math.random() - 0.5) * 90,
           Math.random() * 90,
           (Math.random() - 0.5) * 90
         );
-    
         m.life = 0.9 + Math.random() * 0.4;
         m.maxLife = m.life;
-    
         scene.add(m);
         explosionParticles.push(m);
       }
-    
-      // big extra smoke burst
+
       for (let i = 0; i < 25; i++) {
         addSmokeAt(pos);
       }
-    
-      // shockwave & flash
+
       spawnShockwave(pos);
       screenFlash();
-    
-      // sound
+
       if (typeof missileExplosion !== 'undefined' && missileExplosion) {
         try {
           missileExplosion.currentTime = 0;
@@ -508,25 +521,22 @@
         } catch(e){}
       }
     }
-    
+
     function updateExplosions(dt) {
       for (let i = explosionParticles.length - 1; i >= 0; i--) {
         const p = explosionParticles[i];
-    
         p.position.add(p.velocity.clone().multiplyScalar(dt * 60));
         p.life -= dt * 1.3;
         const ratio = Math.max(0, p.life / p.maxLife);
         p.material.opacity = ratio;
         p.scale.multiplyScalar(1 + dt * 2.5);
-    
         if (p.life <= 0) {
           scene.remove(p);
           explosionParticles.splice(i, 1);
         }
       }
     }
-    
-    // --- SHOCKWAVE (big circular ring) ---
+
     const shockwaveMat = new THREE.MeshBasicMaterial({
       color: 0xffddaa,
       transparent: true,
@@ -534,36 +544,30 @@
       side: THREE.DoubleSide
     });
     const shockwaveGeo = new THREE.RingGeometry(1, 1.8, 64);
-    
+
     function spawnShockwave(position) {
       const mesh = new THREE.Mesh(shockwaveGeo, shockwaveMat.clone());
       mesh.position.copy(position);
-      mesh.rotation.x = -Math.PI / 2; // start flat; we'll face camera later
+      mesh.rotation.x = -Math.PI / 2;
       mesh.life = 0.6;
       mesh.maxLife = mesh.life;
       mesh.startScale = 1;
-      mesh.endScale = 80; // how big it grows
-    
+      mesh.endScale = 80;
       scene.add(mesh);
       shockwaves.push(mesh);
     }
-    
+
     function updateShockwaves(dt) {
       for (let i = shockwaves.length - 1; i >= 0; i--) {
         const w = shockwaves[i];
         w.life -= dt;
-        const t = 1 - Math.max(0, w.life / w.maxLife); // 0→1
-    
+        const t = 1 - Math.max(0, w.life / w.maxLife);
         const s = w.startScale + (w.endScale - w.startScale) * t;
         w.scale.set(s, s, s);
-    
         w.material.opacity = 0.9 * (1 - t);
-    
-        // face camera
         if (camera) {
           w.lookAt(camera.position);
         }
-    
         if (w.life <= 0) {
           scene.remove(w);
           shockwaves.splice(i, 1);
@@ -571,24 +575,21 @@
       }
     }
 
-
-    
     function randomUnit(){
       const v = new THREE.Vector3(Math.random()*2-1, Math.random()*2-1, Math.random()*2-1);
       return v.normalize();
     }
+
     const sphereRadius = 500;
     const enemySpeed = 3.0;
-    
     const steerMin = 1000;
     const steerMax = 3000;
     const steerLerpFactor = 0.015;
     const maxRoll = 1.0;
-    
-    // always keep 2 enemies
+
     const MAX_ENEMIES = 2;
-    const enemies = [];  // each enemy: { mesh, pos, vel, desiredVel, nextSteerChange, prevVelDir, hp, shield }
-    let selectedEnemyIndex = 0; // which enemy is currently "pinged"
+    const enemies = [];
+    let selectedEnemyIndex = 0;
 
     let spaceshipGeometry = null;
     let spaceshipMaterial = null;
@@ -613,87 +614,14 @@
           const bb = geometry.boundingBox;
           const center = new THREE.Vector3(); bb.getCenter(center);
           geometry.translate(-center.x, -center.y, -center.z);
-          missileGeometry = geometry; // store original - clone when creating meshes
+          missileGeometry = geometry;
           resolve();
         }, undefined, reject);
       });
       return Promise.all([spaceshipPromise, missilePromise]);
     };
 
-    function createEnemy() {
-      if (!spaceshipGeometry) return null;
-    
-      const pos = randomUnit().multiplyScalar(sphereRadius * 0.4);
-      const vel = randomUnit().multiplyScalar(enemySpeed);
-      const mesh = new THREE.Mesh(spaceshipGeometry, spaceshipMaterial.clone());
-      mesh.scale.set(0.5, 0.5, 0.5);
-      mesh.position.copy(pos);
-    
-      const enemy = {
-        mesh,
-        pos,
-        vel,
-        desiredVel: vel.clone(),
-        nextSteerChange: performance.now() + steerMin + Math.random() * (steerMax - steerMin),
-        prevVelDir: vel.clone().normalize(),
-        hp: enemyMaxHP,
-        shield: enemyMaxShield
-      };
-    
-      scene.add(mesh);
-      enemyShoot(enemy);         // start that enemy shooting
-      return enemy;
-    }
-    
-    function ensureEnemies() {
-      while (enemies.length < MAX_ENEMIES) {
-        const e = createEnemy();
-        if (e) enemies.push(e);
-      }
-    }
-    
-    function getPrimaryEnemy() {
-      if (enemies.length === 0) return null;
-      if (selectedEnemyIndex >= enemies.length) selectedEnemyIndex = 0;
-      return enemies[selectedEnemyIndex];
-    }
-
-
-
-    const trailParticles = [];
-    const trailMaterial = new THREE.MeshBasicMaterial({
-      color: 0x00aaff,
-      transparent: true,
-      opacity: 1
-    });
-    const trailGeom = new THREE.SphereGeometry(5, 10, 10);
-    const BACK_OFFSET = 4.5;
-    const DOWN_OFFSET = 7.5;
-    function addTrailParticle(enemy) {
-      if (!enemy || !enemy.mesh) return;
-      const localOffset = new THREE.Vector3(0, BACK_OFFSET, -DOWN_OFFSET);
-      const worldOffset = localOffset.applyQuaternion(enemy.mesh.quaternion);
-      const worldPos = enemy.mesh.position.clone().add(worldOffset);
-      const particle = new THREE.Mesh(trailGeom, trailMaterial.clone());
-      particle.position.copy(worldPos);
-      trailParticles.push({mesh: particle, life: 1.0});
-      scene.add(particle);
-    }
-    
-    function updateTrail(dt) {
-      for (let i = trailParticles.length - 1; i >= 0; i--) {
-        const p = trailParticles[i];
-        p.life -= dt * 0.7;
-        if (p.life <= 0) {
-          scene.remove(p.mesh);
-          trailParticles.splice(i, 1);
-          continue;
-        }
-        p.mesh.material.opacity = 0.9 * (p.life);
-      }
-    }
-
-    // --- PLAYER / ENEMY HP & SHIELD & SCALING ---
+    // HP etc.
     let playerMaxHP = 20;
     let playerHP = 20;
     let enemyMaxHP = 10;
@@ -704,13 +632,11 @@
     let enemyMaxShield = 8;
     let enemyShield = 8;
 
-    // shield regen
     let shieldRegenDelayMs = 3500;
     let shieldRegenRatePerSec = 1.6;
     let lastPlayerDamageTime = -Infinity;
     let lastEnemyDamageTime = -Infinity;
 
-    // damage values that scale
     let bulletDamage = 1;
     let missileDamage = 5;
     let enemyDamage = 1.0;
@@ -754,26 +680,16 @@
     }
 
     function updateHP(){
-      // player bar
       setShieldAndHP('playerBar', playerShield, playerMaxShield, playerHP, playerMaxHP);
-    
-      // enemy 1
+
       const e0 = enemies[0];
-      if (e0) {
-        setShieldAndHP('enemyBar1', e0.shield, enemyMaxShield, e0.hp, enemyMaxHP);
-      } else {
-        setShieldAndHP('enemyBar1', 0, enemyMaxShield, 0, enemyMaxHP);
-      }
-    
-      // enemy 2
+      if (e0) setShieldAndHP('enemyBar1', e0.shield, enemyMaxShield, e0.hp, enemyMaxHP);
+      else setShieldAndHP('enemyBar1', 0, enemyMaxShield, 0, enemyMaxHP);
+
       const e1 = enemies[1];
-      if (e1) {
-        setShieldAndHP('enemyBar2', e1.shield, enemyMaxShield, e1.hp, enemyMaxHP);
-      } else {
-        setShieldAndHP('enemyBar2', 0, enemyMaxShield, 0, enemyMaxHP);
-      }
-    
-      // highlight currently selected enemy
+      if (e1) setShieldAndHP('enemyBar2', e1.shield, enemyMaxShield, e1.hp, enemyMaxHP);
+      else setShieldAndHP('enemyBar2', 0, enemyMaxShield, 0, enemyMaxHP);
+
       ['enemyBar1','enemyBar2'].forEach((id, idx) => {
         const el = document.getElementById(id);
         if (!el) return;
@@ -782,10 +698,8 @@
       });
     }
 
-
     updateHP();
     updateMissileUI();
-
 
     function damagePlayer(amount){
       lastPlayerDamageTime = performance.now();
@@ -807,11 +721,11 @@
         setAutoShooting(false);
       }
     }
-    
+
     function damageEnemy(enemy, amount){
       if (!enemy) return;
       lastEnemyDamageTime = performance.now();
-    
+
       if (enemy.shield > 0) {
         enemy.shield -= amount;
         if (enemy.shield < 0) {
@@ -822,24 +736,19 @@
       } else {
         enemy.hp -= amount;
       }
-    
+
       enemy.hp = Math.max(0, enemy.hp);
       updateHP();
-      // extra burst of sparks when taking damage and very low
+
       if (enemy.hp > 0 && enemy.hp / enemyMaxHP < 0.15) {
         addSparks(enemy, 6);
       }
-
-      // ---- ADD THIS ----
-      if (enemy.hp / enemyMaxHP < 0.75) {
+      if (enemy.hp / enemyMaxHP < 0.25) {
         addSmoke(enemy);
       }
-      // -------------------
-    
+
       if (enemy.hp <= 0) destroyEnemy(enemy);
     }
-
-
 
     function updateShieldRegen(dt){
       const now = performance.now();
@@ -866,57 +775,46 @@
     function pressKey(code){ keys[code] = true; }
     function releaseKey(code){ keys[code] = false; }
 
-    // ---- pause system state early so other handlers can reference it
     const pauseScreenEl = document.getElementById('pauseScreen');
     const resumeBtn = document.getElementById('resumeBtn');
     let isPaused = false;
     let pausedAutoShooting = false;
 
-    // capture keydown to handle pause and block inputs while paused
     window.addEventListener('keydown', (e) => {
-      // toggle on 'p' (either lower or upper)
       if (e.key && e.key.toLowerCase() === 'p') {
         togglePause();
         e.preventDefault();
         e.stopImmediatePropagation();
         return;
       }
-      // if paused, block other key actions
       if (isPaused) {
         e.preventDefault();
         e.stopImmediatePropagation();
       }
-    }, true); // capture = true so it gets called before other listeners
+    }, true);
 
-    // original key handlers (they will still be invoked when not paused)
     window.addEventListener('keydown',(e)=>{
       if(isPaused) return;
-    
-      if(e.code === 'Space'){ 
+
+      if(e.code === 'Space'){
         shoot();
         return;
       }
-    
-      if(e.code === 'KeyM'){ 
+      if(e.code === 'KeyM'){
         launchMissile();
         return;
       }
-    
       if(e.code === 'KeyC'){
-        // cycle selected enemy
         if (enemies.length > 0) {
           selectedEnemyIndex = (selectedEnemyIndex + 1) % enemies.length;
           updateHP();
         }
         return;
       }
-    
-      if(e.key === 'r' || e.key === 'R'){ 
+      if(e.key === 'r' || e.key === 'R'){
         reset();
         return;
       }
-    
-      // movement / roll keys
       pressKey(e.code);
     });
 
@@ -934,13 +832,12 @@
       if(keys['KeyD']) camera.rotateZ(-accel);
     }
 
-    // ---------- projectiles ----------
     const bullets = [];
     const enemyBullets = [];
     const missiles = [];
     const bulletSpeed = 125;
     const missileSpeed = 4.5;
-    let accuracy = 1.5
+    let accuracy = 1.5;
 
     function shoot(){
       if (isPaused) return;
@@ -959,14 +856,13 @@
       if (isPaused) return;
       if(!missileGeometry) return;
       const now = performance.now();
+      const ui = document.getElementById('missileCountUI');
       if (missileAmmo <= 0) {
-        const ui = document.getElementById('missileCountUI');
         ui.textContent = 'No missiles';
         return;
       }
       if (now - lastMissileTime < missileCooldownMs) {
         const rem = ((missileCooldownMs - (now - lastMissileTime))/1000).toFixed(1);
-        const ui = document.getElementById('missileCountUI');
         ui.textContent = 'Cooldown ' + rem + 's';
         ui.style.transform = 'scale(1.05)';
         setTimeout(()=> ui.style.transform = '', 160);
@@ -975,7 +871,6 @@
       lastMissileTime = now;
       missileAmmo--; updateMissileUI();
 
-      // clone missile geometry to avoid sharing / hidden-geometry issues
       const geom = missileGeometry.clone();
       const missileMat = new THREE.MeshStandardMaterial({
         color:0xff0000,
@@ -985,7 +880,6 @@
       });
       const missile = new THREE.Mesh(geom, missileMat);
       missile.scale.set(0.4, 0.4, 0.4);
-      // place in front of camera
       const dir = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
       missile.position.copy(camera.position.clone().add(dir.clone().multiplyScalar(10)));
       const initialVel = dir.clone().multiplyScalar(missileSpeed);
@@ -995,13 +889,11 @@
         target: getPrimaryEnemy() || null,
         life: 5000
       });
-
       scene.add(missile);
     }
 
     function enemyShoot(enemy){
       if(!enemy || !enemy.mesh || gameOver) return;
-    
       const bulletGeom = new THREE.SphereGeometry(2,8,8);
       const bulletMat = new THREE.MeshBasicMaterial({color:0x00ffff});
       const bullet = new THREE.Mesh(bulletGeom, bulletMat);
@@ -1009,26 +901,23 @@
       bullet.position.copy(enemy.mesh.position);
       enemyBullets.push({mesh:bullet,vel:dir.multiplyScalar(bulletSpeed*0.8)});
       scene.add(bullet);
-    
       const jitter = Math.random()*800 - 400;
       const delay = Math.max(150, enemyFireDelay + jitter);
       setTimeout(()=> enemyShoot(enemy), delay);
     }
 
-
     const modelForwardLocal = new THREE.Vector3(0, -1, 0);
-    
+
     function alignShipToVelocity(enemy, t = 0.35){
       if(!enemy || !enemy.mesh) return;
       if(enemy.vel.lengthSq() < 1e-6) return;
       const velDir = enemy.vel.clone().normalize();
-    
       const meshWorldPos = new THREE.Vector3();
       enemy.mesh.getWorldPosition(meshWorldPos);
       const forwardLocalPoint = modelForwardLocal.clone();
       const forwardWorldPoint = enemy.mesh.localToWorld(forwardLocalPoint.clone());
       const forwardWorld = forwardWorldPoint.sub(meshWorldPos).normalize();
-    
+
       let qdelta = new THREE.Quaternion();
       if(forwardWorld.dot(velDir) < -0.9999){
         const tmp = new THREE.Vector3(1,0,0);
@@ -1038,7 +927,7 @@
       } else {
         qdelta.setFromUnitVectors(forwardWorld, velDir);
       }
-    
+
       const prev = enemy.prevVelDir.clone();
       const cur = velDir.clone();
       const angleBetween = Math.acos(Math.min(Math.max(prev.dot(cur), -1), 1));
@@ -1046,20 +935,20 @@
       const sign = Math.sign(turnAxis.dot(new THREE.Vector3(0,1,0)) || 1);
       const desiredRoll = Math.max(-maxRoll, Math.min(maxRoll, sign * angleBetween * 1.8));
       const rollQuat = new THREE.Quaternion().setFromAxisAngle(velDir.clone(), desiredRoll);
-    
+
       const currentQ = enemy.mesh.quaternion.clone();
       const baseTargetQ = qdelta.multiply(currentQ);
       const targetQ = rollQuat.multiply(baseTargetQ);
-    
+
       if(t >= 1) enemy.mesh.quaternion.copy(targetQ);
       else enemy.mesh.quaternion.slerp(targetQ, t);
-    
+
       enemy.prevVelDir.lerp(velDir, 0.15).normalize();
     }
-    
+
     function stepEnemy(enemy, dt, isPrimary){
       if (!enemy || !enemy.mesh) return;
-    
+
       if (isPrimary && keys['KeyG'] && camera) {
         const camForward = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
         const targetPoint = camera.position.clone().add(camForward.multiplyScalar(800));
@@ -1074,10 +963,10 @@
         }
         enemy.vel.lerp(enemy.desiredVel, Math.min(1, steerLerpFactor * (dt*60)));
       }
-    
+
       enemy.vel.setLength(enemySpeed);
       enemy.pos.add(enemy.vel.clone().multiplyScalar(dt * 60));
-    
+
       const dist = enemy.pos.length();
       if(dist >= sphereRadius){
         const normal = enemy.pos.clone().normalize();
@@ -1088,89 +977,134 @@
         enemy.vel.copy(reflected.setLength(enemySpeed));
         enemy.desiredVel.copy(enemy.vel);
       }
-    
+
       enemy.mesh.position.copy(enemy.pos);
       alignShipToVelocity(enemy, 0.25);
     }
 
+    const trailParticles = [];
+    const trailMaterial = new THREE.MeshBasicMaterial({
+      color: 0x00aaff,
+      transparent: true,
+      opacity: 1
+    });
+    const trailGeom = new THREE.SphereGeometry(5, 10, 10);
+    const BACK_OFFSET = 4.5;
+    const DOWN_OFFSET = 7.5;
 
-    // defeated counter + leaderboard posting
+    function addTrailParticle(enemy) {
+      if (!enemy || !enemy.mesh) return;
+      const localOffset = new THREE.Vector3(0, BACK_OFFSET, -DOWN_OFFSET);
+      const worldOffset = localOffset.applyQuaternion(enemy.mesh.quaternion);
+      const worldPos = enemy.mesh.position.clone().add(worldOffset);
+      const particle = new THREE.Mesh(trailGeom, trailMaterial.clone());
+      particle.position.copy(worldPos);
+      trailParticles.push({mesh: particle, life: 1.0});
+      scene.add(particle);
+    }
+
+    function updateTrail(dt) {
+      for (let i = trailParticles.length - 1; i >= 0; i--) {
+        const p = trailParticles[i];
+        p.life -= dt * 0.7;
+        if (p.life <= 0) {
+          scene.remove(p.mesh);
+          trailParticles.splice(i, 1);
+          continue;
+        }
+        p.mesh.material.opacity = 0.9 * (p.life);
+      }
+    }
+
+    function createEnemy() {
+      if (!spaceshipGeometry) return null;
+      const pos = randomUnit().multiplyScalar(sphereRadius * 0.4);
+      const vel = randomUnit().multiplyScalar(enemySpeed);
+      const mesh = new THREE.Mesh(spaceshipGeometry, spaceshipMaterial.clone());
+      mesh.scale.set(0.5, 0.5, 0.5);
+      mesh.position.copy(pos);
+      const enemy = {
+        mesh,
+        pos,
+        vel,
+        desiredVel: vel.clone(),
+        nextSteerChange: performance.now() + steerMin + Math.random() * (steerMax - steerMin),
+        prevVelDir: vel.clone().normalize(),
+        hp: enemyMaxHP,
+        shield: enemyMaxShield
+      };
+      scene.add(mesh);
+      enemyShoot(enemy);
+      return enemy;
+    }
+
+    function ensureEnemies() {
+      while (enemies.length < MAX_ENEMIES) {
+        const e = createEnemy();
+        if (e) enemies.push(e);
+      }
+    }
+
+    function getPrimaryEnemy() {
+      if (enemies.length === 0) return null;
+      if (selectedEnemyIndex >= enemies.length) selectedEnemyIndex = 0;
+      return enemies[selectedEnemyIndex];
+    }
+
     let defeatedCount = 0;
     const defeatedEl = document.getElementById('defeatedCount');
 
-
-    async function updateDefeatedUI(){ 
+    async function updateDefeatedUI(){
       defeatedEl.textContent = defeatedCount;
       const playerName = (document.getElementById('playerName') || {}).value || 'Player';
     }
 
-
-    
     function destroyEnemy(enemy){
       if (!enemy) return;
-    
-      // position for VFX
       const explosionPos = enemy.mesh.position.clone();
-      spawnExplosion(explosionPos);   // big boom + shockwave + flash
-    
+      spawnExplosion(explosionPos);
+
       scene.remove(enemy.mesh);
-    
       const idx = enemies.indexOf(enemy);
       if (idx !== -1) enemies.splice(idx, 1);
-    
-      // keep selected index valid
-      if (selectedEnemyIndex >= enemies.length) selectedEnemyIndex = choice;
 
-    
-      // kill all enemy bullets (same behaviour as before)
+      if (selectedEnemyIndex >= enemies.length) selectedEnemyIndex = 0;
+
       for (let i = enemyBullets.length - 1; i >= 0; i--){
         scene.remove(enemyBullets[i].mesh);
         enemyBullets.splice(i,1);
       }
-    
-      // reward player
+
       missileAmmo += 2;
-    
-      // small HP heal and shield top-up
+
       const hpGain = Math.round(playerMaxHP / 10);
       playerHP = Math.min(playerMaxHP, playerHP + hpGain);
       playerShield = Math.min(playerMaxShield, playerShield + Math.round(playerMaxShield * 0.15));
-    
-      // update UI and HUD
+
       updateMissileUI();
       updateHP();
-    
-      // increment defeated and post
+
       defeatedCount++;
       updateDefeatedUI();
-    
-      // show win banner briefly
+
       winDiv.style.display = 'block';
       setTimeout(()=> { if(winDiv) winDiv.style.display = 'none'; }, 1800);
-    
-      // -----------------------------
-      // Player scaling (upgrades)
-      // -----------------------------
+
       playerMaxShield += Math.random();
       playerShield = Math.min(playerMaxShield, playerShield + 0.6);
       shieldRegenRatePerSec += Math.random()*0.1;
       bulletDamage += Math.random();
       missileDamage += Math.random()*0.5;
-    
-      // -----------------------------
-      // Enemy scaling (difficulty)
-      // -----------------------------
+
       enemyMaxHP *= 1.2;
       enemyMaxShield *= 1.2;
       enemyDamage += 0.1;
       enemyFireDelay = Math.max(500, enemyFireDelay - 100);
       accuracy += 0.5;
       console.log(`[SCALE] defeated=${defeatedCount} playerMaxShield=${playerMaxShield.toFixed(2)} bulletDmg=${bulletDamage.toFixed(2)} enemyHP=${enemyMaxHP.toFixed(1)} enemyDelay=${enemyFireDelay} accuracy=${accuracy}`);
-    
-      // make sure we always have 2 enemies
+
       ensureEnemies();
     }
-
 
     const arrow = document.getElementById('arrowIndicator');
     let last = performance.now();
@@ -1196,7 +1130,6 @@
     }
     document.getElementById('autoShootBtn').addEventListener('click', ()=> setAutoShooting(!autoShooting));
 
-    // ----- missile update helper -----
     function updateMissiles(dt) {
       for (let i = missiles.length - 1; i >= 0; i--) {
         const m = missiles[i];
@@ -1204,24 +1137,20 @@
           missiles.splice(i, 1);
           continue;
         }
-    
-        // retarget if needed
+
         if (!m.target || !enemies.includes(m.target)) {
           m.target = getPrimaryEnemy() || null;
         }
-    
-        // homing
+
         if (m.target && m.target.mesh) {
           const desiredDir = m.target.mesh.position.clone().sub(m.mesh.position).normalize();
           const desiredVel = desiredDir.clone().multiplyScalar(missileSpeed);
           m.vel.lerp(desiredVel, 0.08);
           if (m.vel.length() > 0.0001) m.vel.setLength(Math.min(missileSpeed, Math.max(0.8, m.vel.length())));
         }
-    
-        // move
+
         m.mesh.position.add(m.vel.clone().multiplyScalar(dt * 60));
-    
-        // orient
+
         const velDir = m.vel.clone().normalize();
         if (velDir.lengthSq() > 1e-8) {
           try {
@@ -1231,16 +1160,14 @@
             m.mesh.lookAt(m.mesh.position.clone().add(velDir));
           }
         }
-    
-        // lifetime & bounds
+
         m.life -= dt * 1000;
         if (m.mesh.position.length() > sphereRadius * 2 || m.life <= 0) {
           scene.remove(m.mesh);
           missiles.splice(i, 1);
           continue;
         }
-    
-        // collision with any enemy
+
         let hit = false;
         for (const enemy of enemies) {
           if (enemy.mesh && m.mesh.position.distanceTo(enemy.mesh.position) < 55) {
@@ -1257,59 +1184,44 @@
       }
     }
 
-
-
-
-    
-    
     function animate(t){
-
       ensureEnemies();
       requestAnimationFrame(animate);
 
-      // If paused, don't progress game state — the overlay already covers the canvas.
-      if (isPaused) {
-        return;
-      }
+      if (isPaused) return;
 
       const now = t || performance.now();
       const dt = Math.min((now - last)/1000, 0.1);
-
-      // continuous smoke for damaged enemies
-      for (const enemy of enemies) {
-        if (!enemy || !enemy.mesh) continue;
-        const ratio = enemy.hp / enemyMaxHP;
-      
-        if (ratio < 0.25) {
-          // more damaged => more frequent smoke
-          addSmoke(enemy, dt);
-        }
-      }
-
-
-
       last = now;
 
       if(gameOver){
-        // still update missile UI and shield regen visuals if needed
         updateMissileUI();
         updateHP();
         updateSmoke(dt);
         updateExplosions(dt);
-        updateTrail(dt);
         updateShockwaves(dt);
+        updateSparks(dt);
+        updateTrail(dt);
         return;
       }
 
+      for (const enemy of enemies) {
+        if (!enemy || !enemy.mesh) continue;
+        const ratio = enemy.hp / enemyMaxHP;
+        if (ratio < 0.25) {
+          addSmoke(enemy, dt);
+        }
+        if (ratio < 0.10 && Math.random() < dt * 10) {
+          addSparks(enemy, 1);
+        }
+      }
+
       enemies.forEach((enemy, idx) => {
-        stepEnemy(enemy, dt, idx === 0);
+        stepEnemy(enemy, dt, idx === selectedEnemyIndex);
       });
 
       updateShieldRegen(dt);
 
-
-      
-      
       trailTimer += dt;
       while (trailTimer > 0.02) {
         enemies.forEach(e => addTrailParticle(e));
@@ -1318,11 +1230,17 @@
 
       updateTrail(dt);
       updateBrightStars(dt);
+      updateSmoke(dt);
+      updateExplosions(dt);
+      updateShockwaves(dt);
+      updateSparks(dt);
 
       for(let i=bullets.length-1;i>=0;i--){
         const b = bullets[i];
         b.mesh.position.add(b.vel.clone().multiplyScalar(dt*60));
-        if(b.mesh.position.length()>sphereRadius*2){ scene.remove(b.mesh); bullets.splice(i,1); continue; }
+        if(b.mesh.position.length()>sphereRadius*2){
+          scene.remove(b.mesh); bullets.splice(i,1); continue;
+        }
         let hitEnemy = null;
         for (const enemy of enemies) {
           if (enemy.mesh && b.mesh.position.distanceTo(enemy.mesh.position) < 30) {
@@ -1334,22 +1252,24 @@
           scene.remove(b.mesh); bullets.splice(i,1);
           damageEnemy(hitEnemy, bulletDamage);
         }
-
       }
 
-      // update missiles each frame
       updateMissiles(dt);
 
       for(let i=enemyBullets.length-1;i>=0;i--){
         const b = enemyBullets[i];
         b.mesh.position.add(b.vel.clone().multiplyScalar(dt*60));
-        if(b.mesh.position.length()>sphereRadius*2){ scene.remove(b.mesh); enemyBullets.splice(i,1); continue; }
+        if(b.mesh.position.length()>sphereRadius*2){
+          scene.remove(b.mesh); enemyBullets.splice(i,1); continue;
+        }
         if(b.mesh.position.distanceTo(camera.position) < accuracy){
           scene.remove(b.mesh); enemyBullets.splice(i,1);
           damagePlayer(enemyDamage);
         }
       }
+
       updateCamera();
+
       const primary = getPrimaryEnemy();
       if (primary && primary.mesh) {
         const pos = primary.mesh.position.clone();
@@ -1389,45 +1309,54 @@
       }
 
       renderer.render(scene, camera);
-      // update missile UI on frame to keep UI snappy
       updateMissileUI();
     }
 
     loadModels().then(() => {
-      ensureEnemies();  // create 2 enemies
+      ensureEnemies();
       animate();
-    });
-
+    }).catch(err => console.error(err));
 
     function reset(){
-      playerHP = playerMaxHP; enemyHP = enemyMaxHP;
-      playerShield = playerMaxShield; enemyShield = enemyMaxShield;
+      playerHP = playerMaxHP;
+      playerShield = playerMaxShield;
+      enemyMaxHP = 10;
+      enemyMaxShield = 8;
+      bulletDamage = 1;
+      missileDamage = 5;
+      enemyDamage = 1.0;
+      enemyFireDelay = 520;
+      accuracy = 1.5;
+
       updateHP();
+
       enemies.forEach(e => { scene.remove(e.mesh); });
       enemies.length = 0;
       ensureEnemies();
       selectedEnemyIndex = 0;
       updateHP();
 
-
-      missileAmmo = 4; lastMissileTime = -Infinity; updateMissileUI();
-      winDiv.style.display='none'; loseDiv.style.display='none';
+      missileAmmo = 4;
+      lastMissileTime = -Infinity;
+      updateMissileUI();
+      winDiv.style.display='none';
+      loseDiv.style.display='none';
       gameOver=false;
       setAutoShooting(false);
-      spaceshipPos = randomUnit().multiplyScalar(sphereRadius*0.4);
-      spaceshipVel = randomUnit().multiplyScalar(speed);
-      desiredVel = spaceshipVel.clone();
-      if(spaceship) {
-        spaceship.position.copy(spaceshipPos);
-      } else {
-        spawnSpaceship();
-      }
+
       bullets.forEach(b=>scene.remove(b.mesh)); bullets.length=0;
       enemyBullets.forEach(b=>scene.remove(b.mesh)); enemyBullets.length=0;
       missiles.forEach(m=>scene.remove(m.mesh)); missiles.length=0;
       trailParticles.forEach(p=>scene.remove(p.mesh)); trailParticles.length=0;
-      defeatedCount = 0; updateDefeatedUI();
+      smokeParticles.forEach(p=>scene.remove(p)); smokeParticles.length=0;
+      explosionParticles.forEach(p=>scene.remove(p)); explosionParticles.length=0;
+      shockwaves.forEach(p=>scene.remove(p)); shockwaves.length=0;
+      sparkParticles.forEach(p=>scene.remove(p)); sparkParticles.length=0;
+
+      defeatedCount = 0;
+      updateDefeatedUI();
     }
+
     document.getElementById('resetBtn').addEventListener('click', reset);
     document.getElementById('shootBtn').addEventListener('click', shoot);
     document.getElementById('missileBtn').addEventListener('click', launchMissile);
@@ -1435,33 +1364,26 @@
     document.getElementById('rollLeft').addEventListener('mouseup',()=>releaseKey('KeyA'));
     document.getElementById('rollRight').addEventListener('mousedown',()=>pressKey('KeyD'));
     document.getElementById('rollRight').addEventListener('mouseup',()=>releaseKey('KeyD'));
+
     window.addEventListener('resize',()=>{
       camera.aspect = window.innerWidth/window.innerHeight;
       camera.updateProjectionMatrix();
       renderer.setSize(window.innerWidth, window.innerHeight);
     });
 
-
-
-    // ---- Pause system functions (toggle + resume button) ----
     function togglePause(forceState) {
       if (typeof forceState === 'boolean') isPaused = forceState;
       else isPaused = !isPaused;
 
       if (isPaused) {
-        // show overlay
         pauseScreenEl.style.display = 'flex';
         pauseScreenEl.setAttribute('aria-hidden', 'false');
-        // temporarily stop auto-shooting (remember state so we can restore)
         pausedAutoShooting = autoShooting;
         if (autoShooting) setAutoShooting(false);
       } else {
-        // hide overlay
         pauseScreenEl.style.display = 'none';
         pauseScreenEl.setAttribute('aria-hidden', 'true');
-        // restore last frame time to avoid giant dt
         last = performance.now();
-        // restore auto-shoot if it was on
         if (pausedAutoShooting) {
           setAutoShooting(true);
           pausedAutoShooting = false;
@@ -1473,14 +1395,13 @@
       resumeBtn.addEventListener('click', () => togglePause(false));
     }
 
-    // allow pressing P to resume as well (we already intercept P in capture listener)
-    // ensure overlay is focusable for accessibility
     if (pauseScreenEl) {
       pauseScreenEl.addEventListener('keydown', (e) => {
         if (e.key && e.key.toLowerCase() === 'p') togglePause(false);
       });
     }
-  })(); // end IIFE
+
+  })();
   </script>
 </body>
 </html>

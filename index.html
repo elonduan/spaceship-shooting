@@ -543,7 +543,7 @@
       opacity: 0.9,
       side: THREE.DoubleSide
     });
-    const shockwaveGeo = new THREE.RingGeometry(1, 1.8, 64);
+    const shockwaveGeo = new THREE.RingGeometry(1, 1.1, 100);
 
     function spawnShockwave(position) {
       const mesh = new THREE.Mesh(shockwaveGeo, shockwaveMat.clone());

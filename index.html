@@ -514,7 +514,27 @@
     updateMissileUI();
 
 
-
+    function damagePlayer(amount){
+      lastPlayerDamageTime = performance.now();
+      if (playerShield > 0) {
+        playerShield -= amount;
+        if (playerShield < 0) {
+          const leftover = -playerShield;
+          playerShield = 0;
+          playerHP -= leftover;
+        }
+      } else {
+        playerHP -= amount;
+      }
+      playerHP = Math.max(0, playerHP);
+      updateHP();
+      if (playerHP <= 0) {
+        loseDiv.style.display='block';
+        gameOver = true;
+        setAutoShooting(false);
+      }
+    }
+    
     function damageEnemy(amount){
       lastEnemyDamageTime = performance.now();
       if (enemyShield > 0) {
@@ -767,7 +787,7 @@
 
       // increment defeated and post
       defeatedCount++;
-      updateDefeatedUI();
+
 
 
       // show win banner briefly
@@ -1009,7 +1029,7 @@
       enemyBullets.forEach(b=>scene.remove(b.mesh)); enemyBullets.length=0;
       missiles.forEach(m=>scene.remove(m.mesh)); missiles.length=0;
       trailParticles.forEach(p=>scene.remove(p.mesh)); trailParticles.length=0;
-      defeatedCount = 0; updateDefeatedUI();
+      defeatedCount = 0; 
     }
     document.getElementById('resetBtn').addEventListener('click', reset);
     document.getElementById('shootBtn').addEventListener('click', shoot);

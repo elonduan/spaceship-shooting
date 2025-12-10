@@ -128,7 +128,7 @@
   <div id="overlay">
     <div class="panel">
       &nbsp;
-      <div><strong>Ball Shooter Competition — Made by Elon - 8</strong></div>
+      <div><strong>Ball Shooter Competition — Made by Elon - 9</strong></div>
       <ul style="margin:8px 0 0 18px;font-size:13px">
         <li>Arrow keys / Joystick: pitch & yaw</li>
         <li>A / D buttons: roll</li>
@@ -933,7 +933,7 @@
       const right   = new THREE.Vector3(1,0,0).applyQuaternion(camera.quaternion).normalize();
     
       // tweak this to move guns closer/further to screen edges
-      const lateralOffset = 3.5; 
+      const lateralOffset = 70; 
     
       const spawnPos = camera.position.clone()
         .add(right.multiplyScalar(sideSign * lateralOffset));

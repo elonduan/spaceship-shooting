@@ -586,7 +586,7 @@
       if (laserBeam) return;
     
       // thin cylinder, height=1; we'll scale it
-      const geo = new THREE.CylinderGeometry(0.6, 0.6, 1, 16, 1, true);
+      const geo = new THREE.CylinderGeometry(0.6, 0.6, 100, 16, 1, true);
       const mat = new THREE.MeshBasicMaterial({
         color: 0xff4444,
         transparent: true,
@@ -945,7 +945,7 @@
         .add(forward.clone().multiplyScalar(depthOffset));
     
       // virtual aim point far ahead, exactly along crosshair direction
-      const aimDistance = sphereRadius * 2;   // or 2000, 3000 etc.
+      const aimDistance = sphereRadius * 1.5;   // or 2000, 3000 etc.
       const aimPoint = camPos.clone().add(forward.clone().multiplyScalar(aimDistance));
     
       // direction from muzzle → aim point (so both converge to crosshair)
@@ -1412,7 +1412,7 @@
         }
         let hitEnemy = null;
         for (const enemy of enemies) {
-          if (enemy.mesh && b.mesh.position.distanceTo(enemy.mesh.position) < 30) {
+          if (enemy.mesh && b.mesh.position.distanceTo(enemy.mesh.position) < 70) {
             hitEnemy = enemy;
             break;
           }

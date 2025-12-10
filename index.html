@@ -128,7 +128,7 @@
   <div id="overlay">
     <div class="panel">
       &nbsp;
-      <div><strong>Ball Shooter Competition — Made by Elon - 1</strong></div>
+      <div><strong>Ball Shooter Competition — Made by Elon - 2</strong></div>
       <ul style="margin:8px 0 0 18px;font-size:13px">
         <li>Arrow keys / Joystick: pitch & yaw</li>
         <li>A / D buttons: roll</li>
@@ -933,21 +933,33 @@
       const forward = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
       const right   = new THREE.Vector3(1,0,0).applyQuaternion(camera.quaternion).normalize();
     
-      // tweak this to move guns closer/further to screen edges
-      const lateralOffset = 70; 
+      // big screen-width style offset is fine
+      const lateralOffset = 70;   // your value
+      const depthOffset   = 5;    // spawn a bit in front of camera
     
-      const spawnPos = camera.position.clone()
-        .add(right.multiplyScalar(sideSign * lateralOffset));
+      const camPos = camera.position.clone();
+    
+      // muzzle position for this side
+      const spawnPos = camPos.clone()
+        .add(right.clone().multiplyScalar(sideSign * lateralOffset))
+        .add(forward.clone().multiplyScalar(depthOffset));
+    
+      // virtual aim point far ahead, exactly along crosshair direction
+      const aimDistance = sphereRadius * 2;   // or 2000, 3000 etc.
+      const aimPoint = camPos.clone().add(forward.clone().multiplyScalar(aimDistance));
+    
+      // direction from muzzle → aim point (so both converge to crosshair)
+      const dir = aimPoint.clone().sub(spawnPos).normalize();
     
       bullet.position.copy(spawnPos);
-    
       bullets.push({
         mesh: bullet,
-        vel: forward.multiplyScalar(speed),
+        vel: dir.multiplyScalar(speed),
         damage
       });
       scene.add(bullet);
     }
+
 
 
     function shoot(){

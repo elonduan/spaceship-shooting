@@ -128,7 +128,7 @@
   <div id="overlay">
     <div class="panel">
       &nbsp;
-      <div><strong>Ball Shooter Competition — Made by Elon - 7</strong></div>
+      <div><strong>Ball Shooter Competition — Made by Elon - 8</strong></div>
       <ul style="margin:8px 0 0 18px;font-size:13px">
         <li>Arrow keys / Joystick: pitch & yaw</li>
         <li>A / D buttons: roll</li>
@@ -581,17 +581,19 @@
       }
     }
     // -------- LASER VISUAL LINE --------
+// -------- LASER VISUAL BEAM (cylinder) --------
     function ensureLaserBeam() {
       if (laserBeam) return;
-      const geom = new THREE.BufferGeometry();
-      const positions = new Float32Array(2 * 3); // start + end
-      geom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-      const mat = new THREE.LineBasicMaterial({
+    
+      // thin cylinder, height=1; we'll scale it
+      const geo = new THREE.CylinderGeometry(0.6, 0.6, 1, 16, 1, true);
+      const mat = new THREE.MeshBasicMaterial({
         color: 0xff4444,
         transparent: true,
         opacity: 0.9
       });
-      laserBeam = new THREE.Line(geom, mat);
+    
+      laserBeam = new THREE.Mesh(geo, mat);
       laserBeam.visible = false;
       scene.add(laserBeam);
     }
@@ -604,16 +606,23 @@
       }
       laserBeam.visible = true;
     
-      const positions = laserBeam.geometry.attributes.position.array;
       const origin = camera.position.clone();
       const dir = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
-      const length = sphereRadius * 2;
-      const end = origin.clone().add(dir.multiplyScalar(length));
+      const length = sphereRadius * 2; // long beam
     
-      positions[0] = origin.x; positions[1] = origin.y; positions[2] = origin.z;
-      positions[3] = end.x;    positions[4] = end.y;    positions[5] = end.z;
-      laserBeam.geometry.attributes.position.needsUpdate = true;
+      // center of the cylinder is halfway along the beam
+      const mid = origin.clone().add(dir.clone().multiplyScalar(length / 2));
+      laserBeam.position.copy(mid);
+    
+      // orient cylinder so its Y axis points along 'dir'
+      const up = new THREE.Vector3(0,1,0);
+      const q = new THREE.Quaternion().setFromUnitVectors(up, dir);
+      laserBeam.quaternion.copy(q);
+    
+      // stretch height along Y
+      laserBeam.scale.set(1, length, 1);
     }
+
 
     function randomUnit(){
       const v = new THREE.Vector3(Math.random()*2-1, Math.random()*2-1, Math.random()*2-1);
@@ -913,6 +922,32 @@
     const bulletSpeed = 125;
     const missileSpeed = 4.5;
     let accuracy = 1.5;
+    
+    function spawnBulletAtSide(sideSign, damage, speed) {
+      // sideSign: -1 = left, +1 = right
+      const bulletGeom = new THREE.SphereGeometry(2,8,8);
+      const bulletMat = new THREE.MeshBasicMaterial({color:0xffff00});
+      const bullet = new THREE.Mesh(bulletGeom, bulletMat);
+    
+      const forward = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
+      const right   = new THREE.Vector3(1,0,0).applyQuaternion(camera.quaternion).normalize();
+    
+      // tweak this to move guns closer/further to screen edges
+      const lateralOffset = 3.5; 
+    
+      const spawnPos = camera.position.clone()
+        .add(right.multiplyScalar(sideSign * lateralOffset));
+    
+      bullet.position.copy(spawnPos);
+    
+      bullets.push({
+        mesh: bullet,
+        vel: forward.multiplyScalar(speed),
+        damage
+      });
+      scene.add(bullet);
+    }
+
 
     function shoot(){
       if (isPaused) return;
@@ -930,28 +965,21 @@
         heavyLastShotTime = now;
     
         // heavy shot does more damage but fires slower: DPS equal to base
-        thisDamage = baseDps * (heavyCooldownMs / 1000); // bulletDamage * 3 if cooldownMs = 3 * autoShootRateMs
+        thisDamage = baseDps * (heavyCooldownMs / 1000); // ~3x damage if cooldown is 3x
         thisSpeed  = bulletSpeed * 0.6;                  // slower projectile for flavour
       } else if (weaponMode === 'laser') {
-        // laser handled continuously in animate(), nothing to spawn here
+        // laser is handled as continuous in animate(), no discrete bullets
         return;
       }
     
-      const bulletGeom = new THREE.SphereGeometry(2,8,8);
-      const bulletMat = new THREE.MeshBasicMaterial({color:0xffff00});
-      const bullet = new THREE.Mesh(bulletGeom, bulletMat);
-      const dir = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
-      bullet.position.copy(camera.position);
-      bullets.push({
-        mesh: bullet,
-        vel: dir.multiplyScalar(thisSpeed),
-        damage: thisDamage
-      });
-      scene.add(bullet);
+      // twin guns: left (-1) and right (+1)
+      spawnBulletAtSide(-1, thisDamage, thisSpeed);
+      spawnBulletAtSide(+1, thisDamage, thisSpeed);
     
       missileExplosion.currentTime = 0;
       missileFollowExp.cloneNode(true).play();
     }
+
 
 
     function launchMissile(){

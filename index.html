@@ -128,7 +128,7 @@
   <div id="overlay">
     <div class="panel">
       &nbsp;
-      <div><strong>Ball Shooter Competition — Made by Elon - 5</strong></div>
+      <div><strong>Ball Shooter Competition — Made by Elon - 6</strong></div>
       <ul style="margin:8px 0 0 18px;font-size:13px">
         <li>Arrow keys / Joystick: pitch & yaw</li>
         <li>A / D buttons: roll</li>
@@ -549,6 +549,7 @@
       const mesh = new THREE.Mesh(shockwaveGeo, shockwaveMat.clone());
       mesh.position.copy(position);
       mesh.rotation.x = -Math.PI / 2;
+      mesh.scale.set(1+Math.random, 1+Math.random, 1+Math.random); // wider ellipse
       mesh.life = 0.6;
       mesh.maxLife = mesh.life;
       mesh.startScale = 1;

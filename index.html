@@ -128,7 +128,7 @@
   <div id="overlay">
     <div class="panel">
       &nbsp;
-      <div><strong>Ball Shooter Competition — Made by Elon - 6</strong></div>
+      <div><strong>Ball Shooter Competition — Made by Elon - 7</strong></div>
       <ul style="margin:8px 0 0 18px;font-size:13px">
         <li>Arrow keys / Joystick: pitch & yaw</li>
         <li>A / D buttons: roll</li>
@@ -146,6 +146,11 @@
       <button id="resetBtn">Reset</button>
       <div style="margin-top:8px">Missiles left: <span id="missileCount">4</span></div>
       <div id="defeatedCounter">Defeated ships: <span id="defeatedCount">0</span></div>
+      <div style="margin-top:8px">
+        Weapon: <span id="weaponLabel">Normal</span>
+        <span style="font-size:11px;opacity:0.7"> (1:Normal 2:Heavy 3:Laser)</span>
+      </div>
+
 
       <label style="margin-top:8px">Name:
         <input id="playerName" type="text" maxlength="20" value="Player">
@@ -575,6 +580,40 @@
         }
       }
     }
+    // -------- LASER VISUAL LINE --------
+    function ensureLaserBeam() {
+      if (laserBeam) return;
+      const geom = new THREE.BufferGeometry();
+      const positions = new Float32Array(2 * 3); // start + end
+      geom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      const mat = new THREE.LineBasicMaterial({
+        color: 0xff4444,
+        transparent: true,
+        opacity: 0.9
+      });
+      laserBeam = new THREE.Line(geom, mat);
+      laserBeam.visible = false;
+      scene.add(laserBeam);
+    }
+    
+    function updateLaserBeam(active) {
+      ensureLaserBeam();
+      if (!active) {
+        laserBeam.visible = false;
+        return;
+      }
+      laserBeam.visible = true;
+    
+      const positions = laserBeam.geometry.attributes.position.array;
+      const origin = camera.position.clone();
+      const dir = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
+      const length = sphereRadius * 2;
+      const end = origin.clone().add(dir.multiplyScalar(length));
+    
+      positions[0] = origin.x; positions[1] = origin.y; positions[2] = origin.z;
+      positions[3] = end.x;    positions[4] = end.y;    positions[5] = end.z;
+      laserBeam.geometry.attributes.position.needsUpdate = true;
+    }
 
     function randomUnit(){
       const v = new THREE.Vector3(Math.random()*2-1, Math.random()*2-1, Math.random()*2-1);
@@ -796,15 +835,40 @@
 
     window.addEventListener('keydown',(e)=>{
       if(isPaused) return;
-
-      if(e.code === 'Space'){
-        shoot();
+    
+      // FIRE
+      if(e.code === 'Space'){ 
+        if (weaponMode === 'laser') {
+          // start continuous laser
+          laserActive = true;
+        } else {
+          // normal / heavy = discrete shots
+          shoot();
+        }
         return;
       }
-      if(e.code === 'KeyM'){
+    
+      // MISSILE
+      if(e.code === 'KeyM'){ 
         launchMissile();
         return;
       }
+    
+      // WEAPON MODE SWITCH
+      if (e.code === 'Digit1') {
+        setWeaponMode('normal');
+        return;
+      }
+      if (e.code === 'Digit2') {
+        setWeaponMode('heavy');
+        return;
+      }
+      if (e.code === 'Digit3') {
+        setWeaponMode('laser');
+        return;
+      }
+    
+      // C: cycle selected enemy (keep your existing behaviour)
       if(e.code === 'KeyC'){
         if (enemies.length > 0) {
           selectedEnemyIndex = (selectedEnemyIndex + 1) % enemies.length;
@@ -812,17 +876,27 @@
         }
         return;
       }
-      if(e.key === 'r' || e.key === 'R'){
+    
+      // RESET
+      if(e.key === 'r' || e.key === 'R'){ 
         reset();
         return;
       }
+    
+      // movement / roll keys
       pressKey(e.code);
     });
 
+
     window.addEventListener('keyup',(e)=>{
       if(isPaused) return;
+      if (e.code === 'Space' && weaponMode === 'laser') {
+        laserActive = false; // stop continuous beam
+        return;
+      }
       if(e.code !== 'Space' && e.code !== 'KeyM') releaseKey(e.code);
     });
+
 
     function updateCamera(){
       if(keys['ArrowDown']) camera.rotateX(-accel);
@@ -842,16 +916,43 @@
 
     function shoot(){
       if (isPaused) return;
+      const now = performance.now();
+    
+      // BASE: DPS of normal weapon (depends on bulletDamage and fire rate)
+      const baseDps = bulletDamage * (1000 / autoShootRateMs);
+    
+      let thisDamage = bulletDamage;       // default for normal
+      let thisSpeed  = bulletSpeed;        // default speed
+    
+      if (weaponMode === 'heavy') {
+        // limit fire rate for heavy cannon
+        if (now - heavyLastShotTime < heavyCooldownMs) return;
+        heavyLastShotTime = now;
+    
+        // heavy shot does more damage but fires slower: DPS equal to base
+        thisDamage = baseDps * (heavyCooldownMs / 1000); // bulletDamage * 3 if cooldownMs = 3 * autoShootRateMs
+        thisSpeed  = bulletSpeed * 0.6;                  // slower projectile for flavour
+      } else if (weaponMode === 'laser') {
+        // laser handled continuously in animate(), nothing to spawn here
+        return;
+      }
+    
       const bulletGeom = new THREE.SphereGeometry(2,8,8);
       const bulletMat = new THREE.MeshBasicMaterial({color:0xffff00});
       const bullet = new THREE.Mesh(bulletGeom, bulletMat);
       const dir = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
       bullet.position.copy(camera.position);
-      bullets.push({mesh:bullet,vel:dir.multiplyScalar(bulletSpeed)});
+      bullets.push({
+        mesh: bullet,
+        vel: dir.multiplyScalar(thisSpeed),
+        damage: thisDamage
+      });
       scene.add(bullet);
+    
       missileExplosion.currentTime = 0;
       missileFollowExp.cloneNode(true).play();
     }
+
 
     function launchMissile(){
       if (isPaused) return;
@@ -1115,6 +1216,32 @@
     let autoIntervalId = null;
     const autoShootRateMs = 120;
 
+
+    // ---------- WEAPON SYSTEM ----------
+    const autoShootRateMs = 120; // this already exists in your code – keep this value
+    
+    let weaponMode = 'normal';     // 'normal' | 'heavy' | 'laser'
+    let heavyLastShotTime = -Infinity;
+    const heavyCooldownMs = autoShootRateMs * 3; // slower fire, 3x cooldown
+    
+    let laserActive = false;       // true while laser is firing (holding Space)
+    let laserBeam = null;          // THREE.Line for visual beam
+    
+    const weaponLabel = document.getElementById('weaponLabel');
+    
+    function setWeaponMode(mode) {
+      weaponMode = mode;
+      if (weaponLabel) {
+        if (mode === 'normal') weaponLabel.textContent = 'Normal';
+        else if (mode === 'heavy') weaponLabel.textContent = 'Heavy Shot';
+        else if (mode === 'laser') weaponLabel.textContent = 'Laser';
+      }
+      if (mode !== 'laser') {
+        laserActive = false; // stop laser if switching away
+      }
+    }
+
+
     function setAutoShooting(on){
       const btn = document.getElementById('autoShootBtn');
       if(on){
@@ -1251,8 +1378,9 @@
         }
         if (hitEnemy) {
           scene.remove(b.mesh); bullets.splice(i,1);
-          damageEnemy(hitEnemy, bulletDamage);
+          damageEnemy(hitEnemy, b.damage || bulletDamage);
         }
+
       }
 
       updateMissiles(dt);
@@ -1307,6 +1435,40 @@
         }
       } else {
         arrow.style.display = "none";
+      }
+      // ----- LASER DPS (continuous) -----
+      if (weaponMode === 'laser' && laserActive && !gameOver) {
+        const baseDps = bulletDamage * (1000 / autoShootRateMs); // same base as others
+        const laserDps = baseDps;                                 // same DPS as heavy
+        const damageThisFrame = laserDps * dt;
+      
+        const camPos = camera.position.clone();
+        const dir = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
+      
+        let bestEnemy = null;
+        let bestT = Infinity;
+        const hitRadius = 35;
+      
+        enemies.forEach(enemy => {
+          if (!enemy || !enemy.mesh) return;
+          const toEnemy = enemy.mesh.position.clone().sub(camPos);
+          const tProj = dir.dot(toEnemy);
+          if (tProj <= 0) return; // behind the player
+          const closestPoint = camPos.clone().add(dir.clone().multiplyScalar(tProj));
+          const dist = enemy.mesh.position.distanceTo(closestPoint);
+          if (dist < hitRadius && tProj < bestT) {
+            bestT = tProj;
+            bestEnemy = enemy;
+          }
+        });
+      
+        if (bestEnemy) {
+          damageEnemy(bestEnemy, damageThisFrame);
+        }
+      
+        updateLaserBeam(true);
+      } else {
+        updateLaserBeam(false);
       }
 
       renderer.render(scene, camera);

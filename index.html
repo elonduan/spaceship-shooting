@@ -128,7 +128,7 @@
   <div id="overlay">
     <div class="panel">
       &nbsp;
-      <div><strong>Ball Shooter Competition — Made by Elon - 9</strong></div>
+      <div><strong>Ball Shooter Competition — Made by Elon - 10</strong></div>
       <ul style="margin:8px 0 0 18px;font-size:13px">
         <li>Arrow keys / Joystick: pitch & yaw</li>
         <li>A / D buttons: roll</li>
@@ -856,7 +856,7 @@
         }
         return;
       }
-    
+      let hitR;
       // MISSILE
       if(e.code === 'KeyM'){ 
         launchMissile();
@@ -866,14 +866,17 @@
       // WEAPON MODE SWITCH
       if (e.code === 'Digit1') {
         setWeaponMode('normal');
+        hitR = 65;
         return;
       }
       if (e.code === 'Digit2') {
         setWeaponMode('heavy');
+        hitR = 65;
         return;
       }
       if (e.code === 'Digit3') {
         setWeaponMode('laser');
+        hitR = 30;
         return;
       }
     
@@ -1390,6 +1393,7 @@
       updateShockwaves(dt);
       updateSparks(dt);
 
+      
       for(let i=bullets.length-1;i>=0;i--){
         const b = bullets[i];
         b.mesh.position.add(b.vel.clone().multiplyScalar(dt*60));
@@ -1398,7 +1402,7 @@
         }
         let hitEnemy = null;
         for (const enemy of enemies) {
-          if (enemy.mesh && b.mesh.position.distanceTo(enemy.mesh.position) < 30) {
+          if (enemy.mesh && b.mesh.position.distanceTo(enemy.mesh.position) < hitR) {
             hitEnemy = enemy;
             break;
           }

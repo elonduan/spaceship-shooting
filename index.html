@@ -856,8 +856,7 @@
         }
         return;
       }
-      
-      const hitR = 65;
+
       
       // MISSILE
       if(e.code === 'KeyM'){ 
@@ -868,17 +867,14 @@
       // WEAPON MODE SWITCH
       if (e.code === 'Digit1') {
         setWeaponMode('normal');
-        hitR = 65;
         return;
       }
       if (e.code === 'Digit2') {
         setWeaponMode('heavy');
-        hitR = 65;
         return;
       }
       if (e.code === 'Digit3') {
         setWeaponMode('laser');
-        hitR = 30;
         return;
       }
     
@@ -1404,7 +1400,7 @@
         }
         let hitEnemy = null;
         for (const enemy of enemies) {
-          if (enemy.mesh && b.mesh.position.distanceTo(enemy.mesh.position) < hitR) {
+          if (enemy.mesh && b.mesh.position.distanceTo(enemy.mesh.position) < 30) {
             hitEnemy = enemy;
             break;
           }

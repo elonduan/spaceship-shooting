@@ -696,7 +696,7 @@
 
     let missileAmmo = 4;
     const missileCountSpan = document.getElementById('missileCount');
-    let missileCooldownMs = 1500;
+    let missileCooldownMs = 1000;
     let lastMissileTime = -Infinity;
 
     function updateMissileUI(){
@@ -922,7 +922,7 @@
     const missiles = [];
     const bulletSpeed = 125;
     const missileSpeed = 4.5;
-    let accuracy = 1.5;
+    let accuracy = 5;
     
     function spawnBulletAtSide(sideSign, damage, speed) {
       // sideSign: -1 = left, +1 = right
@@ -1234,16 +1234,16 @@
       setTimeout(()=> { if(winDiv) winDiv.style.display = 'none'; }, 1800);
 
       playerMaxShield += Math.random();
-      playerShield = Math.min(playerMaxShield, playerShield + 0.6);
+      playerShield = playerMaxShield);
       shieldRegenRatePerSec += Math.random()*0.1;
       bulletDamage += Math.random();
-      missileDamage += Math.random()*0.5;
+      missileDamage += Math.random();
 
       enemyMaxHP *= 1.2;
       enemyMaxShield *= 1.2;
       enemyDamage += 0.1;
       enemyFireDelay = Math.max(500, enemyFireDelay - 100);
-      accuracy += 0.5;
+      accuracy = 0.5+accuracy*0.8;
       console.log(`[SCALE] defeated=${defeatedCount} playerMaxShield=${playerMaxShield.toFixed(2)} bulletDmg=${bulletDamage.toFixed(2)} enemyHP=${enemyMaxHP.toFixed(1)} enemyDelay=${enemyFireDelay} accuracy=${accuracy}`);
 
       ensureEnemies();

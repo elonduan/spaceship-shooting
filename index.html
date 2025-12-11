@@ -1234,7 +1234,7 @@
       setTimeout(()=> { if(winDiv) winDiv.style.display = 'none'; }, 1800);
 
       playerMaxShield += Math.random();
-      playerShield = 1000;
+      playerShield = playerMaxShield*1.2;
       shieldRegenRatePerSec += Math.random()*0.1;
       bulletDamage += Math.random();
       missileDamage *= 1+Math.random()/2;

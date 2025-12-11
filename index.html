@@ -156,7 +156,7 @@
         <input id="playerName" type="text" maxlength="20" value="Player">
       </label>
 
-      <div id="win">You destroyed the spaceship — you win! 🎉</div>
+      <div id="win">You destroyed the spaceship — you win! </div>
       <div id="lose">The spaceship destroyed you! </div>
     </div>
   </div>
@@ -213,6 +213,7 @@
     const missileExplosion = new Audio("https://actions.google.com/sounds/v1/weapons/big_explosion_cut_off.ogg");
     const missileFollowExp = new Audio("https://actions.google.com/sounds/v1/weapons/auto_bullets_flyby_short.ogg");
     const backgroundMusic = new Audio("https://actions.google.com/sounds/v1/weapons/auto_bullets_flyby_short.ogg");
+    const damage = new Audion("https://actions.google.com/sounds/v1/impacts/face_hit_series.ogg");
     missileFollowExp.volume = 0.5;
   </script>
   <script>
@@ -1423,6 +1424,7 @@
         if (hitEnemy) {
           scene.remove(b.mesh); bullets.splice(i,1);
           damageEnemy(hitEnemy, b.damage || bulletDamage);
+          damage.play();
         }
 
       }
@@ -1438,6 +1440,7 @@
         if(b.mesh.position.distanceTo(camera.position) < accuracy){
           scene.remove(b.mesh); enemyBullets.splice(i,1);
           damagePlayer(enemyDamage);
+          damage.play();
         }
       }
 

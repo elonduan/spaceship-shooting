@@ -1238,6 +1238,7 @@
       shieldRegenRatePerSec += Math.random()*0.1;
       bulletDamage += Math.random();
       missileDamage *= 1+Math.random()/2;
+      missileCooldownMs -= Math.random()*missileCooldownMs*0.4;
 
       enemyMaxHP *= 1.2;
       enemyMaxShield *= 1.2;

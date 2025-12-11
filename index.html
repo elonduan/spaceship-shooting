@@ -1237,7 +1237,7 @@
       playerShield = playerMaxShield;
       shieldRegenRatePerSec += Math.random()*0.1;
       bulletDamage += Math.random();
-      missileDamage += Math.random();
+      missileDamage *= 1+Math.random()/2;
 
       enemyMaxHP *= 1.2;
       enemyMaxShield *= 1.2;

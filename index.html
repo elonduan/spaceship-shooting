@@ -811,6 +811,30 @@
     
       if(bestEnemy) damageEnemy(bestEnemy, damageThisFrame);
     }
+    function updateLaserBeam(active) {
+      ensureLaserBeam();
+      if (!active) {
+        laserBeam.visible = false;
+        return;
+      }
+      laserBeam.visible = true;
+    
+      const origin = camera.position.clone();
+      const dir = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
+      const length = sphereRadius * 2; // long beam
+    
+      // center of the cylinder is halfway along the beam
+      const mid = origin.clone().add(dir.clone().multiplyScalar(length / 2));
+      laserBeam.position.copy(mid);
+    
+      // orient cylinder so its Y axis points along 'dir'
+      const up = new THREE.Vector3(0,1,0);
+      const q = new THREE.Quaternion().setFromUnitVectors(up, dir);
+      laserBeam.quaternion.copy(q);
+    
+      // stretch height along Y
+      laserBeam.scale.set(1, length, 1);
+    }
     
     // in animate(), replace your old laser section with:
     if(!gameOver){

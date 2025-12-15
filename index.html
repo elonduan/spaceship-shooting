@@ -144,6 +144,13 @@
       <label for="sensitivity">Rotation sensitivity</label>
       <input id="sensitivity" type="range" min="0.005" max="0.05" step="0.002" value="0.015">
       <button id="resetBtn">Reset</button>
+      <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;">
+        <button id="onlineBtn">Online VS</button>
+        <span id="netBadge" style="font-size:12px;opacity:.85;padding:6px 8px;border:1px solid rgba(255,255,255,.12);border-radius:8px;">
+          Offline
+        </span>
+      </div>
+
       <div style="margin-top:8px">Missiles left: <span id="missileCount">4</span></div>
       <div id="defeatedCounter">Defeated ships: <span id="defeatedCount">0</span></div>
       <div style="margin-top:8px">
@@ -226,8 +233,184 @@
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setSize(window.innerWidth, window.innerHeight);
     container.appendChild(renderer.domElement);
-    const camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.1, 5000);
-    camera.position.set(0,0,0);
+    const camA = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.1, 5000);
+    const camB = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.1, 5000);
+    camA.position.set(0,0,0);
+    camB.position.set(0,0,0);
+    
+    // We'll keep "camera" pointing to local player's view for UI helpers,
+    // but actual render is split-screen.
+    let camera = camA;
+
+
+    // ===================== WebRTC Online VS (no backend) =====================
+    let GAME_MODE = "solo"; // "solo" | "onlineHost" | "onlineJoin"
+    let pc = null, dc = null;
+    
+    const net = {
+      role: "none", // host/join
+      connected: false,
+      lastSend: 0,
+      lastSnap: 0,
+      remoteInput: null, // latest input from other player
+    };
+    
+    function setNetBadge(text){
+      const b = document.getElementById("netBadge");
+      if(b) b.textContent = text;
+    }
+    
+    function safeSend(obj){
+      if(dc && dc.readyState === "open"){
+        dc.send(JSON.stringify(obj));
+      }
+    }
+    
+    function handleNetMessage(raw){
+      let msg;
+      try{ msg = JSON.parse(raw); } catch { return; }
+    
+      if(msg.type === "input"){
+        net.remoteInput = msg.payload;
+      } else if(msg.type === "state"){
+        if(GAME_MODE === "onlineJoin") applySnapshot(msg.payload);
+      } else if(msg.type === "sync"){
+        if(GAME_MODE === "onlineJoin"){
+          // host tells joiner to reset and start
+          reset(true); // keep your reset but allow silent reset (see patch below)
+          gameOver = false;
+          setNetBadge("Online ✅ (Join)");
+        }
+      }
+    }
+    
+    function makePanel(){
+      const overlay = document.createElement("div");
+      overlay.style.cssText = `
+        position:fixed; inset:0; display:none; place-items:center;
+        background:rgba(0,0,0,.55); backdrop-filter: blur(6px); z-index:9999;`;
+      overlay.innerHTML = `
+        <div style="width:min(900px,92vw); background:#111; color:#ddd; border:1px solid rgba(255,255,255,.12);
+                    border-radius:14px; padding:12px; font-family:system-ui">
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
+            <b>Online VS (WebRTC, copy/paste)</b>
+            <button id="rtcClose" style="padding:8px 10px;border-radius:10px;border:1px solid rgba(255,255,255,.12);background:#1b1b1b;color:#fff">Close</button>
+          </div>
+    
+          <div style="margin-top:10px; display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+            <div style="border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:10px;">
+              <div style="opacity:.8;font-size:12px;margin-bottom:6px;">Host: Create Offer → send → paste Answer</div>
+              <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px;">
+                <button id="makeOffer">Create Offer</button>
+                <button id="setAnswer">Set Answer</button>
+                <button id="beHost">Use Host Mode</button>
+              </div>
+              <textarea id="offerOut" placeholder="Offer appears here..." style="width:100%;min-height:110px;background:#000;color:#fff;border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:10px;font-family:ui-monospace;font-size:12px;resize:vertical"></textarea>
+              <textarea id="answerIn" placeholder="Paste friend’s answer here..." style="width:100%;min-height:110px;margin-top:8px;background:#000;color:#fff;border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:10px;font-family:ui-monospace;font-size:12px;resize:vertical"></textarea>
+            </div>
+    
+            <div style="border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:10px;">
+              <div style="opacity:.8;font-size:12px;margin-bottom:6px;">Join: Paste Offer → Create Answer → send back</div>
+              <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px;">
+                <button id="setOffer">Set Offer</button>
+                <button id="makeAnswer">Create Answer</button>
+                <button id="beJoin">Use Join Mode</button>
+              </div>
+              <textarea id="offerIn" placeholder="Paste host offer here..." style="width:100%;min-height:110px;background:#000;color:#fff;border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:10px;font-family:ui-monospace;font-size:12px;resize:vertical"></textarea>
+              <textarea id="answerOut" placeholder="Answer appears here..." style="width:100%;min-height:110px;margin-top:8px;background:#000;color:#fff;border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:10px;font-family:ui-monospace;font-size:12px;resize:vertical"></textarea>
+            </div>
+          </div>
+    
+          <div id="rtcStatus" style="margin-top:10px; font-size:12px; opacity:.9">Not connected.</div>
+        </div>
+      `;
+      document.body.appendChild(overlay);
+    
+      const $ = (id)=>overlay.querySelector("#"+id);
+      const statusEl = $("rtcStatus");
+      const setStatus = (t)=> statusEl.textContent = t;
+    
+      async function ensurePeer(){
+        if(pc) return;
+        pc = new RTCPeerConnection({ iceServers: [{urls:"stun:stun.l.google.com:19302"}] });
+        pc.oniceconnectionstatechange = ()=> setStatus("ICE: " + pc.iceConnectionState);
+        pc.onconnectionstatechange = ()=> setStatus("Conn: " + pc.connectionState);
+    
+        pc.ondatachannel = (ev)=>{
+          dc = ev.channel;
+          wireDC();
+        };
+      }
+    
+      function wireDC(){
+        if(!dc) return;
+        dc.onopen = ()=>{ net.connected=true; setStatus("Connected ✅"); setNetBadge(GAME_MODE==="onlineHost"?"Online ✅ (Host)":"Online ✅ (Join)"); };
+        dc.onclose = ()=>{ net.connected=false; setStatus("Disconnected."); setNetBadge("Offline"); };
+        dc.onmessage = (ev)=> handleNetMessage(ev.data);
+      }
+    
+      $("rtcClose").onclick = ()=> overlay.style.display="none";
+    
+      $("beHost").onclick = ()=>{
+        GAME_MODE = "onlineHost";
+        setNetBadge("Online (Host)…");
+        reset(true);
+        gameOver = false;
+        // tell joiner to reset once connected
+        if(net.connected) safeSend({type:"sync", payload:{}});
+      };
+    
+      $("beJoin").onclick = ()=>{
+        GAME_MODE = "onlineJoin";
+        setNetBadge("Online (Join)…");
+        reset(true);
+        gameOver = false;
+      };
+    
+      $("makeOffer").onclick = async ()=>{
+        await ensurePeer();
+        net.role = "host";
+        if(!dc){ dc = pc.createDataChannel("space"); wireDC(); }
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        await new Promise(r=>setTimeout(r, 900));
+        $("offerOut").value = JSON.stringify(pc.localDescription);
+        setStatus("Offer created. Send to friend.");
+      };
+    
+      $("setAnswer").onclick = async ()=>{
+        try{
+          const ans = JSON.parse($("answerIn").value.trim());
+          await pc.setRemoteDescription(ans);
+          setStatus("Answer set. Waiting for connection...");
+        }catch{ setStatus("Invalid answer JSON."); }
+      };
+    
+      $("setOffer").onclick = async ()=>{
+        await ensurePeer();
+        net.role = "join";
+        try{
+          const off = JSON.parse($("offerIn").value.trim());
+          await pc.setRemoteDescription(off);
+          setStatus("Offer set. Now create answer.");
+        }catch{ setStatus("Invalid offer JSON."); }
+      };
+    
+      $("makeAnswer").onclick = async ()=>{
+        try{
+          const answer = await pc.createAnswer();
+          await pc.setLocalDescription(answer);
+          await new Promise(r=>setTimeout(r, 900));
+          $("answerOut").value = JSON.stringify(pc.localDescription);
+          setStatus("Answer created. Send back to host.");
+        }catch{ setStatus("Failed to create answer."); }
+      };
+    
+      return { open: ()=> overlay.style.display="grid" };
+    }
+    
+    const rtcPanel = makePanel();
+    document.getElementById("onlineBtn").addEventListener("click", ()=> rtcPanel.open());
 
     function createStars(){
       const starCount = 3000;
@@ -371,6 +554,25 @@
         s.vflare.material.opacity = 0.75 * (0.9 + 0.1 * Math.sin(t * 1.1 + i));
       });
     }
+    function buildInputFromKeys(){
+      return {
+        ArrowUp: !!keys['ArrowUp'],
+        ArrowDown: !!keys['ArrowDown'],
+        ArrowLeft: !!keys['ArrowLeft'],
+        ArrowRight: !!keys['ArrowRight'],
+        KeyA: !!keys['KeyA'],
+        KeyD: !!keys['KeyD'],
+        KeyG: !!keys['KeyG'],
+        // actions (edge-triggered is better, but we’ll keep it simple)
+        fire: false,
+        missile: false,
+        laser: (weaponMode === 'laser') ? !!laserActive : false,
+        weaponMode
+      };
+    }
+
+    let pendingFire = false;
+    let pendingMissile = false;
 
     const light = new THREE.PointLight(0xffffff,1.2,0);
     light.position.set(200,200,200);
@@ -583,48 +785,55 @@
         }
       }
     }
-    // -------- LASER VISUAL LINE --------
-// -------- LASER VISUAL BEAM (cylinder) --------
-    function ensureLaserBeam() {
-      if (laserBeam) return;
+    function doLaserFromCamera(cam, dt){
+      const baseDps = bulletDamage * (1000 / autoShootRateMs);
+      const damageThisFrame = baseDps * dt;
     
-      // thin cylinder, height=1; we'll scale it
-      const geo = new THREE.CylinderGeometry(0.6, 0.6, 100, 16, 1, true);
-      const mat = new THREE.MeshBasicMaterial({
-        color: 0xff4444,
-        transparent: true,
-        opacity: 0.9
+      const camPos = cam.position.clone();
+      const dir = new THREE.Vector3(0,0,-1).applyQuaternion(cam.quaternion).normalize();
+    
+      let bestEnemy = null;
+      let bestT = Infinity;
+      const hitRadius = 35;
+    
+      enemies.forEach(enemy => {
+        if (!enemy || !enemy.mesh) return;
+        const toEnemy = enemy.mesh.position.clone().sub(camPos);
+        const tProj = dir.dot(toEnemy);
+        if (tProj <= 0) return;
+        const closestPoint = camPos.clone().add(dir.clone().multiplyScalar(tProj));
+        const dist = enemy.mesh.position.distanceTo(closestPoint);
+        if (dist < hitRadius && tProj < bestT) {
+          bestT = tProj; bestEnemy = enemy;
+        }
       });
     
-      laserBeam = new THREE.Mesh(geo, mat);
-      laserBeam.visible = false;
-      scene.add(laserBeam);
+      if(bestEnemy) damageEnemy(bestEnemy, damageThisFrame);
     }
     
-    function updateLaserBeam(active) {
-      ensureLaserBeam();
-      if (!active) {
-        laserBeam.visible = false;
-        return;
+    // in animate(), replace your old laser section with:
+    if(!gameOver){
+      if(GAME_MODE === "onlineHost"){
+        const inputA = buildInputFromKeys();
+        const inputB = net.remoteInput || {};
+    
+        // A laser
+        if((inputA.weaponMode === 'laser') && laserActive){
+          doLaserFromCamera(camA, dt);
+        }
+        // B laser
+        if((inputB.weaponMode === 'laser') && inputB.laser){
+          doLaserFromCamera(camB, dt);
+        }
+    
+        // show one beam (optional). easiest: show beam for local camera only:
+        updateLaserBeam((weaponMode==='laser') && laserActive);
+      } else if(GAME_MODE !== "onlineJoin"){
+        // your existing solo laser behavior
+        // (keep your current block)
       }
-      laserBeam.visible = true;
-    
-      const origin = camera.position.clone();
-      const dir = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
-      const length = sphereRadius * 2; // long beam
-    
-      // center of the cylinder is halfway along the beam
-      const mid = origin.clone().add(dir.clone().multiplyScalar(length / 2));
-      laserBeam.position.copy(mid);
-    
-      // orient cylinder so its Y axis points along 'dir'
-      const up = new THREE.Vector3(0,1,0);
-      const q = new THREE.Quaternion().setFromUnitVectors(up, dir);
-      laserBeam.quaternion.copy(q);
-    
-      // stretch height along Y
-      laserBeam.scale.set(1, length, 1);
     }
+
 
 
     function randomUnit(){
@@ -849,23 +1058,27 @@
       if(isPaused) return;
     
       // FIRE
-      if(e.code === 'Space'){ 
-        if (weaponMode === 'laser') {
-          // start continuous laser
-          laserActive = true;
-        } else {
-          // normal / heavy = discrete shots
-          shoot();
+      if(e.code === 'Space'){
+        if(GAME_MODE === "onlineJoin"){
+          // don't shoot locally
+          if (weaponMode === 'laser') laserActive = true;
+          else pendingFire = true;
+          return;
         }
+        // existing behavior
+        if (weaponMode === 'laser') laserActive = true;
+        else shoot();
         return;
       }
 
+
       
       // MISSILE
-      if(e.code === 'KeyM'){ 
-        launchMissile();
-        return;
+      if(e.code === 'KeyM'){
+        if(GAME_MODE === "onlineJoin"){ pendingMissile = true; return; }
+        launchMissile(); return;
       }
+
     
       // WEAPON MODE SWITCH
       if (e.code === 'Digit1') {
@@ -911,14 +1124,15 @@
     });
 
 
-    function updateCamera(){
-      if(keys['ArrowDown']) camera.rotateX(-accel);
-      if(keys['ArrowUp']) camera.rotateX(accel);
-      if(keys['ArrowLeft']) camera.rotateY(accel);
-      if(keys['ArrowRight']) camera.rotateY(-accel);
-      if(keys['KeyA']) camera.rotateZ(accel);
-      if(keys['KeyD']) camera.rotateZ(-accel);
+    function applyCameraInput(cam, input){
+      if(input.ArrowDown) cam.rotateX(-accel);
+      if(input.ArrowUp) cam.rotateX(accel);
+      if(input.ArrowLeft) cam.rotateY(accel);
+      if(input.ArrowRight) cam.rotateY(-accel);
+      if(input.KeyA) cam.rotateZ(accel);
+      if(input.KeyD) cam.rotateZ(-accel);
     }
+
 
     const bullets = [];
     const enemyBullets = [];
@@ -1367,6 +1581,13 @@
       const dt = Math.min((now - last)/1000, 0.1);
       last = now;
 
+      // Decide local vs remote camera mapping
+      // - Host: camA = host local, camB = join remote
+      // - Join: camB = join local (for UI), camA comes from snapshots
+      if(GAME_MODE === "onlineHost") camera = camA;
+      if(GAME_MODE === "onlineJoin") camera = camB;
+
+      
       if(gameOver){
         updateMissileUI();
         updateHP();
@@ -1446,7 +1667,60 @@
         }
       }
 
-      updateCamera();
+      if(GAME_MODE === "onlineHost"){
+        const inputA = buildInputFromKeys();
+        const inputB = net.remoteInput || {};
+      
+        // Apply rotations
+        applyCameraInput(camA, inputA);
+        applyCameraInput(camB, inputB);
+      
+        // Host handles actions for BOTH players
+        // Fire
+        if(inputA.weaponMode !== weaponMode) setWeaponMode(inputA.weaponMode); // optional: lock to host only
+        // For simplicity: host uses its own weaponMode UI; remote weaponMode comes via inputB.weaponMode
+        if(pendingFire){ /* host local already shoots in keydown, ignore */ }
+      
+        if(inputB.fire){
+          // temporarily "pretend" camera is B to shoot from B’s view
+          const prevCam = camera;
+          camera = camB;
+          // remote weapon selection
+          const prevWM = weaponMode;
+          setWeaponMode(inputB.weaponMode || prevWM);
+          shoot();
+          setWeaponMode(prevWM);
+          camera = prevCam;
+        }
+      
+        if(inputB.missile){
+          const prevCam = camera;
+          camera = camB;
+          launchMissile();
+          camera = prevCam;
+        }
+      
+        // laser: host applies DPS from both beams (A and B)
+        // (we’ll patch laser section below)
+      } else if(GAME_MODE === "onlineJoin"){
+        // JOIN: only send input; no physics decisions
+        const nowMs = performance.now();
+        if(net.connected && nowMs - net.lastSend > 40){
+          net.lastSend = nowMs;
+          const inp = buildInputFromKeys();
+          inp.fire = pendingFire;
+          inp.missile = pendingMissile;
+          // consume edge-trigger flags
+          pendingFire = false;
+          pendingMissile = false;
+          safeSend({type:"input", payload: inp});
+        }
+      
+        // Join does NOT run updateCamera(); snapshots drive camA and enemies/bullets.
+        // You can still allow local camB rotation visually by applying it,
+        // but that would desync from host. So: do NOT rotate locally.
+      }
+
 
       const primary = getPrimaryEnemy();
       if (primary && primary.mesh) {
@@ -1520,7 +1794,23 @@
         updateLaserBeam(false);
       }
 
-      renderer.render(scene, camera);
+      renderer.setScissorTest(true);
+
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      
+      // Top half = Player A view
+      renderer.setViewport(0, h/2, w, h/2);
+      renderer.setScissor(0, h/2, w, h/2);
+      renderer.render(scene, camA);
+      
+      // Bottom half = Player B view
+      renderer.setViewport(0, 0, w, h/2);
+      renderer.setScissor(0, 0, w, h/2);
+      renderer.render(scene, camB);
+      
+      renderer.setScissorTest(false);
+
       updateMissileUI();
     }
 
@@ -1529,7 +1819,7 @@
       animate();
     }).catch(err => console.error(err));
 
-    function reset(){
+    function reset(silent=false){
       playerHP = playerMaxHP;
       playerShield = playerMaxShield;
       enemyMaxHP = 10;
@@ -1539,6 +1829,13 @@
       enemyDamage = 1.0;
       enemyFireDelay = 520;
       accuracy = 1.5;
+      if(!silent){
+        winDiv.style.display='none';
+        loseDiv.style.display='none';
+      } else {
+        if(winDiv) winDiv.style.display='none';
+        if(loseDiv) loseDiv.style.display='none';
+      }
 
       updateHP();
 
@@ -1578,10 +1875,135 @@
     document.getElementById('rollRight').addEventListener('mouseup',()=>releaseKey('KeyD'));
 
     window.addEventListener('resize',()=>{
-      camera.aspect = window.innerWidth/window.innerHeight;
-      camera.updateProjectionMatrix();
+      camA.aspect = window.innerWidth/window.innerHeight;
+      camB.aspect = window.innerWidth/window.innerHeight;
+      camA.updateProjectionMatrix();
+      camB.updateProjectionMatrix();
       renderer.setSize(window.innerWidth, window.innerHeight);
     });
+
+    function qPack(q){ return [q.x,q.y,q.z,q.w]; }
+    function qUnpack(q, a){ q.set(a[0],a[1],a[2],a[3]); }
+    
+    function getSnapshot(){
+      return {
+        // player cameras
+        camAq: qPack(camA.quaternion),
+        camBq: qPack(camB.quaternion),
+    
+        // player stats (make B mirror A for now if you want co-op HP later)
+        playerHP, playerShield, playerMaxHP, playerMaxShield,
+    
+        // enemies (positions, velocities, hp/shield)
+        enemies: enemies.map(e => ({
+          p:[e.pos.x,e.pos.y,e.pos.z],
+          v:[e.vel.x,e.vel.y,e.vel.z],
+          hp:e.hp, sh:e.shield
+        })),
+        selectedEnemyIndex,
+    
+        // bullets
+        bullets: bullets.map(b => ({
+          p:[b.mesh.position.x,b.mesh.position.y,b.mesh.position.z],
+          v:[b.vel.x,b.vel.y,b.vel.z],
+          dmg: b.damage || bulletDamage
+        })),
+        enemyBullets: enemyBullets.map(b => ({
+          p:[b.mesh.position.x,b.mesh.position.y,b.mesh.position.z],
+          v:[b.vel.x,b.vel.y,b.vel.z]
+        })),
+    
+        missiles: missiles.map(m => ({
+          p:[m.mesh.position.x,m.mesh.position.y,m.mesh.position.z],
+          v:[m.vel.x,m.vel.y,m.vel.z],
+          life:m.life
+        })),
+    
+        gameOver,
+        defeatedCount,
+        missileAmmo,
+        lastMissileTime,
+        enemyMaxHP, enemyMaxShield,
+        bulletDamage, missileDamage, enemyDamage, enemyFireDelay, accuracy
+      };
+    }
+    
+    function applySnapshot(s){
+      // cameras
+      qUnpack(camA.quaternion, s.camAq);
+      qUnpack(camB.quaternion, s.camBq);
+    
+      // stats & difficulty
+      playerHP = s.playerHP; playerShield = s.playerShield;
+      playerMaxHP = s.playerMaxHP; playerMaxShield = s.playerMaxShield;
+      enemyMaxHP = s.enemyMaxHP; enemyMaxShield = s.enemyMaxShield;
+      bulletDamage = s.bulletDamage; missileDamage = s.missileDamage;
+      enemyDamage = s.enemyDamage; enemyFireDelay = s.enemyFireDelay; accuracy = s.accuracy;
+    
+      selectedEnemyIndex = s.selectedEnemyIndex|0;
+      defeatedCount = s.defeatedCount|0;
+      missileAmmo = s.missileAmmo|0;
+      lastMissileTime = s.lastMissileTime;
+    
+      // enemies: recreate if counts mismatch
+      while(enemies.length > s.enemies.length){
+        const e = enemies.pop();
+        if(e && e.mesh) scene.remove(e.mesh);
+      }
+      while(enemies.length < s.enemies.length){
+        const e = createEnemy();
+        if(e) enemies.push(e);
+        else break;
+      }
+      // apply enemy data
+      for(let i=0;i<s.enemies.length;i++){
+        const d = s.enemies[i];
+        const e = enemies[i];
+        if(!e) continue;
+        e.pos.set(d.p[0],d.p[1],d.p[2]);
+        e.vel.set(d.v[0],d.v[1],d.v[2]);
+        e.hp = d.hp; e.shield = d.sh;
+        e.mesh.position.copy(e.pos);
+      }
+    
+      // bullets: clear & rebuild (simple but fine for 10–15Hz)
+      bullets.forEach(b=> scene.remove(b.mesh)); bullets.length = 0;
+      s.bullets.forEach(d=>{
+        const bulletGeom = new THREE.SphereGeometry(2,8,8);
+        const bulletMat = new THREE.MeshBasicMaterial({color:0xffff00});
+        const mesh = new THREE.Mesh(bulletGeom, bulletMat);
+        mesh.position.set(d.p[0],d.p[1],d.p[2]);
+        scene.add(mesh);
+        bullets.push({ mesh, vel: new THREE.Vector3(d.v[0],d.v[1],d.v[2]), damage: d.dmg });
+      });
+    
+      enemyBullets.forEach(b=> scene.remove(b.mesh)); enemyBullets.length = 0;
+      s.enemyBullets.forEach(d=>{
+        const bulletGeom = new THREE.SphereGeometry(2,8,8);
+        const bulletMat = new THREE.MeshBasicMaterial({color:0x00ffff});
+        const mesh = new THREE.Mesh(bulletGeom, bulletMat);
+        mesh.position.set(d.p[0],d.p[1],d.p[2]);
+        scene.add(mesh);
+        enemyBullets.push({ mesh, vel: new THREE.Vector3(d.v[0],d.v[1],d.v[2]) });
+      });
+    
+      // missiles: clear & rebuild (same)
+      missiles.forEach(m=> scene.remove(m.mesh)); missiles.length = 0;
+      s.missiles.forEach(d=>{
+        if(!missileGeometry) return;
+        const missileMat = new THREE.MeshStandardMaterial({ color:0xff0000, side:THREE.DoubleSide, metalness:0.2, roughness:0.6 });
+        const mesh = new THREE.Mesh(missileGeometry.clone(), missileMat);
+        mesh.scale.set(0.4,0.4,0.4);
+        mesh.position.set(d.p[0],d.p[1],d.p[2]);
+        scene.add(mesh);
+        missiles.push({ mesh, vel:new THREE.Vector3(d.v[0],d.v[1],d.v[2]), target:null, life:d.life });
+      });
+    
+      gameOver = !!s.gameOver;
+      updateHP();
+      updateMissileUI();
+      updateDefeatedUI();
+    }
 
     function togglePause(forceState) {
       if (typeof forceState === 'boolean') isPaused = forceState;

@@ -1838,15 +1838,14 @@
       const w = window.innerWidth;
       const h = window.innerHeight;
       
-      // Top half = Player A view
-      renderer.setViewport(0, h/2, w, h/2);
-      renderer.setScissor(0, h/2, w, h/2);
-      renderer.render(scene, camA);
+      // Choose which camera to render for THIS device
+      const viewCam = (GAME_MODE === "onlineJoin") ? camB : camA;
       
-      // Bottom half = Player B view
-      renderer.setViewport(0, 0, w, h/2);
-      renderer.setScissor(0, 0, w, h/2);
-      renderer.render(scene, camB);
+      // single full-screen render
+      renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
+      renderer.setScissorTest(false);
+      renderer.render(scene, viewCam);
+
       
       renderer.setScissorTest(false);
 

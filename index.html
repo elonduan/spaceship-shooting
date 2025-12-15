@@ -1,932 +1,191 @@
 <!doctype html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Ball Shooter — WebRTC Duel</title>
-  <style>
-    html,body{height:100%;margin:0;background:#000;color:#ddd;font-family:system-ui,-apple-system,Segoe UI,Roboto;overflow:hidden}
-    #overlay{position:fixed;left:12px;top:12px;z-index:10;max-width:520px}
-    .panel{background:rgba(0,0,0,0.45);padding:12px;border-radius:8px;backdrop-filter:blur(4px)}
-    #win,#lose{display:none;padding:18px;margin-top:12px;border-radius:8px;font-weight:700}
-    #win{background:linear-gradient(90deg,#0f0,#005500);color:#001}
-    #lose{background:linear-gradient(90deg,#f00,#550000);color:#fff}
-    #canvas-container{width:100%;height:100vh;display:block}
-    input[type=range]{width:100%}
-    label{font-size:13px;display:block;margin-top:10px}
-    #crosshair{position:fixed;left:50%;top:50%;width:20px;height:20px;margin-left:-10px;margin-top:-10px;z-index:5;pointer-events:none}
-    #crosshair:before,#crosshair:after{content:"";position:absolute;background:#fff}
-    #crosshair:before{left:9px;top:0;width:2px;height:20px}
-    #crosshair:after{left:0;top:9px;width:20px;height:2px}
-
-    #hud { position:fixed; top:10px; left:0; right:0; display:flex; justify-content:space-between; padding:0 20px; z-index:15; align-items:center; gap:12px; }
-    .barContainer {
-      width: 220px; height: 52px; display: flex; flex-direction: column;
-      justify-content: space-between; gap: 4px; background: rgba(255,255,255,0.03);
-      padding: 6px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.06);
-      box-sizing: border-box;
-    }
-    .hpStack .bar { height: 18px; border-radius: 6px; transition: width 120ms linear; width: 100%;
-      background: rgba(255,255,255,0.05); overflow: hidden; position: relative; }
-    .hpStack .shield { background:#ffffff; width:100%; box-shadow: inset 0 0 6px rgba(255,255,255,0.05); }
-    .hpStack .health { background:#ff2b2b; width:100%; box-shadow: inset 0 0 6px rgba(0,0,0,0.15); }
-
-    #missileUI{position:fixed; left:50%; top: calc(50% + 24px); transform:translateX(-50%);
-      font-size:13px; color:#fff; z-index:20; text-align:center; padding:6px 10px;
-      background:rgba(0,0,0,0.35); border-radius:8px; pointer-events:none;}
-
-    #screenFlash { position: fixed; inset: 0; background: #ffffff; opacity: 0; pointer-events: none;
-      z-index: 9998; transition: opacity 0.12s ease-out; }
-
-    /* WebRTC / signaling UI */
-    #netPanel { margin-top:10px; }
-    .netRow{display:flex; gap:8px; flex-wrap:wrap; margin-top:8px}
-    .netRow button{padding:7px 10px;border-radius:8px;border:1px solid rgba(255,255,255,0.18);
-      background:rgba(255,255,255,0.06);color:#fff;cursor:pointer}
-    .netRow button.primary{background:rgba(120,255,120,0.10);border-color:rgba(120,255,120,0.25)}
-    .netRow button.warn{background:rgba(255,120,120,0.10);border-color:rgba(255,120,120,0.25)}
-    textarea{width:100%; min-height:90px; background:rgba(255,255,255,0.04); color:#fff; border:1px solid rgba(255,255,255,0.12);
-      border-radius:8px; padding:8px; box-sizing:border-box; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;}
-    .statusPill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.05)}
-    .ok{border-color:rgba(120,255,120,0.25); background:rgba(120,255,120,0.10)}
-    .bad{border-color:rgba(255,120,120,0.25); background:rgba(255,120,120,0.10)}
-    .muted{opacity:0.8;font-size:12px;line-height:1.25}
-
-    /* Mobile buttons removed for clarity in duel version (you can re-add later) */
-  </style>
+<meta charset="utf-8">
+<title>Ball Shooter — 1v1 Online Duel</title>
+<style>
+html,body{margin:0;height:100%;background:black;color:white;overflow:hidden;font-family:sans-serif}
+#ui{position:fixed;top:10px;left:10px;z-index:10}
+textarea{width:320px;height:90px}
+button{margin:4px 0}
+#crosshair{position:fixed;left:50%;top:50%;width:20px;height:20px;margin:-10px;pointer-events:none}
+#crosshair:before,#crosshair:after{content:"";position:absolute;background:white}
+#crosshair:before{left:9px;top:0;width:2px;height:20px}
+#crosshair:after{top:9px;left:0;width:20px;height:2px}
+</style>
 </head>
+
 <body>
-  <div id="screenFlash"></div>
+<div id="ui">
+  <button onclick="createOffer()">Create Offer</button><br>
+  <textarea id="offer"></textarea><br>
+  <button onclick="setOffer()">Set Offer</button><br>
+  <button onclick="createAnswer()">Create Answer</button><br>
+  <textarea id="answer"></textarea><br>
+  <button onclick="setAnswer()">Set Answer</button>
+  <div>HP: <span id="hp">20</span> | Enemy HP: <span id="ehp">20</span></div>
+</div>
 
-  <div id="overlay">
-    <div class="panel">
-      <div><strong>Ball Shooter Duel — WebRTC</strong></div>
-      <div class="muted" style="margin-top:6px">
-        Controls: Arrow keys = pitch/yaw, A/D = roll, Space = fire, 1/2/3 = weapon, R = reset.
-        <br/>Networking: copy/paste Offer/Answer + ICE below. Host is authoritative for damage/HP.
-      </div>
+<div id="crosshair"></div>
 
-      <label style="margin-top:10px">Name:
-        <input id="playerName" type="text" maxlength="20" value="Player" style="width:160px;margin-left:6px;padding:3px 6px;border-radius:6px;border:1px solid rgba(255,255,255,0.12);background: rgba(255,255,255,0.03);color:#fff;">
-      </label>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128/build/three.min.js"></script>
 
-      <label for="sensitivity">Rotation sensitivity</label>
-      <input id="sensitivity" type="range" min="0.005" max="0.05" step="0.002" value="0.015">
+<script>
+/* -------------------- THREE SETUP -------------------- */
+const scene = new THREE.Scene();
+const cam = new THREE.PerspectiveCamera(70, innerWidth/innerHeight, 0.1, 5000);
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(innerWidth, innerHeight);
+document.body.appendChild(renderer.domElement);
 
-      <div style="margin-top:8px">
-        Weapon: <span id="weaponLabel">Normal</span>
-        <span style="font-size:11px;opacity:0.7"> (1:Normal 2:Heavy 3:Laser)</span>
-      </div>
+cam.position.z = 0;
 
-      <div id="netPanel">
-        <div style="margin-top:10px; display:flex; gap:10px; align-items:center; flex-wrap:wrap">
-          <span>Connection:</span>
-          <span id="connState" class="statusPill bad">DISCONNECTED</span>
-          <span id="roleState" class="statusPill">ROLE: none</span>
-        </div>
+scene.add(new THREE.AmbientLight(0xffffff, 1));
 
-        <div class="netRow">
-          <button id="btnHost" class="primary">Host (Create Offer)</button>
-          <button id="btnJoin" class="primary">Join (Paste Offer → Answer)</button>
-          <button id="btnHangup" class="warn">Hang up</button>
-        </div>
+/* -------------------- PLAYER SHIPS -------------------- */
+const shipGeo = new THREE.ConeGeometry(15,40,8);
+const shipMat = new THREE.MeshStandardMaterial({color:0xffffff});
+const enemyMat = new THREE.MeshStandardMaterial({color:0xff4444});
 
-        <label>Offer / Answer (SDP JSON)</label>
-        <textarea id="sdpBox" placeholder="Offer/Answer JSON goes here..."></textarea>
+const playerShip = new THREE.Mesh(shipGeo, shipMat);
+playerShip.rotation.x = Math.PI/2;
+scene.add(playerShip);
 
-        <div class="netRow">
-          <button id="btnSetRemote">Set Remote Offer/Answer</button>
-          <button id="btnMakeAnswer">Create Answer (Joiner)</button>
-          <button id="btnCopySDP">Copy SDP</button>
-        </div>
+const enemyShip = new THREE.Mesh(shipGeo, enemyMat);
+enemyShip.rotation.x = Math.PI/2;
+scene.add(enemyShip);
 
-        <label>ICE candidates (paste lines of JSON, one per line)</label>
-        <textarea id="iceBox" placeholder='{"candidate":"candidate:...","sdpMid":"0","sdpMLineIndex":0}'></textarea>
+let playerHP = 20;
+let enemyHP = 20;
 
-        <div class="netRow">
-          <button id="btnAddICE">Add ICE From Box</button>
-          <button id="btnCopyICE">Copy My ICE</button>
-          <button id="btnClearICE">Clear ICE Boxes</button>
-        </div>
+/* -------------------- INPUT -------------------- */
+const keys = {};
+addEventListener("keydown",e=>keys[e.code]=true);
+addEventListener("keyup",e=>keys[e.code]=false);
 
-        <div class="muted" style="margin-top:8px">
-          Tip: If audio autoplay errors annoy you, keep sound off or click once on the page first.
-        </div>
-      </div>
+/* -------------------- BULLETS -------------------- */
+const bullets = [];
+const enemyBullets = [];
 
-      <button id="resetBtn" style="margin-top:10px">Reset</button>
+function shoot(fromCam=true){
+  const b = new THREE.Mesh(
+    new THREE.SphereGeometry(2,8,8),
+    new THREE.MeshBasicMaterial({color:fromCam?0xffff00:0x00ffff})
+  );
+  const dir = new THREE.Vector3(0,0,-1)
+    .applyQuaternion(fromCam?cam.quaternion:enemyShip.quaternion)
+    .normalize();
+  b.position.copy(fromCam?cam.position:enemyShip.position);
+  scene.add(b);
+  (fromCam?bullets:enemyBullets).push({mesh:b,vel:dir.multiplyScalar(120)});
+}
 
-      <div id="win">You destroyed the other player — you win!</div>
-      <div id="lose">You were destroyed — you lose!</div>
-    </div>
-  </div>
+/* -------------------- WEBRTC -------------------- */
+let pc, dc;
 
-  <div class="hud-row" id="hud">
-    <div class="barContainer">
-      <div style="font-size:12px;opacity:0.85;margin-bottom:2px">YOU</div>
-      <div id="playerBar" class="hpStack">
-        <div class="bar shield" id="playerShieldBar"></div>
-        <div class="bar health" id="playerHealthBar"></div>
-      </div>
-    </div>
-    <div class="barContainer">
-      <div style="font-size:12px;opacity:0.85;margin-bottom:2px">OPPONENT</div>
-      <div id="enemyBar1" class="hpStack">
-        <div class="bar shield"></div>
-        <div class="bar health"></div>
-      </div>
-    </div>
-  </div>
+async function createPC(){
+  pc = new RTCPeerConnection();
+  dc = pc.createDataChannel("game");
 
-  <div id="crosshair"></div>
-  <div id="missileUI"><span id="missileCountUI"></span></div>
-  <div id="canvas-container"></div>
+  dc.onmessage = e => handleNet(JSON.parse(e.data));
 
-  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/js/loaders/STLLoader.js"></script>
+  pc.ondatachannel = e=>{
+    dc = e.channel;
+    dc.onmessage = ev=>handleNet(JSON.parse(ev.data));
+  };
+}
 
-  <script>
-  (function(){
+async function createOffer(){
+  await createPC();
+  const offer = await pc.createOffer();
+  await pc.setLocalDescription(offer);
+  offerBox.value = JSON.stringify(offer);
+}
 
-    /*********************** Small helpers ***********************/
-    const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
-    const lerp = (a,b,t)=>a+(b-a)*t;
+async function setOffer(){
+  await createPC();
+  await pc.setRemoteDescription(JSON.parse(offerBox.value));
+}
 
-    function setPill(el, ok, text){
-      el.textContent = text;
-      el.classList.remove('ok','bad');
-      el.classList.add(ok ? 'ok' : 'bad');
+async function createAnswer(){
+  const ans = await pc.createAnswer();
+  await pc.setLocalDescription(ans);
+  answerBox.value = JSON.stringify(ans);
+}
+
+async function setAnswer(){
+  await pc.setRemoteDescription(JSON.parse(answerBox.value));
+}
+
+const offerBox = document.getElementById("offer");
+const answerBox = document.getElementById("answer");
+
+/* -------------------- NETWORK -------------------- */
+function sendState(){
+  if(!dc || dc.readyState!=="open") return;
+  dc.send(JSON.stringify({
+    t:"state",
+    p:cam.position.toArray(),
+    q:cam.quaternion.toArray(),
+    hp:playerHP
+  }));
+}
+
+function handleNet(m){
+  if(m.t==="state"){
+    enemyShip.position.fromArray(m.p);
+    enemyShip.quaternion.fromArray(m.q);
+    enemyHP = m.hp;
+    document.getElementById("ehp").textContent = enemyHP;
+  }
+  if(m.t==="shoot") shoot(false);
+}
+
+/* -------------------- GAME LOOP -------------------- */
+let lastNet = 0;
+
+function animate(t){
+  requestAnimationFrame(animate);
+
+  if(keys.ArrowLeft) cam.rotateY(0.03);
+  if(keys.ArrowRight) cam.rotateY(-0.03);
+  if(keys.ArrowUp) cam.rotateX(0.03);
+  if(keys.ArrowDown) cam.rotateX(-0.03);
+  if(keys.Space){
+    shoot(true);
+    dc?.send(JSON.stringify({t:"shoot"}));
+    keys.Space=false;
+  }
+
+  bullets.forEach((b,i)=>{
+    b.mesh.position.add(b.vel.clone().multiplyScalar(0.016));
+    if(b.mesh.position.distanceTo(enemyShip.position)<20){
+      enemyHP--;
+      scene.remove(b.mesh);
+      bullets.splice(i,1);
     }
+  });
 
-    /*********************** WebRTC (manual signaling) ***********************/
-    const connStateEl = document.getElementById('connState');
-    const roleStateEl = document.getElementById('roleState');
-    const sdpBox = document.getElementById('sdpBox');
-    const iceBox = document.getElementById('iceBox');
-    const btnHost = document.getElementById('btnHost');
-    const btnJoin = document.getElementById('btnJoin');
-    const btnHangup = document.getElementById('btnHangup');
-    const btnSetRemote = document.getElementById('btnSetRemote');
-    const btnMakeAnswer = document.getElementById('btnMakeAnswer');
-    const btnAddICE = document.getElementById('btnAddICE');
-    const btnCopySDP = document.getElementById('btnCopySDP');
-    const btnCopyICE = document.getElementById('btnCopyICE');
-    const btnClearICE = document.getElementById('btnClearICE');
-
-    let pc = null;
-    let dc = null;
-    let isHost = false;
-
-    // Collect my ICE candidates so user can copy/paste them
-    let myIceLines = [];
-
-    function resetNetUI(){
-      myIceLines = [];
-      setPill(connStateEl,false,'DISCONNECTED');
-      roleStateEl.textContent = 'ROLE: none';
+  enemyBullets.forEach((b,i)=>{
+    b.mesh.position.add(b.vel.clone().multiplyScalar(0.016));
+    if(b.mesh.position.distanceTo(cam.position)<20){
+      playerHP--;
+      scene.remove(b.mesh);
+      enemyBullets.splice(i,1);
     }
-    resetNetUI();
+  });
 
-    function closePeer(){
-      try{ if(dc){ dc.close(); } }catch(e){}
-      try{ if(pc){ pc.close(); } }catch(e){}
-      pc = null; dc = null;
-      isHost = false;
-      resetNetUI();
-    }
+  document.getElementById("hp").textContent = playerHP;
 
-    function ensurePeer(){
-      if(pc) return;
+  if(t-lastNet>50){
+    sendState();
+    lastNet=t;
+  }
 
-      // Public STUN helps NAT traversal.
-      pc = new RTCPeerConnection({
-        iceServers: [
-          { urls: "stun:stun.l.google.com:19302" },
-          { urls: "stun:global.stun.twilio.com:3478?transport=udp" }
-        ]
-      });
+  renderer.render(scene,cam);
+}
 
-      pc.onicecandidate = (e)=>{
-        if(!e.candidate) return;
-        const line = JSON.stringify(e.candidate);
-        myIceLines.push(line);
-      };
-
-      pc.onconnectionstatechange = ()=>{
-        const st = pc.connectionState;
-        if(st === 'connected') setPill(connStateEl,true,'CONNECTED');
-        else if(st === 'connecting') setPill(connStateEl,false,'CONNECTING');
-        else if(st === 'failed' || st === 'disconnected' || st === 'closed') setPill(connStateEl,false,st.toUpperCase());
-      };
-
-      pc.ondatachannel = (e)=>{
-        dc = e.channel;
-        wireDataChannel();
-      };
-    }
-
-    function wireDataChannel(){
-      if(!dc) return;
-      dc.binaryType = "arraybuffer";
-      dc.onopen = ()=>{
-        setPill(connStateEl,true,'CONNECTED (DATA)');
-        // identify
-        sendNet({t:'hello', name: (document.getElementById('playerName').value||'Player').slice(0,20)});
-      };
-      dc.onclose = ()=>{ setPill(connStateEl,false,'DISCONNECTED'); };
-      dc.onmessage = (e)=>{
-        try{
-          const msg = JSON.parse(e.data);
-          onNetMessage(msg);
-        }catch(err){}
-      };
-    }
-
-    async function hostCreateOffer(){
-      closePeer();
-      ensurePeer();
-      isHost = true;
-      roleStateEl.textContent = 'ROLE: host';
-
-      dc = pc.createDataChannel('game', {ordered:true});
-      wireDataChannel();
-
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
-
-      // Put offer JSON in box
-      sdpBox.value = JSON.stringify(pc.localDescription);
-      setPill(connStateEl,false,'OFFER CREATED');
-    }
-
-    async function joinPrepare(){
-      closePeer();
-      ensurePeer();
-      isHost = false;
-      roleStateEl.textContent = 'ROLE: joiner';
-      setPill(connStateEl,false,'PASTE OFFER THEN SET REMOTE');
-    }
-
-    async function setRemoteFromBox(){
-      ensurePeer();
-      let desc;
-      try{ desc = JSON.parse(sdpBox.value.trim()); }catch(e){ alert('SDP box is not valid JSON'); return; }
-      await pc.setRemoteDescription(desc);
-      setPill(connStateEl,false,'REMOTE SET');
-    }
-
-    async function createAnswer(){
-      if(!pc || !pc.remoteDescription){ alert('Set remote offer first'); return; }
-      const ans = await pc.createAnswer();
-      await pc.setLocalDescription(ans);
-      sdpBox.value = JSON.stringify(pc.localDescription);
-      setPill(connStateEl,false,'ANSWER CREATED');
-    }
-
-    async function addIceFromBox(){
-      if(!pc){ alert('Create/Join first'); return; }
-      const lines = iceBox.value.split('\n').map(s=>s.trim()).filter(Boolean);
-      let added = 0;
-      for(const ln of lines){
-        try{
-          const cand = JSON.parse(ln);
-          await pc.addIceCandidate(cand);
-          added++;
-        }catch(e){}
-      }
-      setPill(connStateEl,false,`ICE ADDED (${added})`);
-    }
-
-    async function copyTextToClipboard(text){
-      try{ await navigator.clipboard.writeText(text); }
-      catch(e){
-        // fallback
-        const ta = document.createElement('textarea');
-        ta.value = text;
-        document.body.appendChild(ta);
-        ta.select();
-        document.execCommand('copy');
-        document.body.removeChild(ta);
-      }
-    }
-
-    btnHost.addEventListener('click', hostCreateOffer);
-    btnJoin.addEventListener('click', joinPrepare);
-    btnHangup.addEventListener('click', closePeer);
-    btnSetRemote.addEventListener('click', setRemoteFromBox);
-    btnMakeAnswer.addEventListener('click', createAnswer);
-    btnAddICE.addEventListener('click', addIceFromBox);
-
-    btnCopySDP.addEventListener('click', ()=>copyTextToClipboard(sdpBox.value.trim()));
-    btnCopyICE.addEventListener('click', ()=>copyTextToClipboard(myIceLines.join('\n')));
-    btnClearICE.addEventListener('click', ()=>{
-      iceBox.value = '';
-      myIceLines = [];
-    });
-
-    function canSend(){
-      return dc && dc.readyState === 'open';
-    }
-    function sendNet(obj){
-      if(!canSend()) return;
-      dc.send(JSON.stringify(obj));
-    }
-
-    /*********************** Game setup (Two player duel) ***********************/
-    const container = document.getElementById('canvas-container');
-    const scene = new THREE.Scene();
-    const renderer = new THREE.WebGLRenderer({antialias:true});
-    renderer.setPixelRatio(window.devicePixelRatio);
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    container.appendChild(renderer.domElement);
-
-    const camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.1, 8000);
-    camera.position.set(0,0,0);
-
-    function createStars(){
-      const starCount = 3000;
-      const geom = new THREE.BufferGeometry();
-      const positions = new Float32Array(starCount*3);
-      for(let i=0;i<starCount;i++){
-        positions[i*3+0] = (Math.random()-0.5)*4000;
-        positions[i*3+1] = (Math.random()-0.5)*4000;
-        positions[i*3+2] = (Math.random()-0.5)*4000;
-      }
-      geom.setAttribute('position', new THREE.BufferAttribute(positions,3));
-      const mat = new THREE.PointsMaterial({color:0xffffff,size:1.5,sizeAttenuation:true});
-      return new THREE.Points(geom,mat);
-    }
-    scene.add(createStars());
-
-    const light = new THREE.PointLight(0xffffff,1.2,0);
-    light.position.set(200,200,200);
-    scene.add(light);
-    scene.add(new THREE.AmbientLight(0xffffff,0.35));
-
-    // VFX: screen flash
-    const screenFlashEl = document.getElementById('screenFlash');
-    function screenFlash() {
-      screenFlashEl.style.opacity = '0.9';
-      setTimeout(()=> screenFlashEl.style.opacity='0', 120);
-    }
-
-    // Laser beam visual
-    let laserBeam = null;
-    function ensureLaserBeam(){
-      if(laserBeam) return;
-      const geo = new THREE.CylinderGeometry(0.6,0.6,100,16,1,true);
-      const mat = new THREE.MeshBasicMaterial({color:0xff4444,transparent:true,opacity:0.9});
-      laserBeam = new THREE.Mesh(geo,mat);
-      laserBeam.visible = false;
-      scene.add(laserBeam);
-    }
-    function updateLaserBeam(origin, dir, active){
-      ensureLaserBeam();
-      if(!active){ laserBeam.visible=false; return; }
-      laserBeam.visible = true;
-      const length = 1400;
-      const mid = origin.clone().add(dir.clone().multiplyScalar(length/2));
-      laserBeam.position.copy(mid);
-      const up = new THREE.Vector3(0,1,0);
-      laserBeam.quaternion.copy(new THREE.Quaternion().setFromUnitVectors(up, dir));
-      laserBeam.scale.set(1, length, 1);
-    }
-
-    // Models
-    let shipGeom = null;
-    let shipMatYou = null;
-    let shipMatOpp = null;
-    const loader = new THREE.STLLoader();
-
-    function loadShip(){
-      return new Promise((resolve,reject)=>{
-        loader.load('./res/spaceship.stl', (geometry)=>{
-          geometry.computeBoundingBox();
-          const bb = geometry.boundingBox;
-          const center = new THREE.Vector3(); bb.getCenter(center);
-          geometry.translate(-center.x, -center.y, -center.z);
-          shipGeom = geometry;
-          shipMatYou = new THREE.MeshStandardMaterial({color:0xffffff});
-          shipMatOpp = new THREE.MeshStandardMaterial({color:0x66ccff});
-          resolve();
-        }, undefined, reject);
-      });
-    }
-
-    // Game constants
-    const sphereRadius = 900;
-    const shipSpeed = 7.5;
-    const hitRadius = 55;
-    const tickHz = 60;
-
-    // HP/shields
-    const maxHP = 25;
-    const maxShield = 10;
-
-    // Weapon system
-    const autoShootRateMs = 120;
-    const heavyCooldownMs = autoShootRateMs * 3;
-    let weaponMode = 'normal';
-    let laserActive = false;
-    let lastHeavyShot = -Infinity;
-
-    const weaponLabel = document.getElementById('weaponLabel');
-    function setWeaponMode(mode){
-      weaponMode = mode;
-      if(mode==='normal') weaponLabel.textContent='Normal';
-      if(mode==='heavy') weaponLabel.textContent='Heavy Shot';
-      if(mode==='laser') weaponLabel.textContent='Laser';
-      if(mode!=='laser') laserActive=false;
-    }
-
-    // Player entities
-    function makeShip(mesh, startPos){
-      const ship = {
-        mesh,
-        pos: startPos.clone(),
-        vel: new THREE.Vector3(0,0,0),
-        quat: new THREE.Quaternion(),
-        hp: maxHP,
-        shield: maxShield,
-        name: 'Player',
-        alive: true
-      };
-      mesh.position.copy(ship.pos);
-      mesh.quaternion.copy(ship.quat);
-      return ship;
-    }
-
-    let you = null;
-    let opp = null;
-
-    // Camera follow (third-person)
-    const camBack = 110;
-    const camUp = 35;
-    function updateCameraFollow(){
-      if(!you) return;
-      const forward = new THREE.Vector3(0,0,-1).applyQuaternion(you.quat).normalize();
-      const up = new THREE.Vector3(0,1,0).applyQuaternion(you.quat).normalize();
-      const desiredPos = you.pos.clone()
-        .add(forward.clone().multiplyScalar(-camBack))
-        .add(up.clone().multiplyScalar(camUp));
-      camera.position.lerp(desiredPos, 0.18);
-      const lookAt = you.pos.clone().add(forward.clone().multiplyScalar(180));
-      camera.lookAt(lookAt);
-    }
-
-    // UI bars
-    function setShieldAndHP(containerId, shield, maxShield, hp, maxHP) {
-      const shieldElem = document.querySelector(`#${containerId} .shield`);
-      const healthElem = document.querySelector(`#${containerId} .health`);
-      const clampedShield = clamp(shield,0,maxShield);
-      const clampedHP = clamp(hp,0,maxHP);
-      const shieldPercent = (clampedShield / maxShield) * 100;
-      const hpPercent = (clampedHP / maxHP) * 100;
-      if (shieldElem) shieldElem.style.width = shieldPercent + '%';
-      if (healthElem) healthElem.style.width = hpPercent + '%';
-    }
-    function updateBars(){
-      if(you) setShieldAndHP('playerBar', you.shield, maxShield, you.hp, maxHP);
-      if(opp) setShieldAndHP('enemyBar1', opp.shield, maxShield, opp.hp, maxHP);
-    }
-
-    const winDiv = document.getElementById('win');
-    const loseDiv = document.getElementById('lose');
-
-    function resetRound(){
-      if(!you||!opp) return;
-      you.hp=maxHP; you.shield=maxShield; you.alive=true;
-      opp.hp=maxHP; opp.shield=maxShield; opp.alive=true;
-      winDiv.style.display='none';
-      loseDiv.style.display='none';
-      updateBars();
-
-      // symmetric spawn so both see each other
-      you.pos.copy(new THREE.Vector3(0,0,sphereRadius*0.2));
-      opp.pos.copy(new THREE.Vector3(0,0,-sphereRadius*0.2));
-      you.vel.set(0,0,0); opp.vel.set(0,0,0);
-      you.quat.identity(); opp.quat.identity();
-      you.mesh.position.copy(you.pos); opp.mesh.position.copy(opp.pos);
-      you.mesh.quaternion.copy(you.quat); opp.mesh.quaternion.copy(opp.quat);
-
-      // let peers converge
-      if(isHost) sendSnapshot(true);
-    }
-
-    document.getElementById('resetBtn').addEventListener('click', ()=>{
-      resetRound();
-      sendNet({t:'reset'});
-    });
-
-    // Input
-    let accel = parseFloat(document.getElementById('sensitivity').value);
-    document.getElementById('sensitivity').addEventListener('input',(e)=>{ accel=parseFloat(e.target.value); });
-
-    const keys = {};
-    function pressKey(code){ keys[code]=true; }
-    function releaseKey(code){ keys[code]=false; }
-
-    window.addEventListener('keydown',(e)=>{
-      // weapon switches
-      if(e.code==='Digit1'){ setWeaponMode('normal'); sendNet({t:'weapon',mode:'normal'}); return; }
-      if(e.code==='Digit2'){ setWeaponMode('heavy'); sendNet({t:'weapon',mode:'heavy'}); return; }
-      if(e.code==='Digit3'){ setWeaponMode('laser'); sendNet({t:'weapon',mode:'laser'}); return; }
-
-      if(e.code==='Space'){
-        if(weaponMode==='laser'){ laserActive=true; sendNet({t:'laser',on:true}); }
-        else { tryShoot(); }
-        return;
-      }
-      if(e.code==='KeyR'){ resetRound(); sendNet({t:'reset'}); return; }
-
-      pressKey(e.code);
-    });
-
-    window.addEventListener('keyup',(e)=>{
-      if(e.code==='Space' && weaponMode==='laser'){ laserActive=false; sendNet({t:'laser',on:false}); return; }
-      releaseKey(e.code);
-    });
-
-    function applySteering(ship, dt){
-      // yaw/pitch/roll based on keys
-      if(keys['ArrowUp'])   ship.quat.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0),  accel));
-      if(keys['ArrowDown']) ship.quat.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0), -accel));
-      if(keys['ArrowLeft']) ship.quat.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),  accel));
-      if(keys['ArrowRight'])ship.quat.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0), -accel));
-      if(keys['KeyA'])      ship.quat.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,0,1),  accel));
-      if(keys['KeyD'])      ship.quat.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,0,1), -accel));
-
-      ship.quat.normalize();
-
-      // constant forward thrust
-      const forward = new THREE.Vector3(0,0,-1).applyQuaternion(ship.quat).normalize();
-      ship.vel.copy(forward.multiplyScalar(shipSpeed));
-      ship.pos.add(ship.vel.clone().multiplyScalar(dt * 60));
-
-      // bounce inside sphere
-      const dist = ship.pos.length();
-      if(dist >= sphereRadius){
-        const normal = ship.pos.clone().normalize();
-        ship.pos.copy(normal.multiplyScalar(sphereRadius - 1));
-        // reflect velocity
-        const v = ship.vel.clone();
-        const dot = v.dot(normal);
-        ship.vel.copy(v.sub(normal.multiplyScalar(2*dot)).setLength(shipSpeed));
-        // re-derive quat to face velocity (approx)
-        const velDir = ship.vel.clone().normalize();
-        ship.quat.copy(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0,0,-1), velDir));
-      }
-
-      ship.mesh.position.copy(ship.pos);
-      ship.mesh.quaternion.copy(ship.quat);
-    }
-
-    /*********************** Combat (Host authoritative) ***********************/
-    // Weapon DPS tuning: equalize normal/heavy/laser DPS.
-    const normalDamage = 1.0;
-    const baseDps = normalDamage * (1000 / autoShootRateMs);
-    function heavyDamage(){ return baseDps * (heavyCooldownMs/1000); }
-    function laserDps(){ return baseDps; }
-
-    // Host-side: ray hit test against a ship sphere
-    function rayHitsShip(origin, dir, targetPos, radius){
-      // Ray: origin + t*dir, t>=0 ; sphere at targetPos
-      const toCenter = targetPos.clone().sub(origin);
-      const t = dir.dot(toCenter);
-      if(t <= 0) return false;
-      const closest = origin.clone().add(dir.clone().multiplyScalar(t));
-      return closest.distanceTo(targetPos) <= radius;
-    }
-
-    function applyDamage(victim, amount){
-      if(!victim.alive) return;
-      if(victim.shield > 0){
-        victim.shield -= amount;
-        if(victim.shield < 0){
-          const left = -victim.shield;
-          victim.shield = 0;
-          victim.hp -= left;
-        }
-      }else{
-        victim.hp -= amount;
-      }
-      victim.hp = Math.max(0, victim.hp);
-      if(victim.hp <= 0){
-        victim.alive = false;
-      }
-      updateBars();
-    }
-
-    function tryShoot(){
-      const now = performance.now();
-      if(weaponMode==='heavy'){
-        if(now - lastHeavyShot < heavyCooldownMs) return;
-        lastHeavyShot = now;
-      }
-
-      // Always tell host you fired; host decides if hit.
-      sendNet({t:'fire', mode: weaponMode, time: now});
-      // Local FX (tracer flash)
-      screenFlashEl.style.opacity = '0.22';
-      setTimeout(()=>screenFlashEl.style.opacity='0', 70);
-    }
-
-    // Laser damage is continuous: we send laser on/off, host applies DPS each tick using latest ship states.
-    let remoteWeaponMode = 'normal';
-    let remoteLaserOn = false;
-
-    /*********************** Networking game messages ***********************/
-    // Host keeps authoritative state and sends snapshots ~10Hz
-    let lastSnapSent = 0;
-
-    function shipToNet(s){
-      return {
-        p:[s.pos.x,s.pos.y,s.pos.z],
-        q:[s.quat.x,s.quat.y,s.quat.z,s.quat.w],
-        hp:s.hp, sh:s.shield, alive:s.alive,
-        name:s.name||'Player'
-      };
-    }
-    function netToShip(s, data){
-      const [x,y,z]=data.p; s.pos.set(x,y,z);
-      const [qx,qy,qz,qw]=data.q; s.quat.set(qx,qy,qz,qw).normalize();
-      s.hp=data.hp; s.shield=data.sh; s.alive=data.alive;
-      s.name=data.name||s.name;
-      s.mesh.position.copy(s.pos);
-      s.mesh.quaternion.copy(s.quat);
-    }
-
-    function sendSnapshot(force=false){
-      if(!isHost || !canSend() || !you || !opp) return;
-      const now = performance.now();
-      if(!force && now - lastSnapSent < 100) return; // ~10Hz
-      lastSnapSent = now;
-      sendNet({t:'snap', you: shipToNet(you), opp: shipToNet(opp)});
-    }
-
-    function onNetMessage(msg){
-      if(!msg || !msg.t) return;
-
-      if(msg.t==='hello'){
-        // store opponent name
-        if(opp) opp.name = (msg.name||'Player').slice(0,20);
-        return;
-      }
-
-      if(msg.t==='weapon'){
-        remoteWeaponMode = msg.mode || 'normal';
-        return;
-      }
-
-      if(msg.t==='laser'){
-        remoteLaserOn = !!msg.on;
-        return;
-      }
-
-      if(msg.t==='reset'){
-        resetRound();
-        return;
-      }
-
-      // Host receives fire events from joiner and resolves hits.
-      if(msg.t==='fire'){
-        if(!isHost || !you || !opp) return;
-
-        // Determine shooter & victim based on role:
-        // Host: local "you" is Host ship. Remote is opponent.
-        // If host receives "fire" over network, shooter is opp, victim is you.
-        const shooter = opp;
-        const victim = you;
-        if(!shooter.alive || !victim.alive) return;
-
-        const mode = msg.mode || remoteWeaponMode || 'normal';
-        const origin = shooter.pos.clone();
-        const dir = new THREE.Vector3(0,0,-1).applyQuaternion(shooter.quat).normalize();
-
-        let dmg = normalDamage;
-        if(mode==='heavy') dmg = heavyDamage();
-
-        // Laser is handled in continuous section, but allow a single tick if mis-ordered
-        if(mode==='laser') dmg = 0;
-
-        const hit = rayHitsShip(origin, dir, victim.pos, hitRadius);
-        if(hit && dmg>0){
-          applyDamage(victim, dmg);
-          // broadcast result
-          sendNet({t:'hit', victim:'host', dmg, hp:victim.hp, sh:victim.shield, alive:victim.alive});
-          sendSnapshot(true);
-        }
-        return;
-      }
-
-      // Guest receives authoritative hit results and snapshots.
-      if(msg.t==='hit'){
-        // victim: 'host' or 'guest'
-        if(!you || !opp) return;
-
-        if(isHost){
-          // host already applied locally; ignore or use to show FX
-          if(msg.victim==='host'){
-            screenFlash();
-          }else{
-            screenFlash();
-          }
-        }else{
-          // guest: if victim is guest => you take damage; if host => opponent takes damage
-          if(msg.victim==='guest'){
-            you.hp = msg.hp; you.shield = msg.sh; you.alive = msg.alive;
-            updateBars();
-            screenFlash();
-          }else{
-            opp.hp = msg.hp; opp.shield = msg.sh; opp.alive = msg.alive;
-            updateBars();
-            screenFlash();
-          }
-        }
-        return;
-      }
-
-      if(msg.t==='snap'){
-        // Host sends authoritative: (from host perspective) "you" = host ship, "opp" = guest ship
-        if(!you || !opp) return;
-
-        if(!isHost){
-          // guest must map:
-          // guest.you should become msg.opp (guest ship),
-          // guest.opp should become msg.you (host ship).
-          // Smooth correction to avoid jarring jumps:
-          const a = msg.opp; // guest
-          const b = msg.you; // host
-
-          // Lerp positions and slerp rotations
-          const targetYouPos = new THREE.Vector3(a.p[0],a.p[1],a.p[2]);
-          you.pos.lerp(targetYouPos, 0.35);
-          you.quat.slerp(new THREE.Quaternion(a.q[0],a.q[1],a.q[2],a.q[3]).normalize(), 0.35);
-          you.hp=a.hp; you.shield=a.sh; you.alive=a.alive;
-
-          const targetOppPos = new THREE.Vector3(b.p[0],b.p[1],b.p[2]);
-          opp.pos.lerp(targetOppPos, 0.35);
-          opp.quat.slerp(new THREE.Quaternion(b.q[0],b.q[1],b.q[2],b.q[3]).normalize(), 0.35);
-          opp.hp=b.hp; opp.shield=b.sh; opp.alive=b.alive;
-
-          you.mesh.position.copy(you.pos); you.mesh.quaternion.copy(you.quat);
-          opp.mesh.position.copy(opp.pos); opp.mesh.quaternion.copy(opp.quat);
-          updateBars();
-        }
-        return;
-      }
-    }
-
-    /*********************** Host continuous laser resolution ***********************/
-    function hostApplyLaser(dt){
-      if(!isHost || !you || !opp || !canSend()) return;
-
-      // Local laser (host firing at guest)
-      if(weaponMode==='laser' && laserActive && you.alive && opp.alive){
-        const origin = you.pos.clone();
-        const dir = new THREE.Vector3(0,0,-1).applyQuaternion(you.quat).normalize();
-        if(rayHitsShip(origin, dir, opp.pos, hitRadius)){
-          const dmg = laserDps() * dt;
-          applyDamage(opp, dmg);
-          sendNet({t:'hit', victim:'guest', dmg, hp:opp.hp, sh:opp.shield, alive:opp.alive});
-        }
-      }
-
-      // Remote laser (guest firing at host)
-      if(remoteWeaponMode==='laser' && remoteLaserOn && opp.alive && you.alive){
-        const origin = opp.pos.clone();
-        const dir = new THREE.Vector3(0,0,-1).applyQuaternion(opp.quat).normalize();
-        if(rayHitsShip(origin, dir, you.pos, hitRadius)){
-          const dmg = laserDps() * dt;
-          applyDamage(you, dmg);
-          sendNet({t:'hit', victim:'host', dmg, hp:you.hp, sh:you.shield, alive:you.alive});
-        }
-      }
-    }
-
-    /*********************** Win/Lose ***********************/
-    function checkEnd(){
-      if(!you || !opp) return;
-      if(!you.alive && loseDiv.style.display!=='block'){
-        loseDiv.style.display='block';
-        winDiv.style.display='none';
-      }
-      if(!opp.alive && winDiv.style.display!=='block'){
-        winDiv.style.display='block';
-        loseDiv.style.display='none';
-      }
-    }
-
-    /*********************** Main loop ***********************/
-    let last = performance.now();
-
-    function animate(t){
-      requestAnimationFrame(animate);
-      const now = t || performance.now();
-      const dt = Math.min((now-last)/1000, 0.05);
-      last = now;
-
-      if(!you || !opp) return;
-
-      // Simulate local ship always
-      if(you.alive) applySteering(you, dt);
-
-      // Simulate opponent ship locally ONLY on host (authoritative).
-      // Guest will receive snapshots.
-      if(isHost && opp.alive) {
-        // Host does not know guest keys; it trusts snapshots? We do the simplest:
-        // Opponent ship on host is "driven" by snapshots from guest? (We don't have them.)
-        // So instead: Guest's ship motion is authoritative from *guest input*, but host needs it.
-        // We handle this by sending the guest's transform periodically (below) as "pose" messages.
-      }
-
-      updateCameraFollow();
-
-      // Laser visuals for local player (purely visual)
-      const youOrigin = you.pos.clone();
-      const youDir = new THREE.Vector3(0,0,-1).applyQuaternion(you.quat).normalize();
-      updateLaserBeam(youOrigin, youDir, (weaponMode==='laser' && laserActive));
-
-      // Host applies laser damage continuously + snapshots
-      hostApplyLaser(dt);
-      if(isHost) sendSnapshot(false);
-
-      checkEnd();
-      renderer.render(scene, camera);
-    }
-
-    /*********************** Critical missing piece: send transforms from Guest to Host ***********************/
-    // Without a server, the host must know where the guest ship is to resolve hits.
-    // We solve it by having each side send its ship pose at ~20Hz; host uses it for opponent ship.
-
-    let lastPoseSent = 0;
-    function sendPose(){
-      if(!canSend() || !you) return;
-      const now = performance.now();
-      if(now - lastPoseSent < 50) return; // ~20Hz
-      lastPoseSent = now;
-      sendNet({t:'pose', p:[you.pos.x,you.pos.y,you.pos.z], q:[you.quat.x,you.quat.y,you.quat.z,you.quat.w], hp:you.hp, sh:you.shield, alive:you.alive});
-    }
-
-    // Patch net handler for pose: host updates opp ship, guest ignores.
-    const _onNetMessageBase = onNetMessage;
-    onNetMessage = function(msg){
-      if(msg && msg.t==='pose'){
-        if(isHost && opp){
-          // msg is guest pose, apply to opp on host
-          const targetPos = new THREE.Vector3(msg.p[0],msg.p[1],msg.p[2]);
-          opp.pos.lerp(targetPos, 0.45);
-          opp.quat.slerp(new THREE.Quaternion(msg.q[0],msg.q[1],msg.q[2],msg.q[3]).normalize(), 0.45);
-          opp.hp = msg.hp; opp.shield = msg.sh; opp.alive = msg.alive;
-          opp.mesh.position.copy(opp.pos);
-          opp.mesh.quaternion.copy(opp.quat);
-          updateBars();
-        }
-        return;
-      }
-      _onNetMessageBase(msg);
-    };
-
-    /*********************** Start ***********************/
-    loadShip().then(()=>{
-      const meshYou = new THREE.Mesh(shipGeom, shipMatYou);
-      const meshOpp = new THREE.Mesh(shipGeom, shipMatOpp);
-      meshYou.scale.set(0.55,0.55,0.55);
-      meshOpp.scale.set(0.55,0.55,0.55);
-      scene.add(meshYou);
-      scene.add(meshOpp);
-
-      you = makeShip(meshYou, new THREE.Vector3(0,0,sphereRadius*0.2));
-      opp = makeShip(meshOpp, new THREE.Vector3(0,0,-sphereRadius*0.2));
-      you.name = (document.getElementById('playerName').value||'Player').slice(0,20);
-      opp.name = 'Opponent';
-
-      updateBars();
-      resetRound();
-      animate();
-    }).catch(err=>{
-      console.error(err);
-      alert('Failed to load ./res/spaceship.stl — make sure your file server can serve it.');
-    });
-
-    // Keep sending pose (needed for hit detection)
-    setInterval(sendPose, 50);
-
-    // Weapon label init
-    setWeaponMode('normal');
-
-    // Resize
-    window.addEventListener('resize',()=>{
-      camera.aspect = window.innerWidth/window.innerHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(window.innerWidth, window.innerHeight);
-    });
-
-    // Missile UI placeholder (kept to match your layout)
-    const missileUI = document.getElementById('missileCountUI');
-    missileUI.textContent = 'Duel Mode';
-
-  })();
-  </script>
+animate();
+</script>
 </body>
 </html>

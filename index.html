@@ -224,6 +224,40 @@
     missileFollowExp.volume = 0.5;
   </script>
   <script>
+
+    let audioUnlocked = false;
+
+    function unlockAudioOnce(){
+      if (audioUnlocked) return;
+      audioUnlocked = true;
+    
+      // try to "warm up" audio
+      const audios = [missileExplosion, missileFollowExp, backgroundMusic, damage].filter(Boolean);
+      audios.forEach(a=>{
+        try{
+          a.muted = true;
+          const p = a.play();
+          if (p && p.catch) p.catch(()=>{});
+          setTimeout(()=>{ a.pause(); a.currentTime = 0; a.muted = false; }, 30);
+        }catch{}
+      });
+    }
+    
+    // unlock on first user gesture
+    window.addEventListener("pointerdown", unlockAudioOnce, { once:true });
+    window.addEventListener("keydown", unlockAudioOnce, { once:true });
+
+
+    function safePlay(a){
+      if (!a) return;
+      if (!audioUnlocked) return; // don't even try until unlocked
+      try{
+        a.currentTime = 0;
+        const p = a.play();
+        if (p && p.catch) p.catch(()=>{});
+      }catch{}
+    }
+
   (function(){
 
     /*********************** Game setup ***********************/
@@ -728,7 +762,7 @@
       if (typeof missileExplosion !== 'undefined' && missileExplosion) {
         try {
           missileExplosion.currentTime = 0;
-          missileExplosion.cloneNode(true).play();
+          safePlay(missileExplosion.cloneNode(true));
         } catch(e){}
       }
     }
@@ -1686,7 +1720,7 @@
           scene.remove(b.mesh); bullets.splice(i,1);
           damageEnemy(hitEnemy, b.damage || bulletDamage);
           damage.currentTime = 0;
-          damage.play();
+          safePlay(damage);
         }
 
       }

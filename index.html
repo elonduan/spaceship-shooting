@@ -227,6 +227,7 @@
   (function(){
 
     /*********************** Game setup ***********************/
+    let gameOver = false;
     const container = document.getElementById('canvas-container');
     const scene = new THREE.Scene();
     const renderer = new THREE.WebGLRenderer({antialias:true});
@@ -1470,7 +1471,6 @@
 
     const arrow = document.getElementById('arrowIndicator');
     let last = performance.now();
-    let gameOver = false;
     let trailTimer = 0;
     let autoShooting = false;
     let autoIntervalId = null;

@@ -1242,18 +1242,16 @@
 
     document.getElementById('acceptOfferBtn').addEventListener('click', async ()=>{
       ensurePC();
-      let offer = null;
-      try { offer = JSON.parse(signalBox.value.trim()); } catch(e){ alert('Invalid JSON in box'); return; }
-      if(!offer || offer.type !== 'offer'){ alert('Paste an OFFER JSON first'); return; }
-
+      let offer = JSON.parse(signalBox.value.trim());
       await pc.setRemoteDescription(offer);
+    
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
-      await iceCompletePromise(pc);
-
+    
       signalBox.value = JSON.stringify(pc.localDescription);
       setConnStatus('Answer ready (send it)', false);
     });
+
 
     document.getElementById('acceptAnswerBtn').addEventListener('click', async ()=>{
       ensurePC();

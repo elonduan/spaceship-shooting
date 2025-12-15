@@ -1,2113 +1,781 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Ball Shooter</title>
-  <style>
-    html,body{height:100%;margin:0;background:#000;color:#ddd;font-family:system-ui,-apple-system,Segoe UI,Roboto;overflow:hidden}
-    #overlay{position:fixed;left:12px;top:12px;z-index:10;max-width:420px}
-    .panel{background:rgba(0,0,0,0.45);padding:12px;border-radius:8px;backdrop-filter:blur(4px)}
-    #win,#lose{display:none;padding:18px;margin-top:12px;border-radius:8px;font-weight:700}
-    #win{background:linear-gradient(90deg,#0f0,#005500);color:#001}
-    #lose{background:linear-gradient(90deg,#f00,#550000);color:#fff}
-    #canvas-container{width:100%;height:100vh;display:block}
-    input[type=range]{width:100%}
-    label{font-size:13px;display:block;margin-top:10px}
-    #crosshair{position:fixed;left:50%;top:50%;width:20px;height:20px;margin-left:-10px;margin-top:-10px;z-index:5;pointer-events:none}
-    #crosshair:before,#crosshair:after{content:"";position:absolute;background:#fff}
-    #crosshair:before{left:9px;top:0;width:2px;height:20px}
-    #crosshair:after{left:0;top:9px;width:20px;height:2px}
-    #joystick { position:fixed; bottom:80px; left:80px; width:120px; height:120px; background:rgba(255,255,255,0.1); border-radius:50%; touch-action:none; z-index:20;}
-    #stick { position:absolute; left:50%; top:50%; width:50px; height:50px; margin-left:-25px; margin-top:-25px; background:rgba(255,255,255,0.3); border-radius:50%;}
-    #buttons { position:fixed; bottom:80px; right:80px; display:flex; flex-direction:column; gap:12px; z-index:20;}
-    #buttons button { width:70px; height:70px; border-radius:50%; border:none; background:rgba(255,255,255,0.2); color:#fff; font-size:18px;}
-    #buttons button.active { box-shadow:0 0 18px rgba(255,255,255,0.15); background:rgba(255,255,255,0.28); }
-    #hud { position:fixed; top:10px; left:0; right:0; display:flex; justify-content:space-between; padding:0 20px; z-index:15; align-items:center; gap:12px; }
-
-    .barContainer {
-      width: 180px;
-      height: 44px;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      gap: 4px;
-      background: rgba(255,255,255,0.03);
-      padding: 4px;
-      border-radius: 10px;
-      border: 1px solid rgba(255,255,255,0.06);
-      box-sizing: border-box;
-    }
-
-    .hpStack .bar {
-      height: 16px;
-      border-radius: 6px;
-      transition: width 120ms linear;
-      width: 100%;
-      background: rgba(255,255,255,0.05);
-      overflow: hidden;
-      position: relative;
-    }
-
-    .hpStack .shield {
-      background: #ffffff;
-      width: 100%;
-      box-shadow: inset 0 0 6px rgba(255,255,255,0.05);
-    }
-
-    .hpStack .health {
-      background: #ff2b2b;
-      width: 100%;
-      box-shadow: inset 0 0 6px rgba(0,0,0,0.15);
-    }
-
-    #enemyBar1.selected, #enemyBar2.selected {
-      box-shadow: 0 0 10px rgba(255,255,0,0.9);
-    }
-
-    #missileUI{position:fixed; left:50%; top: calc(50% + 24px); transform:translateX(-50%); font-size:13px; color:#fff; z-index:20; text-align:center; padding:6px 10px; background:rgba(0,0,0,0.35); border-radius:8px; pointer-events:none;}
-    #arrowIndicator {
-      position: fixed;
-      width: 0;
-      height: 0;
-      border-left: 12px solid transparent;
-      border-right: 12px solid transparent;
-      border-bottom: 20px solid yellow;
-      z-index: 50;
-      transform-origin: center;
-      pointer-events: none;
-      display: none;
-    }
-    #defeatedCounter { margin-top:8px; font-weight:700; font-size:13px; color:#fff;}
-    #playerName { width:120px; margin-left:6px; padding:3px 6px; border-radius:6px; border:1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.03); color:#fff; }
-
-    /* Pause overlay style (error screen) */
-    #pauseScreen {
-      display: none;
-      position: fixed;
-      inset: 0;
-      z-index: 9999;
-      background: #000;
-      color: #ff2b2b;
-      font-family: monospace;
-      align-items: center;
-      justify-content: center;
-      flex-direction: column;
-      font-size: 28px;
-      user-select: none;
-    }
-    #pauseScreen .errorText {
-      letter-spacing: 2px;
-      text-align: center;
-      margin-bottom: 18px;
-    }
-    #pauseScreen button {
-      padding: 12px 20px;
-      font-size: 18px;
-      background: #222;
-      color: #fff;
-      border: 1px solid #555;
-      border-radius: 8px;
-      cursor: pointer;
-    }
-
-    #screenFlash {
-      position: fixed;
-      inset: 0;
-      background: #ffffff;
-      opacity: 0;
-      pointer-events: none;
-      z-index: 9998;
-      transition: opacity 0.12s ease-out;
-    }
-  </style>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"/>
+<title>Space Duel 1v1 (WebRTC, no backend)</title>
+<style>
+  html,body{height:100%;margin:0;background:#000;color:#ddd;font-family:system-ui,-apple-system,Segoe UI,Roboto;overflow:hidden}
+  #c{position:fixed;inset:0;display:block}
+  #hud{position:fixed;left:12px;top:12px;z-index:10;display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap}
+  .panel{background:rgba(0,0,0,.45);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,.10);
+    border-radius:12px;padding:10px;min-width:260px}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .btn{padding:8px 10px;border-radius:10px;border:1px solid rgba(255,255,255,.12);background:#141414;color:#eee;cursor:pointer}
+  .btn:active{transform:translateY(1px)}
+  .hint{font-size:12px;opacity:.85;line-height:1.35}
+  .badge{font-size:12px;opacity:.9;padding:6px 8px;border:1px solid rgba(255,255,255,.12);border-radius:10px}
+  .bars{display:grid;grid-template-columns:1fr;gap:8px;margin-top:8px}
+  .barWrap{width:260px;height:14px;border-radius:8px;background:rgba(255,255,255,.07);overflow:hidden;border:1px solid rgba(255,255,255,.08)}
+  .bar{height:100%;width:50%}
+  .barA{background:#ff2b2b}
+  .barB{background:#4aa3ff}
+  #center{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:9;pointer-events:none}
+  #center:before,#center:after{content:"";position:absolute;background:#fff;opacity:.9}
+  #center:before{width:2px;height:22px;left:-1px;top:-11px}
+  #center:after{width:22px;height:2px;left:-11px;top:-1px}
+  #toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:20;
+    background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.12);border-radius:12px;
+    padding:10px 12px;font-size:13px;opacity:0;transition:opacity .2s ease}
+  #toast.show{opacity:1}
+  /* WebRTC panel */
+  #rtcMask{position:fixed;inset:0;display:none;place-items:center;background:rgba(0,0,0,.55);backdrop-filter:blur(6px);z-index:9999}
+  #rtcBox{width:min(920px,92vw);background:#0f0f0f;color:#ddd;border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:12px}
+  #rtcGrid{margin-top:10px;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .rtcCard{border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:10px}
+  .rtcTitle{font-size:12px;opacity:.85;margin-bottom:8px}
+  textarea{width:100%;min-height:120px;background:#000;color:#fff;border:1px solid rgba(255,255,255,.12);
+    border-radius:10px;padding:10px;font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    font-size:12px;resize:vertical}
+  #end{position:fixed;inset:0;display:none;place-items:center;z-index:50;background:rgba(0,0,0,.65);backdrop-filter:blur(6px)}
+  #endCard{background:rgba(0,0,0,.65);border:1px solid rgba(255,255,255,.14);border-radius:16px;padding:16px;min-width:320px}
+  #endCard b{font-size:18px}
+</style>
 </head>
 <body>
-  <div id="screenFlash"></div>
+<canvas id="c"></canvas>
+<div id="center"></div>
 
-  <div id="overlay">
-    <div class="panel">
-      &nbsp;
-      <div><strong>Ball Shooter Competition — Made by Elon - 5</strong></div>
-      <ul style="margin:8px 0 0 18px;font-size:13px">
-        <li>Arrow keys / Joystick: pitch & yaw</li>
-        <li>A / D buttons: roll</li>
-        <li>Shoot button / Space: fire</li>
-        <li>M: launch missile (4 per game)</li>
-        <li>R: reset</li>
-        <li>G: steer ship toward crosshair (hold)</li>
-        <li>C: change target ship</li>
-        <li>WARNING: TURNING SOUND ON WILL NOT BE GOOD IN CLASS</li>
-        <li>WORLD RECORD IS 37</li>
-        <li>EMAIL TO ME IF YOU BEAT IT</li>
-      </ul>
-      <label for="sensitivity">Rotation sensitivity</label>
-      <input id="sensitivity" type="range" min="0.005" max="0.05" step="0.002" value="0.015">
-      <button id="resetBtn">Reset</button>
-      <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;">
-        <button id="onlineBtn">Online VS</button>
-        <span id="netBadge" style="font-size:12px;opacity:.85;padding:6px 8px;border:1px solid rgba(255,255,255,.12);border-radius:8px;">
-          Offline
-        </span>
-      </div>
-
-      <div style="margin-top:8px">Missiles left: <span id="missileCount">4</span></div>
-      <div id="defeatedCounter">Defeated ships: <span id="defeatedCount">0</span></div>
-      <div style="margin-top:8px">
-        Weapon: <span id="weaponLabel">Normal</span>
-        <span style="font-size:11px;opacity:0.7"> (1:Normal 2:Heavy 3:Laser)</span>
-      </div>
-
-
-      <label style="margin-top:8px">Name:
-        <input id="playerName" type="text" maxlength="20" value="Player">
-      </label>
-
-      <div id="win">You destroyed the spaceship — you win! </div>
-      <div id="lose">The spaceship destroyed you! </div>
+<div id="hud">
+  <div class="panel">
+    <div class="row">
+      <button class="btn" id="btnPlay">Solo</button>
+      <button class="btn" id="btnOnline">Online VS</button>
+      <span class="badge" id="netBadge">Offline</span>
     </div>
-  </div>
-
-  <div class="hud-row" id="hud">
-    <div class="barContainer">
-      <div id="playerBar" class="hpStack">
-        <div class="bar shield" id="playerShieldBar"></div>
-        <div class="bar health" id="playerHealthBar"></div>
-      </div>
+    <div class="hint" style="margin-top:8px">
+      Click the game to lock mouse.<br/>
+      <b>WASD</b> thrust/strafe, <b>Shift</b> boost, <b>Space</b> shoot, <b>M</b> missile, <b>R</b> restart.<br/>
+      First to 3 KOs wins. 60s round timer.
     </div>
-
-    <!-- Enemy 1 -->
-    <div class="barContainer">
-      <div id="enemyBar1" class="hpStack">
-        <div class="bar shield"></div>
-        <div class="bar health"></div>
+    <div class="bars">
+      <div>
+        <div class="hint">You (Red) HP</div>
+        <div class="barWrap"><div class="bar barA" id="hpA"></div></div>
       </div>
-    </div>
-
-    <!-- Enemy 2 -->
-    <div class="barContainer">
-      <div id="enemyBar2" class="hpStack">
-        <div class="bar shield"></div>
-        <div class="bar health"></div>
+      <div>
+        <div class="hint">Opponent (Blue) HP</div>
+        <div class="barWrap"><div class="bar barB" id="hpB"></div></div>
+      </div>
+      <div class="row">
+        <span class="badge" id="scoreBadge">Score 0 - 0</span>
+        <span class="badge" id="timeBadge">60.0s</span>
       </div>
     </div>
   </div>
+</div>
 
-  <div id="crosshair"></div>
-  <div id="missileUI"><span id="missileCountUI"></span></div>
-  <div id="canvas-container"></div>
-  <div id="arrowIndicator"></div>
-  <div id="joystick"><div id="stick"></div></div>
-  <div id="buttons">
-    <button id="shootBtn">Shoot</button>
-    <button id="rollLeft">A</button>
-    <button id="rollRight">D</button>
-    <button id="missileBtn">M</button>
-    <button id="autoShootBtn">Auto</button>
-  </div>
+<div id="toast"></div>
 
-  <!-- Pause / Error overlay -->
-  <div id="pauseScreen" role="dialog" aria-hidden="true">
-    <div class="errorText">ERROR: 404 Page not fond </div>
-    <p>Click here to learn more</p>
-    <button id="resumeBtn">Resume (P)</button>
-  </div>
-
-  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/p5@1.5.0/lib/p5.js"></script>
-  <script src="https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/js/loaders/STLLoader.js"></script>
-  <script>
-    const missileExplosion = new Audio("https://actions.google.com/sounds/v1/weapons/big_explosion_cut_off.ogg");
-    const missileFollowExp = new Audio("https://actions.google.com/sounds/v1/weapons/auto_bullets_flyby_short.ogg");
-    const backgroundMusic = new Audio("https://actions.google.com/sounds/v1/weapons/auto_bullets_flyby_short.ogg");
-    const damage = new Audio("https://actions.google.com/sounds/v1/impacts/face_hit_series.ogg");
-    missileFollowExp.volume = 0.5;
-  </script>
-  <script>
-
-    let audioUnlocked = false;
-
-    function unlockAudioOnce(){
-      if (audioUnlocked) return;
-      audioUnlocked = true;
-    
-      // try to "warm up" audio
-      const audios = [missileExplosion, missileFollowExp, backgroundMusic, damage].filter(Boolean);
-      audios.forEach(a=>{
-        try{
-          a.muted = true;
-          const p = a.play();
-          if (p && p.catch) p.catch(()=>{});
-          setTimeout(()=>{ a.pause(); a.currentTime = 0; a.muted = false; }, 30);
-        }catch{}
-      });
-    }
-    
-    // unlock on first user gesture
-    window.addEventListener("pointerdown", unlockAudioOnce, { once:true });
-    window.addEventListener("keydown", unlockAudioOnce, { once:true });
-
-
-    function safePlay(a){
-      if (!a) return;
-      if (!audioUnlocked) return; // don't even try until unlocked
-      try{
-        a.currentTime = 0;
-        const p = a.play();
-        if (p && p.catch) p.catch(()=>{});
-      }catch{}
-    }
-
-  (function(){
-
-    /*********************** Game setup ***********************/
-    let gameOver = false;
-    const container = document.getElementById('canvas-container');
-    const scene = new THREE.Scene();
-    const renderer = new THREE.WebGLRenderer({antialias:true});
-    renderer.setPixelRatio(window.devicePixelRatio);
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    container.appendChild(renderer.domElement);
-    const camA = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.1, 5000);
-    const camB = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.1, 5000);
-    camA.position.set(0,0,0);
-    camB.position.set(0,0,0);
-    
-    // We'll keep "camera" pointing to local player's view for UI helpers,
-    // but actual render is split-screen.
-    let camera = camA;
-
-
-    // ===================== WebRTC Online VS (no backend) =====================
-    let GAME_MODE = "solo"; // "solo" | "onlineHost" | "onlineJoin"
-    let pc = null, dc = null;
-    
-    const net = {
-      role: "none", // host/join
-      connected: false,
-      lastSend: 0,
-      lastSnap: 0,
-      remoteInput: null, // latest input from other player
-    };
-    
-    function setNetBadge(text){
-      const b = document.getElementById("netBadge");
-      if(b) b.textContent = text;
-    }
-    
-    function safeSend(obj){
-      if(dc && dc.readyState === "open"){
-        dc.send(JSON.stringify(obj));
-      }
-    }
-    
-    function handleNetMessage(raw){
-      let msg;
-      try{ msg = JSON.parse(raw); } catch { return; }
-    
-      if(msg.type === "input"){
-        net.remoteInput = msg.payload;
-      } else if(msg.type === "state"){
-        if(GAME_MODE === "onlineJoin") applySnapshot(msg.payload);
-      } else if(msg.type === "sync"){
-        if(GAME_MODE === "onlineJoin"){
-          // host tells joiner to reset and start
-          reset(true); // keep your reset but allow silent reset (see patch below)
-          gameOver = false;
-          setNetBadge("Online ✅ (Join)");
-        }
-      }
-    }
-    
-    function makePanel(){
-      const overlay = document.createElement("div");
-      overlay.style.cssText = `
-        position:fixed; inset:0; display:none; place-items:center;
-        background:rgba(0,0,0,.55); backdrop-filter: blur(6px); z-index:9999;`;
-      overlay.innerHTML = `
-        <div style="width:min(900px,92vw); background:#111; color:#ddd; border:1px solid rgba(255,255,255,.12);
-                    border-radius:14px; padding:12px; font-family:system-ui">
-          <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
-            <b>Online VS (WebRTC, copy/paste)</b>
-            <button id="rtcClose" style="padding:8px 10px;border-radius:10px;border:1px solid rgba(255,255,255,.12);background:#1b1b1b;color:#fff">Close</button>
-          </div>
-    
-          <div style="margin-top:10px; display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
-            <div style="border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:10px;">
-              <div style="opacity:.8;font-size:12px;margin-bottom:6px;">Host: Create Offer → send → paste Answer</div>
-              <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px;">
-                <button id="makeOffer">Create Offer</button>
-                <button id="setAnswer">Set Answer</button>
-                <button id="beHost">Use Host Mode</button>
-              </div>
-              <textarea id="offerOut" placeholder="Offer appears here..." style="width:100%;min-height:110px;background:#000;color:#fff;border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:10px;font-family:ui-monospace;font-size:12px;resize:vertical"></textarea>
-              <textarea id="answerIn" placeholder="Paste friend’s answer here..." style="width:100%;min-height:110px;margin-top:8px;background:#000;color:#fff;border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:10px;font-family:ui-monospace;font-size:12px;resize:vertical"></textarea>
-            </div>
-    
-            <div style="border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:10px;">
-              <div style="opacity:.8;font-size:12px;margin-bottom:6px;">Join: Paste Offer → Create Answer → send back</div>
-              <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px;">
-                <button id="setOffer">Set Offer</button>
-                <button id="makeAnswer">Create Answer</button>
-                <button id="beJoin">Use Join Mode</button>
-              </div>
-              <textarea id="offerIn" placeholder="Paste host offer here..." style="width:100%;min-height:110px;background:#000;color:#fff;border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:10px;font-family:ui-monospace;font-size:12px;resize:vertical"></textarea>
-              <textarea id="answerOut" placeholder="Answer appears here..." style="width:100%;min-height:110px;margin-top:8px;background:#000;color:#fff;border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:10px;font-family:ui-monospace;font-size:12px;resize:vertical"></textarea>
-            </div>
-          </div>
-    
-          <div id="rtcStatus" style="margin-top:10px; font-size:12px; opacity:.9">Not connected.</div>
+<!-- WebRTC Panel -->
+<div id="rtcMask">
+  <div id="rtcBox">
+    <div class="row" style="justify-content:space-between">
+      <b>Online VS (WebRTC, no backend — copy/paste)</b>
+      <button class="btn" id="rtcClose">Close</button>
+    </div>
+    <div class="hint" style="margin-top:6px">
+      Host: Create Offer → send to friend → paste Answer. Join: Paste Offer → Create Answer → send back.<br/>
+      Works peer-to-peer (STUN). Some networks may fail without TURN.
+    </div>
+    <div id="rtcGrid">
+      <div class="rtcCard">
+        <div class="rtcTitle">Host</div>
+        <div class="row">
+          <button class="btn" id="rtcMakeOffer">Create Offer</button>
+          <button class="btn" id="rtcSetAnswer">Set Answer</button>
+          <button class="btn" id="rtcBeHost">Use Host Mode</button>
         </div>
-      `;
-      document.body.appendChild(overlay);
-    
-      const $ = (id)=>overlay.querySelector("#"+id);
-      const statusEl = $("rtcStatus");
-      const setStatus = (t)=> statusEl.textContent = t;
-    
-      async function ensurePeer(){
-        if(pc) return;
-        pc = new RTCPeerConnection({ iceServers: [{urls:"stun:stun.l.google.com:19302"}] });
-        pc.oniceconnectionstatechange = ()=> setStatus("ICE: " + pc.iceConnectionState);
-        pc.onconnectionstatechange = ()=> setStatus("Conn: " + pc.connectionState);
-    
-        pc.ondatachannel = (ev)=>{
-          dc = ev.channel;
-          wireDC();
-        };
-      }
-    
-      function wireDC(){
-        if(!dc) return;
-        dc.onopen = ()=>{ net.connected=true; setStatus("Connected ✅"); setNetBadge(GAME_MODE==="onlineHost"?"Online ✅ (Host)":"Online ✅ (Join)"); };
-        dc.onclose = ()=>{ net.connected=false; setStatus("Disconnected."); setNetBadge("Offline"); };
-        dc.onmessage = (ev)=> handleNetMessage(ev.data);
-      }
-    
-      $("rtcClose").onclick = ()=> overlay.style.display="none";
-    
-      $("beHost").onclick = ()=>{
-        GAME_MODE = "onlineHost";
-        setNetBadge("Online (Host)…");
-        reset(true);
-        gameOver = false;
-        // tell joiner to reset once connected
-        if(net.connected) safeSend({type:"sync", payload:{}});
-      };
-    
-      $("beJoin").onclick = ()=>{
-        GAME_MODE = "onlineJoin";
-        setNetBadge("Online (Join)…");
-        reset(true);
-        gameOver = false;
-      };
-    
-      $("makeOffer").onclick = async ()=>{
-        await ensurePeer();
-        net.role = "host";
-        if(!dc){ dc = pc.createDataChannel("space"); wireDC(); }
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
-        await new Promise(r=>setTimeout(r, 900));
-        $("offerOut").value = JSON.stringify(pc.localDescription);
-        setStatus("Offer created. Send to friend.");
-      };
-    
-      $("setAnswer").onclick = async ()=>{
-        try{
-          const ans = JSON.parse($("answerIn").value.trim());
-          await pc.setRemoteDescription(ans);
-          setStatus("Answer set. Waiting for connection...");
-        }catch{ setStatus("Invalid answer JSON."); }
-      };
-    
-      $("setOffer").onclick = async ()=>{
-        await ensurePeer();
-        net.role = "join";
-        try{
-          const off = JSON.parse($("offerIn").value.trim());
-          await pc.setRemoteDescription(off);
-          setStatus("Offer set. Now create answer.");
-        }catch{ setStatus("Invalid offer JSON."); }
-      };
-    
-      $("makeAnswer").onclick = async ()=>{
-        try{
-          const answer = await pc.createAnswer();
-          await pc.setLocalDescription(answer);
-          await new Promise(r=>setTimeout(r, 900));
-          $("answerOut").value = JSON.stringify(pc.localDescription);
-          setStatus("Answer created. Send back to host.");
-        }catch{ setStatus("Failed to create answer."); }
-      };
-    
-      return { open: ()=> overlay.style.display="grid" };
+        <textarea id="rtcOfferOut" placeholder="Offer appears here..."></textarea>
+        <textarea id="rtcAnswerIn" placeholder="Paste friend's answer here..."></textarea>
+      </div>
+      <div class="rtcCard">
+        <div class="rtcTitle">Join</div>
+        <div class="row">
+          <button class="btn" id="rtcSetOffer">Set Offer</button>
+          <button class="btn" id="rtcMakeAnswer">Create Answer</button>
+          <button class="btn" id="rtcBeJoin">Use Join Mode</button>
+        </div>
+        <textarea id="rtcOfferIn" placeholder="Paste host offer here..."></textarea>
+        <textarea id="rtcAnswerOut" placeholder="Answer appears here..."></textarea>
+      </div>
+    </div>
+    <div class="hint" id="rtcStatus" style="margin-top:10px">Not connected.</div>
+  </div>
+</div>
+
+<div id="end">
+  <div id="endCard">
+    <b id="endTitle">Game Over</b>
+    <div class="hint" id="endText" style="margin-top:8px"></div>
+    <div class="row" style="margin-top:12px">
+      <button class="btn" id="endRestart">Restart (R)</button>
+      <button class="btn" id="endClose">Close</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script>
+(() => {
+  // ---------- tiny helpers ----------
+  const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
+  const now = ()=>performance.now();
+  const toastEl = document.getElementById('toast');
+  function toast(msg, ms=1400){
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    clearTimeout(toastEl._t);
+    toastEl._t = setTimeout(()=>toastEl.classList.remove('show'), ms);
+  }
+
+  // ---------- renderer / scene ----------
+  const canvas = document.getElementById('c');
+  const renderer = new THREE.WebGLRenderer({canvas, antialias:true});
+  renderer.setPixelRatio(devicePixelRatio);
+  renderer.setSize(innerWidth, innerHeight);
+
+  const scene = new THREE.Scene();
+  scene.fog = new THREE.Fog(0x000000, 800, 2400);
+
+  const camera = new THREE.PerspectiveCamera(70, innerWidth/innerHeight, 0.1, 5000);
+  camera.position.set(0, 40, 120);
+
+  window.addEventListener('resize', () => {
+    camera.aspect = innerWidth/innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(innerWidth, innerHeight);
+  });
+
+  // lights
+  scene.add(new THREE.AmbientLight(0xffffff, 0.35));
+  const sun = new THREE.DirectionalLight(0xffffff, 1.1);
+  sun.position.set(1,2,1);
+  scene.add(sun);
+
+  // stars
+  {
+    const starCount = 2600;
+    const g = new THREE.BufferGeometry();
+    const pos = new Float32Array(starCount*3);
+    for(let i=0;i<starCount;i++){
+      pos[i*3+0] = (Math.random()-0.5)*5000;
+      pos[i*3+1] = (Math.random()-0.5)*5000;
+      pos[i*3+2] = (Math.random()-0.5)*5000;
     }
-    
-    const rtcPanel = makePanel();
-    document.getElementById("onlineBtn").addEventListener("click", ()=> rtcPanel.open());
+    g.setAttribute('position', new THREE.BufferAttribute(pos,3));
+    scene.add(new THREE.Points(g, new THREE.PointsMaterial({color:0xffffff, size:1.3, sizeAttenuation:true})));
+  }
 
-    function createStars(){
-      const starCount = 3000;
-      const geom = new THREE.BufferGeometry();
-      const positions = new Float32Array(starCount*3);
-      for(let i=0;i<starCount;i++){
-        positions[i*3+0] = (Math.random()-0.5)*4000;
-        positions[i*3+1] = (Math.random()-0.5)*4000;
-        positions[i*3+2] = (Math.random()-0.5)*4000;
-      }
-      geom.setAttribute('position', new THREE.BufferAttribute(positions,3));
-      const mat = new THREE.PointsMaterial({color:0xffffff,size:1.5,sizeAttenuation:true});
-      return new THREE.Points(geom,mat);
-    }
-    scene.add(createStars());
+  // arena wire cube
+  const ARENA = 800;
+  {
+    const box = new THREE.BoxGeometry(ARENA, ARENA, ARENA);
+    const edges = new THREE.EdgesGeometry(box);
+    const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({color:0x2a2a2a, transparent:true, opacity:0.65}));
+    scene.add(line);
+  }
 
-    function makeRadialTextureStar(size = 256) {
-      const c = document.createElement('canvas');
-      c.width = c.height = size;
-      const ctx = c.getContext('2d');
-      const cx = size/2, cy = size/2, r = size/2;
-      const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
-      g.addColorStop(0.0, 'rgba(255,255,255,1)');
-      g.addColorStop(0.06, 'rgba(255,255,255,1)');
-      g.addColorStop(0.12, 'rgba(220,235,255,0.95)');
-      g.addColorStop(0.25, 'rgba(160,200,255,0.65)');
-      g.addColorStop(0.5, 'rgba(80,120,180,0.18)');
-      g.addColorStop(1.0, 'rgba(0,0,0,0)');
-      ctx.fillStyle = g;
-      ctx.fillRect(0,0,size,size);
-      const tex = new THREE.CanvasTexture(c);
-      tex.needsUpdate = true;
-      return tex;
-    }
+  // ---------- game state ----------
+  let MODE = "solo"; // "solo" | "onlineHost" | "onlineJoin"
+  let gameOver = false;
+  let roundSec = 60;
 
-    function makeElongatedFlareTexture(length = 1024, height = 32, color = 'rgba(200,230,255,1)') {
-      const c = document.createElement('canvas');
-      c.width = Math.max(256, Math.round(length));
-      c.height = Math.max(8, Math.round(height));
-      const ctx = c.getContext('2d');
-      const w = c.width, h = c.height;
-      const band = ctx.createLinearGradient(0, 0, w, 0);
-      const col = color;
-      band.addColorStop(0, 'rgba(255,255,255,0)');
-      band.addColorStop(0.12, col.replace(/,1\)$/, ',0.95)'));
-      band.addColorStop(0.5, col.replace(/,1\)$/, ',0.98)'));
-      band.addColorStop(0.88, col.replace(/,1\)$/, ',0.95)'));
-      band.addColorStop(1, 'rgba(255,255,255,0)');
-      ctx.fillStyle = band;
-      ctx.fillRect(0, (h*0.5) - (h*0.35), w, h*0.7);
-      const featherRadius = Math.min(w * 0.12, 200);
-      const lgL = ctx.createRadialGradient(0, h/2, 0, 0, h/2, featherRadius);
-      lgL.addColorStop(0, col.replace(/,1\)$/, ',0.95)'));
-      lgL.addColorStop(1, 'rgba(255,255,255,0)');
-      ctx.fillStyle = lgL;
-      ctx.fillRect(-featherRadius, 0, featherRadius, h);
-      const lgR = ctx.createRadialGradient(w, h/2, 0, w, h/2, featherRadius);
-      lgR.addColorStop(0, col.replace(/,1\)$/, ',0.95)'));
-      lgR.addColorStop(1, 'rgba(255,255,255,0)');
-      ctx.fillStyle = lgR;
-      ctx.fillRect(w, 0, featherRadius, h);
-      const tex = new THREE.CanvasTexture(c);
-      tex.needsUpdate = true;
-      return tex;
-    }
+  const ui = {
+    hpA: document.getElementById('hpA'),
+    hpB: document.getElementById('hpB'),
+    score: document.getElementById('scoreBadge'),
+    time: document.getElementById('timeBadge'),
+    netBadge: document.getElementById('netBadge'),
+    end: document.getElementById('end'),
+    endTitle: document.getElementById('endTitle'),
+    endText: document.getElementById('endText'),
+  };
 
-    const brightStars = [];
-    function createBrightStar(position, scale = 400) {
-      const innerCoreTex = makeRadialTextureStar(128);
-      const innerCoreMat = new THREE.SpriteMaterial({
-        map: innerCoreTex, transparent: true,
-        blending: THREE.AdditiveBlending, depthWrite: false
-      });
-      const innerCore = new THREE.Sprite(innerCoreMat);
-      innerCore.position.copy(position);
-      innerCore.scale.set(scale * 0.06, scale * 0.06, 1);
-      scene.add(innerCore);
+  // Input
+  const keys = Object.create(null);
+  let pointerLocked = false;
+  let mouseDX = 0, mouseDY = 0;
 
-      const coreTex = makeRadialTextureStar(256);
-      const coreMat = new THREE.SpriteMaterial({
-        map: coreTex, transparent: true,
-        blending: THREE.AdditiveBlending, depthWrite: false
-      });
-      const core = new THREE.Sprite(coreMat);
-      core.position.copy(position);
-      core.scale.set(scale * 0.12, scale * 0.12, 1);
-      scene.add(core);
+  document.addEventListener('keydown', (e)=> {
+    keys[e.code] = true;
+    if(e.code === 'KeyR') restart();
+  });
+  document.addEventListener('keyup', (e)=> keys[e.code]=false);
 
-      const haloTex = makeRadialTextureStar(512);
-      const haloMat = new THREE.SpriteMaterial({
-        map: haloTex, transparent: true,
-        blending: THREE.AdditiveBlending, depthWrite: false
-      });
-      const halo = new THREE.Sprite(haloMat);
-      halo.position.copy(position);
-      halo.scale.set(scale * 0.9, scale * 0.56, 1);
-      scene.add(halo);
+  canvas.addEventListener('click', () => {
+    canvas.requestPointerLock?.();
+  });
 
-      const flareTex = makeElongatedFlareTexture(Math.round(scale * 2.4), Math.max(4, Math.round(scale * 0.02)), 'rgba(200,230,255,1)');
-      const flareMat = new THREE.SpriteMaterial({ map: flareTex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
-      const flare = new THREE.Sprite(flareMat);
-      flare.position.copy(position);
-      flare.scale.set(scale * 2.2, scale * 0.03, 1);
-      scene.add(flare);
+  document.addEventListener('pointerlockchange', () => {
+    pointerLocked = (document.pointerLockElement === canvas);
+    if(pointerLocked) toast("Mouse locked. Esc to release.");
+  });
 
-      const flare2Tex = makeElongatedFlareTexture(Math.round(scale * 1.2), Math.max(2, Math.round(scale * 0.01)), 'rgba(255,255,255,1)');
-      const flare2Mat = new THREE.SpriteMaterial({ map: flare2Tex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
-      const flare2 = new THREE.Sprite(flare2Mat);
-      flare2.position.copy(position);
-      flare2.scale.set(scale * 1.2, scale * 0.015, 1);
-      scene.add(flare2);
+  document.addEventListener('mousemove', (e)=> {
+    if(!pointerLocked) return;
+    mouseDX += e.movementX;
+    mouseDY += e.movementY;
+  });
 
-      const vflareTex = makeElongatedFlareTexture(Math.round(scale * 0.8), Math.max(2, Math.round(scale * 0.01)), 'rgba(200,230,255,0.9)');
-      const vflareMat = new THREE.SpriteMaterial({ map: vflareTex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
-      const vflare = new THREE.Sprite(vflareMat);
-      vflare.position.copy(position);
-      vflare.scale.set(scale * 0.02, scale * 0.9, 1);
-      vflare.material.rotation = Math.PI / 2;
-      scene.add(vflare);
+  // entities
+  const bullets = [];
+  const missiles = [];
 
-      const starObj = { innerCore, core, halo, flare, flare2, vflare, baseScale: scale };
-      brightStars.push(starObj);
-      return starObj;
-    }
+  function makeShip(color){
+    const group = new THREE.Group();
 
-    function updateBrightStars(dt) {
-      const t = performance.now() * 0.001;
-      brightStars.forEach((s, i) => {
-        const flick = 1 + Math.sin(t * (0.9 + i*0.37) + i) * 0.025;
-        s.innerCore.scale.set(s.baseScale * 0.06 * (1.02 + Math.sin(t * 3.2 + i)*0.03),
-                              s.baseScale * 0.06 * (1.02 + Math.sin(t * 3.2 + i)*0.03),
-                              1);
-        s.core.scale.set(s.baseScale * 0.12 * flick,
-                         s.baseScale * 0.12 * flick,
-                         1);
-        s.halo.scale.set(s.baseScale * 0.9 * (1 + (1-flick)*0.08),
-                         s.baseScale * 0.56 * (1 + (1-flick)*0.08),
-                         1);
-        s.flare.material.opacity = 0.9 * (0.85 + 0.15 * Math.sin(t * 1.3 + i));
-        s.flare2.material.opacity = 0.95 * (0.9 + 0.1 * Math.cos(t * 1.7 + i));
-        s.vflare.material.opacity = 0.75 * (0.9 + 0.1 * Math.sin(t * 1.1 + i));
-      });
-    }
-    function buildInputFromKeys(){
-      return {
-        ArrowUp: !!keys['ArrowUp'],
-        ArrowDown: !!keys['ArrowDown'],
-        ArrowLeft: !!keys['ArrowLeft'],
-        ArrowRight: !!keys['ArrowRight'],
-        KeyA: !!keys['KeyA'],
-        KeyD: !!keys['KeyD'],
-        KeyG: !!keys['KeyG'],
-        // actions (edge-triggered is better, but we’ll keep it simple)
-        fire: false,
-        missile: false,
-        laser: (weaponMode === 'laser') ? !!laserActive : false,
-        weaponMode
-      };
-    }
+    const body = new THREE.Mesh(
+      new THREE.ConeGeometry(10, 36, 10),
+      new THREE.MeshStandardMaterial({color, metalness:0.15, roughness:0.7})
+    );
+    body.rotation.x = Math.PI/2;
+    group.add(body);
 
-    let pendingFire = false;
-    let pendingMissile = false;
+    const wing = new THREE.Mesh(
+      new THREE.BoxGeometry(34, 2.5, 10),
+      new THREE.MeshStandardMaterial({color, metalness:0.12, roughness:0.75})
+    );
+    wing.position.set(0, -3, 0);
+    group.add(wing);
 
-    const light = new THREE.PointLight(0xffffff,1.2,0);
-    light.position.set(200,200,200);
-    scene.add(light);
-    scene.add(new THREE.AmbientLight(0xffffff,0.3));
+    const glow = new THREE.PointLight(color, 0.6, 180);
+    glow.position.set(0, -4, 14);
+    group.add(glow);
 
-    // ---------- DAMAGE / VFX SYSTEM ----------
-    const smokeParticles = [];
-    const explosionParticles = [];
-    const shockwaves = [];
-    const sparkParticles = [];
+    scene.add(group);
+    return group;
+  }
 
-    const screenFlashEl = document.getElementById('screenFlash');
-    function screenFlash() {
-      if (!screenFlashEl) return;
-      screenFlashEl.style.opacity = '0.9';
-      setTimeout(() => {
-        screenFlashEl.style.opacity = '0';
-      }, 120);
+  const shipA = {
+    mesh: makeShip(0xff2b2b),
+    pos: new THREE.Vector3(-120, 0, 0),
+    vel: new THREE.Vector3(),
+    yaw: 0, pitch: 0,
+    hp: 100,
+    score: 0,
+    cooldown: 0,
+    missileCooldown: 0,
+  };
+  const shipB = {
+    mesh: makeShip(0x4aa3ff),
+    pos: new THREE.Vector3(120, 0, 0),
+    vel: new THREE.Vector3(),
+    yaw: Math.PI, pitch: 0,
+    hp: 100,
+    score: 0,
+    cooldown: 0,
+    missileCooldown: 0,
+  };
+
+  function resetRound(soft=false){
+    shipA.pos.set(-160, 0, 0);
+    shipB.pos.set(160, 0, 0);
+    shipA.vel.set(0,0,0); shipB.vel.set(0,0,0);
+    shipA.yaw = 0; shipB.yaw = Math.PI;
+    shipA.pitch = 0; shipB.pitch = 0;
+    shipA.hp = 100; shipB.hp = 100;
+    bullets.length = 0; missiles.length = 0;
+    roundSec = 60;
+    gameOver = false;
+    ui.end.style.display = "none";
+    if(!soft) toast("Round start!");
+  }
+
+  function restart(){
+    shipA.score = 0; shipB.score = 0;
+    resetRound(true);
+    toast("Restarted.");
+    // host tells join to reset if online
+    if(MODE==="onlineHost" && net.connected) safeSend({type:"sync", payload:{restart:true}});
+  }
+
+  // ---------- physics / shooting ----------
+  const TURN = 0.0026;
+  const THRUST = 0.65;
+  const STRAFE = 0.55;
+  const DAMP = 0.985;
+  const BOOST = 1.55;
+
+  function forwardFromAngles(yaw, pitch){
+    const cy = Math.cos(yaw), sy = Math.sin(yaw);
+    const cp = Math.cos(pitch), sp = Math.sin(pitch);
+    // forward in -Z by convention
+    return new THREE.Vector3(-sy*cp, sp, -cy*cp).normalize();
+  }
+
+  function applyInputToShip(s, inp, dt){
+    // look
+    const lookSpeed = TURN * (inp.boost ? 1.15 : 1.0);
+    s.yaw += (inp.lookX||0) * lookSpeed;
+    s.pitch += (inp.lookY||0) * lookSpeed;
+    s.pitch = clamp(s.pitch, -1.1, 1.1);
+
+    // thrust
+    const fwd = forwardFromAngles(s.yaw, s.pitch);
+    const right = new THREE.Vector3().crossVectors(fwd, new THREE.Vector3(0,1,0)).normalize();
+
+    let thrust = 0;
+    if(inp.KeyW) thrust += 1;
+    if(inp.KeyS) thrust -= 0.6;
+
+    let strafe = 0;
+    if(inp.KeyD) strafe += 1;
+    if(inp.KeyA) strafe -= 1;
+
+    const mult = inp.boost ? BOOST : 1.0;
+
+    s.vel.add(fwd.multiplyScalar(THRUST * thrust * mult * dt * 60));
+    s.vel.add(right.multiplyScalar(STRAFE * strafe * mult * dt * 60));
+
+    // damping
+    s.vel.multiplyScalar(Math.pow(DAMP, dt*60));
+
+    // integrate
+    s.pos.add(s.vel.clone().multiplyScalar(dt*60));
+
+    // arena bounce
+    for(const axis of ['x','y','z']){
+      const half = ARENA/2 - 22;
+      if(s.pos[axis] < -half){ s.pos[axis] = -half; s.vel[axis] *= -0.6; }
+      if(s.pos[axis] >  half){ s.pos[axis] =  half; s.vel[axis] *= -0.6; }
     }
 
-    // SMOKE
-    const smokeGeo = new THREE.SphereGeometry(6, 10, 10);
+    // fire
+    s.cooldown = Math.max(0, s.cooldown - dt);
+    s.missileCooldown = Math.max(0, s.missileCooldown - dt);
 
-    function addSmokeAt(position) {
-      const mat = new THREE.MeshBasicMaterial({
-        color: 0x444444,
-        transparent: true,
-        opacity: 0.9
-      });
-
-      const m = new THREE.Mesh(smokeGeo, mat);
-      m.position.copy(position);
-
-      m.position.x += (Math.random() - 0.5) * 10;
-      m.position.y += (Math.random() - 0.5) * 6;
-      m.position.z += (Math.random() - 0.5) * 10;
-
-      m.life = 1.6 + Math.random() * 0.6;
-      m.maxLife = m.life;
-
-      m.velocity = new THREE.Vector3(
-        (Math.random() - 0.5) * 3,
-        10 + Math.random() * 8,
-        (Math.random() - 0.5) * 3
-      );
-
-      scene.add(m);
-      smokeParticles.push(m);
+    if(inp.fire && s.cooldown<=0){
+      s.cooldown = 0.14;
+      spawnBullet(s, fwd);
     }
-
-    function addSmoke(enemy, dt = 0.016) {
-      if (!enemy || !enemy.mesh) return;
-      if (Math.random() < dt * 25) {
-        addSmokeAt(enemy.mesh.position);
-      }
+    if(inp.missile && s.missileCooldown<=0){
+      s.missileCooldown = 0.9;
+      spawnMissile(s, fwd);
     }
+  }
 
-    function updateSmoke(dt) {
-      for (let i = smokeParticles.length - 1; i >= 0; i--) {
-        const p = smokeParticles[i];
-        p.position.add(p.velocity.clone().multiplyScalar(dt * 60));
-        p.life -= dt;
-        const ratio = Math.max(0, p.life / p.maxLife);
-        p.material.opacity = ratio;
-        p.scale.multiplyScalar(1 + dt * 0.8);
-        if (p.life <= 0) {
-          scene.remove(p);
-          smokeParticles.splice(i, 1);
-        }
-      }
-    }
-
-    // SPARKS
-    function addSparks(enemy, count = 4) {
-      if (!enemy || !enemy.mesh) return;
-      const basePos = enemy.mesh.position;
-      for (let i = 0; i < count; i++) {
-        const size = 2 + Math.random() * 3;
-        const geo = new THREE.SphereGeometry(size, 6, 6);
-        const mat = new THREE.MeshBasicMaterial({
-          color: 0xffaa33,
-          transparent: true,
-          opacity: 1.0
-        });
-        const p = new THREE.Mesh(geo, mat);
-        p.position.copy(basePos);
-        p.position.x += (Math.random() - 0.5) * 8;
-        p.position.y += (Math.random() - 0.5) * 4;
-        p.position.z += (Math.random() - 0.5) * 8;
-        p.velocity = new THREE.Vector3(
-          (Math.random() - 0.5) * 40,
-          20 + Math.random() * 30,
-          (Math.random() - 0.5) * 40
-        );
-        p.life = 0.6 + Math.random() * 0.3;
-        scene.add(p);
-        sparkParticles.push(p);
-      }
-    }
-
-    function updateSparks(dt) {
-      for (let i = sparkParticles.length - 1; i >= 0; i--) {
-        const p = sparkParticles[i];
-        p.position.add(p.velocity.clone().multiplyScalar(dt * 60));
-        p.life -= dt * 1.8;
-        p.material.opacity = Math.max(0, p.life);
-        p.scale.multiplyScalar(1 - dt * 2.2);
-        if (p.life <= 0) {
-          scene.remove(p);
-          sparkParticles.splice(i, 1);
-        }
-      }
-    }
-
-    // EXPLOSION + SHOCKWAVE
-    function spawnExplosion(position) {
-      const pos = position.clone();
-
-      const count = 40;
-      for (let i = 0; i < count; i++) {
-        const size = 4 + Math.random() * 8;
-        const geo = new THREE.SphereGeometry(size, 8, 8);
-        const mat = new THREE.MeshBasicMaterial({
-          color: 0xffaa33,
-          transparent: true,
-          opacity: 1.0
-        });
-        const m = new THREE.Mesh(geo, mat);
-        m.position.copy(pos);
-        m.position.x += (Math.random() - 0.5) * 8;
-        m.position.y += (Math.random() - 0.5) * 8;
-        m.position.z += (Math.random() - 0.5) * 8;
-        m.velocity = new THREE.Vector3(
-          (Math.random() - 0.5) * 90,
-          Math.random() * 90,
-          (Math.random() - 0.5) * 90
-        );
-        m.life = 0.9 + Math.random() * 0.4;
-        m.maxLife = m.life;
-        scene.add(m);
-        explosionParticles.push(m);
-      }
-
-      for (let i = 0; i < 25; i++) {
-        addSmokeAt(pos);
-      }
-
-      spawnShockwave(pos);
-      screenFlash();
-
-      if (typeof missileExplosion !== 'undefined' && missileExplosion) {
-        try {
-          missileExplosion.currentTime = 0;
-          safePlay(missileExplosion.cloneNode(true));
-        } catch(e){}
-      }
-    }
-
-    function updateExplosions(dt) {
-      for (let i = explosionParticles.length - 1; i >= 0; i--) {
-        const p = explosionParticles[i];
-        p.position.add(p.velocity.clone().multiplyScalar(dt * 60));
-        p.life -= dt * 1.3;
-        const ratio = Math.max(0, p.life / p.maxLife);
-        p.material.opacity = ratio;
-        p.scale.multiplyScalar(1 + dt * 2.5);
-        if (p.life <= 0) {
-          scene.remove(p);
-          explosionParticles.splice(i, 1);
-        }
-      }
-    }
-
-    const shockwaveMat = new THREE.MeshBasicMaterial({
-      color: 0xffddaa,
-      transparent: true,
-      opacity: 0.9,
-      side: THREE.DoubleSide
+  function spawnBullet(ownerShip, fwd){
+    const geom = new THREE.SphereGeometry(2.2, 10, 10);
+    const mat = new THREE.MeshBasicMaterial({color: ownerShip===shipA ? 0xffc7c7 : 0xc7d8ff});
+    const m = new THREE.Mesh(geom, mat);
+    m.position.copy(ownerShip.pos).add(fwd.clone().multiplyScalar(24));
+    scene.add(m);
+    bullets.push({
+      mesh:m,
+      vel: fwd.clone().multiplyScalar(18.5).add(ownerShip.vel.clone().multiplyScalar(0.35)),
+      owner: ownerShip===shipA ? 'A':'B',
+      life: 2.3
     });
-    const shockwaveGeo = new THREE.RingGeometry(4, 4.03, 64);
+  }
 
-    function spawnShockwave(position) {
-      const mesh = new THREE.Mesh(shockwaveGeo, shockwaveMat.clone());
-      mesh.position.copy(position);
-      mesh.rotation.x = -Math.PI / 2;
-      mesh.scale.set(1+Math.random, 1+Math.random, 1+Math.random); // wider ellipse
-      mesh.life = 0.6;
-      mesh.maxLife = mesh.life;
-      mesh.startScale = 1;
-      mesh.endScale = 80;
-      scene.add(mesh);
-      shockwaves.push(mesh);
-    }
+  function spawnMissile(ownerShip, fwd){
+    const geom = new THREE.CylinderGeometry(1.2, 1.2, 18, 10);
+    const mat = new THREE.MeshStandardMaterial({color: ownerShip===shipA?0xff2b2b:0x4aa3ff, roughness:0.55, metalness:0.15});
+    const m = new THREE.Mesh(geom, mat);
+    m.rotation.x = Math.PI/2;
+    m.position.copy(ownerShip.pos).add(fwd.clone().multiplyScalar(26));
+    scene.add(m);
+    missiles.push({
+      mesh:m,
+      vel: fwd.clone().multiplyScalar(12.0).add(ownerShip.vel.clone().multiplyScalar(0.25)),
+      owner: ownerShip===shipA ? 'A':'B',
+      life: 3.5
+    });
+  }
 
-    function updateShockwaves(dt) {
-      for (let i = shockwaves.length - 1; i >= 0; i--) {
-        const w = shockwaves[i];
-        w.life -= dt;
-        const t = 1 - Math.max(0, w.life / w.maxLife);
-        const s = w.startScale + (w.endScale - w.startScale) * t;
-        w.scale.set(s, s, s);
-        w.material.opacity = 0.9 * (1 - t/6);
-        if (camera) {
-          w.lookAt(camera.position);
-        }
-        if (w.life <= 0) {
-          scene.remove(w);
-          shockwaves.splice(i, 1);
-        }
+  function stepProjectiles(dt){
+    for(let i=bullets.length-1;i>=0;i--){
+      const b = bullets[i];
+      b.life -= dt;
+      b.mesh.position.add(b.vel.clone().multiplyScalar(dt*60));
+      if(b.life<=0) { scene.remove(b.mesh); bullets.splice(i,1); continue; }
+      // hit test
+      const target = (b.owner==='A') ? shipB : shipA;
+      if(b.mesh.position.distanceTo(target.pos) < 18){
+        scene.remove(b.mesh); bullets.splice(i,1);
+        hitShip(target, 6);
       }
     }
-    function doLaserFromCamera(cam, dt){
-      const baseDps = bulletDamage * (1000 / autoShootRateMs);
-      const damageThisFrame = baseDps * dt;
-    
-      const camPos = cam.position.clone();
-      const dir = new THREE.Vector3(0,0,-1).applyQuaternion(cam.quaternion).normalize();
-    
-      let bestEnemy = null;
-      let bestT = Infinity;
-      const hitRadius = 35;
-    
-      enemies.forEach(enemy => {
-        if (!enemy || !enemy.mesh) return;
-        const toEnemy = enemy.mesh.position.clone().sub(camPos);
-        const tProj = dir.dot(toEnemy);
-        if (tProj <= 0) return;
-        const closestPoint = camPos.clone().add(dir.clone().multiplyScalar(tProj));
-        const dist = enemy.mesh.position.distanceTo(closestPoint);
-        if (dist < hitRadius && tProj < bestT) {
-          bestT = tProj; bestEnemy = enemy;
-        }
-      });
-    
-      if(bestEnemy) damageEnemy(bestEnemy, damageThisFrame);
-    }
-    function ensureLaserBeam() {
-      if (laserBeam) return;
-    
-      const geo = new THREE.CylinderGeometry(0.6, 0.6, 100, 16, 1, true);
-      const mat = new THREE.MeshBasicMaterial({
-        color: 0xff4444,
-        transparent: true,
-        opacity: 0.9
-      });
-    
-      laserBeam = new THREE.Mesh(geo, mat);
-      laserBeam.visible = false;
-      scene.add(laserBeam);
-    }
-
-    function updateLaserBeam(active) {
-      ensureLaserBeam();
-      if (!active) {
-        laserBeam.visible = false;
-        return;
-      }
-      laserBeam.visible = true;
-    
-      const origin = camera.position.clone();
-      const dir = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
-      const length = sphereRadius * 2; // long beam
-    
-      // center of the cylinder is halfway along the beam
-      const mid = origin.clone().add(dir.clone().multiplyScalar(length / 2));
-      laserBeam.position.copy(mid);
-    
-      // orient cylinder so its Y axis points along 'dir'
-      const up = new THREE.Vector3(0,1,0);
-      const q = new THREE.Quaternion().setFromUnitVectors(up, dir);
-      laserBeam.quaternion.copy(q);
-    
-      // stretch height along Y
-      laserBeam.scale.set(1, length, 1);
-    }
-    
-    // in animate(), replace your old laser section with:
-    if(!gameOver){
-      if(GAME_MODE === "onlineHost"){
-        const inputA = buildInputFromKeys();
-        const inputB = net.remoteInput || {};
-    
-        // A laser
-        if((inputA.weaponMode === 'laser') && laserActive){
-          doLaserFromCamera(camA, dt);
-        }
-        // B laser
-        if((inputB.weaponMode === 'laser') && inputB.laser){
-          doLaserFromCamera(camB, dt);
-        }
-    
-        // show one beam (optional). easiest: show beam for local camera only:
-        updateLaserBeam((weaponMode==='laser') && laserActive);
-      } else if(GAME_MODE !== "onlineJoin"){
-        // your existing solo laser behavior
-        // (keep your current block)
+    for(let i=missiles.length-1;i>=0;i--){
+      const m = missiles[i];
+      m.life -= dt;
+      m.mesh.position.add(m.vel.clone().multiplyScalar(dt*60));
+      m.mesh.lookAt(m.mesh.position.clone().add(m.vel));
+      if(m.life<=0) { scene.remove(m.mesh); missiles.splice(i,1); continue; }
+      const target = (m.owner==='A') ? shipB : shipA;
+      if(m.mesh.position.distanceTo(target.pos) < 22){
+        scene.remove(m.mesh); missiles.splice(i,1);
+        hitShip(target, 22);
       }
     }
+  }
 
-
-
-    function randomUnit(){
-      const v = new THREE.Vector3(Math.random()*2-1, Math.random()*2-1, Math.random()*2-1);
-      return v.normalize();
+  function hitShip(ship, dmg){
+    ship.hp = Math.max(0, ship.hp - dmg);
+    if(ship.hp<=0){
+      const killer = (ship===shipA) ? shipB : shipA;
+      killer.score++;
+      toast((killer===shipA?"Red":"Blue") + " scores! ("+shipA.score+"-"+shipB.score+")", 1200);
+      if(shipA.score>=3 || shipB.score>=3){
+        endMatch();
+      } else {
+        resetRound(true);
+      }
     }
+  }
 
-    const sphereRadius = 500;
-    const enemySpeed = 3.0;
-    const steerMin = 1000;
-    const steerMax = 3000;
-    const steerLerpFactor = 0.015;
-    const maxRoll = 1.0;
+  function endMatch(){
+    gameOver = true;
+    ui.end.style.display = "grid";
+    const winner = shipA.score>shipB.score ? "Red" : "Blue";
+    ui.endTitle.textContent = winner + " wins!";
+    ui.endText.textContent = "Final score: " + shipA.score + " - " + shipB.score;
+  }
 
-    const MAX_ENEMIES = 2;
-    const enemies = [];
-    let selectedEnemyIndex = 0;
+  // HUD update
+  function syncHUD(){
+    ui.hpA.style.width = clamp(shipA.hp,0,100) + "%";
+    ui.hpB.style.width = clamp(shipB.hp,0,100) + "%";
+    ui.score.textContent = "Score " + shipA.score + " - " + shipB.score;
+    ui.time.textContent = roundSec.toFixed(1) + "s";
+  }
 
-    let spaceshipGeometry = null;
-    let spaceshipMaterial = null;
-    let missileGeometry = null;
-    const loader = new THREE.STLLoader();
+  // Camera follows "local player"
+  function updateCameraFollow(localIsA){
+    const me = localIsA ? shipA : shipB;
+    const fwd = forwardFromAngles(me.yaw, me.pitch);
+    const up = new THREE.Vector3(0,1,0);
 
-    const loadModels = () => {
-      const spaceshipPromise = new Promise((resolve, reject) => {
-        loader.load('./res/spaceship.stl', (geometry) => {
-          geometry.computeBoundingBox();
-          const bb = geometry.boundingBox;
-          const center = new THREE.Vector3(); bb.getCenter(center);
-          geometry.translate(-center.x, -center.y, -center.z);
-          spaceshipGeometry = geometry;
-          spaceshipMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff });
-          resolve();
-        }, undefined, reject);
-      });
-      const missilePromise = new Promise((resolve, reject) => {
-        loader.load('./res/missile.stl', (geometry) => {
-          geometry.computeBoundingBox();
-          const bb = geometry.boundingBox;
-          const center = new THREE.Vector3(); bb.getCenter(center);
-          geometry.translate(-center.x, -center.y, -center.z);
-          missileGeometry = geometry;
-          resolve();
-        }, undefined, reject);
-      });
-      return Promise.all([spaceshipPromise, missilePromise]);
+    const desiredPos = me.pos.clone()
+      .add(up.clone().multiplyScalar(48))
+      .add(fwd.clone().multiplyScalar(-150));
+
+    camera.position.lerp(desiredPos, 0.15);
+    camera.lookAt(me.pos.clone().add(fwd.clone().multiplyScalar(40)));
+  }
+
+  // ---------- WebRTC (no backend): copy/paste signaling ----------
+  let pc=null, dc=null;
+  const net = { connected:false, lastSend:0, lastSnap:0, remoteInput:null };
+
+  function setNetBadge(t){ ui.netBadge.textContent = t; }
+
+  function safeSend(obj){
+    if(dc && dc.readyState==="open"){
+      dc.send(JSON.stringify(obj));
+    }
+  }
+
+  function handleNetMessage(raw){
+    let msg; try{ msg = JSON.parse(raw); }catch{return;}
+    if(msg.type==="input"){
+      net.remoteInput = msg.payload;
+    } else if(msg.type==="state"){
+      if(MODE==="onlineJoin") applySnapshot(msg.payload);
+    } else if(msg.type==="sync"){
+      if(MODE==="onlineJoin"){
+        // host requests a restart/reset
+        shipA.score = msg.payload.sA ?? shipA.score;
+        shipB.score = msg.payload.sB ?? shipB.score;
+        resetRound(true);
+        gameOver = false;
+        ui.end.style.display = "none";
+        toast("Synced by host.");
+      }
+    }
+  }
+
+  const rtcMask = document.getElementById('rtcMask');
+  const rtcStatus = document.getElementById('rtcStatus');
+  function setRTCStatus(t){ rtcStatus.textContent = t; }
+
+  async function ensurePeer(){
+    if(pc) return;
+    pc = new RTCPeerConnection({ iceServers:[{urls:"stun:stun.l.google.com:19302"}] });
+    pc.oniceconnectionstatechange = ()=> setRTCStatus("ICE: "+pc.iceConnectionState);
+    pc.onconnectionstatechange = ()=> setRTCStatus("Conn: "+pc.connectionState);
+    pc.ondatachannel = (ev)=>{
+      dc = ev.channel;
+      wireDC();
     };
+  }
 
-    // HP etc.
-    let playerMaxHP = 20;
-    let playerHP = 20;
-    let enemyMaxHP = 10;
-    let enemyHP = 10;
+  function wireDC(){
+    if(!dc) return;
+    dc.onopen = ()=>{ net.connected=true; setRTCStatus("Connected ✅"); setNetBadge(MODE==="onlineHost"?"Online ✅ (Host)":"Online ✅ (Join)"); toast("Connected!"); };
+    dc.onclose= ()=>{ net.connected=false; setRTCStatus("Disconnected."); setNetBadge("Offline"); };
+    dc.onmessage = (ev)=> handleNetMessage(ev.data);
+  }
 
-    let playerMaxShield = 2;
-    let playerShield = 2;
-    let enemyMaxShield = 8;
-    let enemyShield = 8;
+  document.getElementById('btnOnline').addEventListener('click', ()=>{ rtcMask.style.display="grid"; });
+  document.getElementById('rtcClose').addEventListener('click', ()=>{ rtcMask.style.display="none"; });
 
-    let shieldRegenDelayMs = 3500;
-    let shieldRegenRatePerSec = 1.6;
-    let lastPlayerDamageTime = -Infinity;
-    let lastEnemyDamageTime = -Infinity;
+  document.getElementById('rtcBeHost').addEventListener('click', ()=>{
+    MODE="onlineHost";
+    setNetBadge("Online (Host)…");
+    resetRound(true);
+    gameOver=false;
+    ui.end.style.display="none";
+    toast("Host mode. Connect & start fighting.");
+    if(net.connected) safeSend({type:"sync", payload:{sA:shipA.score,sB:shipB.score}});
+  });
 
-    let bulletDamage = 1;
-    let missileDamage = 5;
-    let enemyDamage = 1.0;
-    let enemyFireDelay = 520;
+  document.getElementById('rtcBeJoin').addEventListener('click', ()=>{
+    MODE="onlineJoin";
+    setNetBadge("Online (Join)…");
+    resetRound(true);
+    gameOver=false;
+    ui.end.style.display="none";
+    toast("Join mode. Wait for host snapshots.");
+  });
 
-    const winDiv = document.getElementById('win');
-    const loseDiv = document.getElementById('lose');
+  document.getElementById('rtcMakeOffer').addEventListener('click', async ()=>{
+    await ensurePeer();
+    if(!dc){ dc = pc.createDataChannel("space-duel"); wireDC(); }
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+    await new Promise(r=>setTimeout(r, 900));
+    document.getElementById('rtcOfferOut').value = JSON.stringify(pc.localDescription);
+    setRTCStatus("Offer created. Send to friend.");
+  });
 
-    let missileAmmo = 4;
-    const missileCountSpan = document.getElementById('missileCount');
-    let missileCooldownMs = 1000;
-    let lastMissileTime = -Infinity;
+  document.getElementById('rtcSetAnswer').addEventListener('click', async ()=>{
+    try{
+      const ans = JSON.parse(document.getElementById('rtcAnswerIn').value.trim());
+      await pc.setRemoteDescription(ans);
+      setRTCStatus("Answer set. Waiting for connection...");
+    }catch{ setRTCStatus("Invalid Answer JSON."); }
+  });
 
-    function updateMissileUI(){
-      missileCountSpan.textContent = missileAmmo;
-      const ui = document.getElementById('missileCountUI');
-      const now = performance.now();
-      if (missileAmmo <= 0) {
-        ui.textContent = 'No missiles';
-      } else {
-        const since = now - lastMissileTime;
-        if (since >= missileCooldownMs) {
-          ui.textContent = 'Missile ready';
-        } else {
-          const rem = Math.max(0, (missileCooldownMs - since) / 1000);
-          ui.textContent = 'Cooldown ' + rem.toFixed(1) + 's';
-        }
-      }
-    }
-    setInterval(updateMissileUI, 100);
+  document.getElementById('rtcSetOffer').addEventListener('click', async ()=>{
+    await ensurePeer();
+    try{
+      const off = JSON.parse(document.getElementById('rtcOfferIn').value.trim());
+      await pc.setRemoteDescription(off);
+      setRTCStatus("Offer set. Now create answer.");
+    }catch{ setRTCStatus("Invalid Offer JSON."); }
+  });
 
-    function setShieldAndHP(containerId, shield, maxShield, hp, maxHP) {
-      const shieldElem = document.querySelector(`#${containerId} .shield`);
-      const healthElem = document.querySelector(`#${containerId} .health`);
-      const clampedShield = Math.max(0, Math.min(shield, maxShield));
-      const clampedHP = Math.max(0, Math.min(hp, maxHP));
-      const shieldPercent = (clampedShield / maxShield) * 100;
-      const hpPercent = (clampedHP / maxHP) * 100;
-      if (shieldElem) shieldElem.style.width = shieldPercent + '%';
-      if (healthElem) healthElem.style.width = hpPercent + '%';
-    }
+  document.getElementById('rtcMakeAnswer').addEventListener('click', async ()=>{
+    try{
+      const ans = await pc.createAnswer();
+      await pc.setLocalDescription(ans);
+      await new Promise(r=>setTimeout(r, 900));
+      document.getElementById('rtcAnswerOut').value = JSON.stringify(pc.localDescription);
+      setRTCStatus("Answer created. Send back to host.");
+    }catch{ setRTCStatus("Failed to create answer."); }
+  });
 
-    function updateHP(){
-      setShieldAndHP('playerBar', playerShield, playerMaxShield, playerHP, playerMaxHP);
+  // ---------- snapshots ----------
+  function packShip(s){
+    return {
+      p:[s.pos.x,s.pos.y,s.pos.z],
+      v:[s.vel.x,s.vel.y,s.vel.z],
+      yaw:s.yaw, pitch:s.pitch, hp:s.hp, score:s.score,
+      cd:s.cooldown, mcd:s.missileCooldown
+    };
+  }
+  function unpackShip(s, d){
+    s.pos.set(d.p[0],d.p[1],d.p[2]);
+    s.vel.set(d.v[0],d.v[1],d.v[2]);
+    s.yaw = d.yaw; s.pitch = d.pitch;
+    s.hp = d.hp; s.score = d.score;
+    s.cooldown = d.cd; s.missileCooldown = d.mcd;
+  }
+  function getSnapshot(){
+    return {
+      shipA: packShip(shipA),
+      shipB: packShip(shipB),
+      roundSec,
+      gameOver,
+      bullets: bullets.map(b=>({p:[b.mesh.position.x,b.mesh.position.y,b.mesh.position.z], v:[b.vel.x,b.vel.y,b.vel.z], o:b.owner, life:b.life})),
+      missiles: missiles.map(m=>({p:[m.mesh.position.x,m.mesh.position.y,m.mesh.position.z], v:[m.vel.x,m.vel.y,m.vel.z], o:m.owner, life:m.life}))
+    };
+  }
+  function applySnapshot(s){
+    // join uses host-authoritative state
+    unpackShip(shipA, s.shipA);
+    unpackShip(shipB, s.shipB);
+    roundSec = s.roundSec;
+    gameOver = !!s.gameOver;
 
-      const e0 = enemies[0];
-      if (e0) setShieldAndHP('enemyBar1', e0.shield, enemyMaxShield, e0.hp, enemyMaxHP);
-      else setShieldAndHP('enemyBar1', 0, enemyMaxShield, 0, enemyMaxHP);
-
-      const e1 = enemies[1];
-      if (e1) setShieldAndHP('enemyBar2', e1.shield, enemyMaxShield, e1.hp, enemyMaxHP);
-      else setShieldAndHP('enemyBar2', 0, enemyMaxShield, 0, enemyMaxHP);
-
-      ['enemyBar1','enemyBar2'].forEach((id, idx) => {
-        const el = document.getElementById(id);
-        if (!el) return;
-        if (idx === selectedEnemyIndex && enemies[idx]) el.classList.add('selected');
-        else el.classList.remove('selected');
-      });
-    }
-
-    updateHP();
-    updateMissileUI();
-
-    function damagePlayer(amount){
-      lastPlayerDamageTime = performance.now();
-      if (playerShield > 0) {
-        playerShield -= amount;
-        if (playerShield < 0) {
-          const leftover = -playerShield;
-          playerShield = 0;
-          playerHP -= leftover;
-        }
-      } else {
-        playerHP -= amount;
-      }
-      playerHP = Math.max(0, playerHP);
-      updateHP();
-      if (playerHP <= 0) {
-        loseDiv.style.display='block';
-        gameOver = true;
-        setAutoShooting(false);
-      }
-    }
-
-    function damageEnemy(enemy, amount){
-      if (!enemy) return;
-      lastEnemyDamageTime = performance.now();
-
-      if (enemy.shield > 0) {
-        enemy.shield -= amount;
-        if (enemy.shield < 0) {
-          const leftover = -enemy.shield;
-          enemy.shield = 0;
-          enemy.hp -= leftover;
-        }
-      } else {
-        enemy.hp -= amount;
-      }
-
-      enemy.hp = Math.max(0, enemy.hp);
-      updateHP();
-
-      if (enemy.hp > 0 && enemy.hp / enemyMaxHP < 0.15) {
-        addSparks(enemy, 6);
-      }
-      if (enemy.hp / enemyMaxHP < 0.25) {
-        addSmoke(enemy);
-      }
-
-      if (enemy.hp <= 0) destroyEnemy(enemy);
-    }
-
-    function updateShieldRegen(dt){
-      const now = performance.now();
-      if ((now - lastPlayerDamageTime) > shieldRegenDelayMs && playerShield < playerMaxShield && !gameOver) {
-        playerShield = Math.min(playerMaxShield, playerShield + shieldRegenRatePerSec * dt);
-        updateHP();
-      }
-      if ((now - lastEnemyDamageTime) > shieldRegenDelayMs && !gameOver) {
-        let changed = false;
-        enemies.forEach(e => {
-          if (e.shield < enemyMaxShield) {
-            e.shield = Math.min(enemyMaxShield, e.shield + shieldRegenRatePerSec * dt);
-            changed = true;
-          }
-        });
-        if (changed) updateHP();
-      }
-    }
-
-    let accel = parseFloat(document.getElementById('sensitivity').value);
-    const sensitivityInput = document.getElementById('sensitivity');
-    sensitivityInput.addEventListener('input', (e) => { accel = parseFloat(e.target.value); });
-    const keys = {};
-    function pressKey(code){ keys[code] = true; }
-    function releaseKey(code){ keys[code] = false; }
-
-    const pauseScreenEl = document.getElementById('pauseScreen');
-    const resumeBtn = document.getElementById('resumeBtn');
-    let isPaused = false;
-    let pausedAutoShooting = false;
-
-    window.addEventListener('keydown', (e) => {
-      if (e.key && e.key.toLowerCase() === 'p') {
-        togglePause();
-        e.preventDefault();
-        e.stopImmediatePropagation();
-        return;
-      }
-      if (isPaused) {
-        e.preventDefault();
-        e.stopImmediatePropagation();
-      }
-    }, true);
-
-    window.addEventListener('keydown',(e)=>{
-      if(isPaused) return;
-    
-      // FIRE
-      if(e.code === 'Space'){
-        if(GAME_MODE === "onlineJoin"){
-          // don't shoot locally
-          if (weaponMode === 'laser') laserActive = true;
-          else pendingFire = true;
-          return;
-        }
-        // existing behavior
-        if (weaponMode === 'laser') laserActive = true;
-        else shoot();
-        return;
-      }
-
-
-      
-      // MISSILE
-      if(e.code === 'KeyM'){
-        if(GAME_MODE === "onlineJoin"){ pendingMissile = true; return; }
-        launchMissile(); return;
-      }
-
-    
-      // WEAPON MODE SWITCH
-      if (e.code === 'Digit1') {
-        setWeaponMode('normal');
-        return;
-      }
-      if (e.code === 'Digit2') {
-        setWeaponMode('heavy');
-        return;
-      }
-      if (e.code === 'Digit3') {
-        setWeaponMode('laser');
-        return;
-      }
-    
-      // C: cycle selected enemy (keep your existing behaviour)
-      if(e.code === 'KeyC'){
-        if (enemies.length > 0) {
-          selectedEnemyIndex = (selectedEnemyIndex + 1) % enemies.length;
-          updateHP();
-        }
-        return;
-      }
-    
-      // RESET
-      if(e.key === 'r' || e.key === 'R'){ 
-        reset();
-        return;
-      }
-    
-      // movement / roll keys
-      pressKey(e.code);
-    });
-
-
-    window.addEventListener('keyup',(e)=>{
-      if(isPaused) return;
-      if (e.code === 'Space' && weaponMode === 'laser') {
-        laserActive = false; // stop continuous beam
-        return;
-      }
-      if(e.code !== 'Space' && e.code !== 'KeyM') releaseKey(e.code);
-    });
-
-
-    function applyCameraInput(cam, input){
-      if(input.ArrowDown) cam.rotateX(-accel);
-      if(input.ArrowUp) cam.rotateX(accel);
-      if(input.ArrowLeft) cam.rotateY(accel);
-      if(input.ArrowRight) cam.rotateY(-accel);
-      if(input.KeyA) cam.rotateZ(accel);
-      if(input.KeyD) cam.rotateZ(-accel);
-    }
-
-
-    const bullets = [];
-    const enemyBullets = [];
-    const missiles = [];
-    const bulletSpeed = 125;
-    const missileSpeed = 4.5;
-    let accuracy = 5;
-    
-    function spawnBulletAtSide(sideSign, damage, speed) {
-      // sideSign: -1 = left, +1 = right
-      const bulletGeom = new THREE.SphereGeometry(2,8,8);
-      const bulletMat = new THREE.MeshBasicMaterial({color:0xffff00});
-      const bullet = new THREE.Mesh(bulletGeom, bulletMat);
-    
-      const forward = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
-      const right   = new THREE.Vector3(1,0,0).applyQuaternion(camera.quaternion).normalize();
-    
-      // big screen-width style offset is fine
-      const lateralOffset = 70;   // your value
-      const depthOffset   = 5;    // spawn a bit in front of camera
-    
-      const camPos = camera.position.clone();
-    
-      // muzzle position for this side
-      const spawnPos = camPos.clone()
-        .add(right.clone().multiplyScalar(sideSign * lateralOffset))
-        .add(forward.clone().multiplyScalar(depthOffset));
-    
-      // virtual aim point far ahead, exactly along crosshair direction
-      const aimDistance = sphereRadius * 1.5;   // or 2000, 3000 etc.
-      const aimPoint = camPos.clone().add(forward.clone().multiplyScalar(aimDistance));
-    
-      // direction from muzzle → aim point (so both converge to crosshair)
-      const dir = aimPoint.clone().sub(spawnPos).normalize();
-    
-      bullet.position.copy(spawnPos);
-      bullets.push({
-        mesh: bullet,
-        vel: dir.multiplyScalar(speed),
-        damage
-      });
-      scene.add(bullet);
-    }
-
-
-
-    function shoot(){
-      if (isPaused) return;
-      const now = performance.now();
-    
-      // BASE: DPS of normal weapon (depends on bulletDamage and fire rate)
-      const baseDps = bulletDamage * (1000 / autoShootRateMs);
-    
-      let thisDamage = bulletDamage;       // default for normal
-      let thisSpeed  = bulletSpeed;        // default speed
-    
-      if (weaponMode === 'heavy') {
-        // limit fire rate for heavy cannon
-        if (now - heavyLastShotTime < heavyCooldownMs) return;
-        heavyLastShotTime = now;
-    
-        // heavy shot does more damage but fires slower: DPS equal to base
-        thisDamage = baseDps * (heavyCooldownMs / 1000); // ~3x damage if cooldown is 3x
-        thisSpeed  = bulletSpeed * 0.6;                  // slower projectile for flavour
-      } else if (weaponMode === 'laser') {
-        // laser is handled as continuous in animate(), no discrete bullets
-        return;
-      }
-    
-      // twin guns: left (-1) and right (+1)
-      spawnBulletAtSide(-1, thisDamage, thisSpeed);
-      spawnBulletAtSide(+1, thisDamage, thisSpeed);
-    
-      missileExplosion.currentTime = 0;
-      missileFollowExp.cloneNode(true).play();
-    }
-
-
-
-    function launchMissile(){
-      if (isPaused) return;
-      if(!missileGeometry) return;
-      const now = performance.now();
-      const ui = document.getElementById('missileCountUI');
-      if (missileAmmo <= 0) {
-        ui.textContent = 'No missiles';
-        return;
-      }
-      if (now - lastMissileTime < missileCooldownMs) {
-        const rem = ((missileCooldownMs - (now - lastMissileTime))/1000).toFixed(1);
-        ui.textContent = 'Cooldown ' + rem + 's';
-        ui.style.transform = 'scale(1.05)';
-        setTimeout(()=> ui.style.transform = '', 160);
-        return;
-      }
-      lastMissileTime = now;
-      missileAmmo--; updateMissileUI();
-
-      const geom = missileGeometry.clone();
-      const missileMat = new THREE.MeshStandardMaterial({
-        color:0xff0000,
-        side: THREE.DoubleSide,
-        metalness: 0.2,
-        roughness: 0.6
-      });
-      const missile = new THREE.Mesh(geom, missileMat);
-      missile.scale.set(0.4, 0.4, 0.4);
-      const dir = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
-      missile.position.copy(camera.position.clone().add(dir.clone().multiplyScalar(10)));
-      const initialVel = dir.clone().multiplyScalar(missileSpeed);
-      missiles.push({
-        mesh: missile,
-        vel: initialVel,
-        target: getPrimaryEnemy() || null,
-        life: 5000
-      });
-      scene.add(missile);
-    }
-
-    function enemyShoot(enemy){
-      if(!enemy || !enemy.mesh || gameOver) return;
-      const bulletGeom = new THREE.SphereGeometry(2,8,8);
-      const bulletMat = new THREE.MeshBasicMaterial({color:0x00ffff});
-      const bullet = new THREE.Mesh(bulletGeom, bulletMat);
-      const dir = camera.position.clone().sub(enemy.mesh.position).normalize();
-      bullet.position.copy(enemy.mesh.position);
-      enemyBullets.push({mesh:bullet,vel:dir.multiplyScalar(bulletSpeed*0.8)});
-      scene.add(bullet);
-      const jitter = Math.random()*800 - 400;
-      const delay = Math.max(150, enemyFireDelay + jitter);
-      setTimeout(()=> enemyShoot(enemy), delay);
-    }
-
-    const modelForwardLocal = new THREE.Vector3(0, -1, 0);
-
-    function alignShipToVelocity(enemy, t = 0.35){
-      if(!enemy || !enemy.mesh) return;
-      if(enemy.vel.lengthSq() < 1e-6) return;
-      const velDir = enemy.vel.clone().normalize();
-      const meshWorldPos = new THREE.Vector3();
-      enemy.mesh.getWorldPosition(meshWorldPos);
-      const forwardLocalPoint = modelForwardLocal.clone();
-      const forwardWorldPoint = enemy.mesh.localToWorld(forwardLocalPoint.clone());
-      const forwardWorld = forwardWorldPoint.sub(meshWorldPos).normalize();
-
-      let qdelta = new THREE.Quaternion();
-      if(forwardWorld.dot(velDir) < -0.9999){
-        const tmp = new THREE.Vector3(1,0,0);
-        if(Math.abs(forwardWorld.x) > 0.9) tmp.set(0,1,0);
-        const axis = new THREE.Vector3().crossVectors(forwardWorld, tmp).normalize();
-        qdelta.setFromAxisAngle(axis, Math.PI);
-      } else {
-        qdelta.setFromUnitVectors(forwardWorld, velDir);
-      }
-
-      const prev = enemy.prevVelDir.clone();
-      const cur = velDir.clone();
-      const angleBetween = Math.acos(Math.min(Math.max(prev.dot(cur), -1), 1));
-      const turnAxis = new THREE.Vector3().crossVectors(prev, cur);
-      const sign = Math.sign(turnAxis.dot(new THREE.Vector3(0,1,0)) || 1);
-      const desiredRoll = Math.max(-maxRoll, Math.min(maxRoll, sign * angleBetween * 1.8));
-      const rollQuat = new THREE.Quaternion().setFromAxisAngle(velDir.clone(), desiredRoll);
-
-      const currentQ = enemy.mesh.quaternion.clone();
-      const baseTargetQ = qdelta.multiply(currentQ);
-      const targetQ = rollQuat.multiply(baseTargetQ);
-
-      if(t >= 1) enemy.mesh.quaternion.copy(targetQ);
-      else enemy.mesh.quaternion.slerp(targetQ, t);
-
-      enemy.prevVelDir.lerp(velDir, 0.15).normalize();
-    }
-
-    function stepEnemy(enemy, dt, isPrimary){
-      if (!enemy || !enemy.mesh) return;
-
-      if (isPrimary && keys['KeyG'] && camera) {
-        const camForward = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
-        const targetPoint = camera.position.clone().add(camForward.multiplyScalar(800));
-        const desiredToPoint = targetPoint.clone().sub(enemy.pos).normalize().multiplyScalar(enemySpeed);
-        enemy.vel.lerp(desiredToPoint, Math.min(1, 0.08 * (dt * 60)));
-        enemy.desiredVel.copy(enemy.vel);
-        enemy.nextSteerChange = performance.now() + 400;
-      } else {
-        if(performance.now() > enemy.nextSteerChange){
-          enemy.desiredVel = randomUnit().multiplyScalar(enemySpeed);
-          enemy.nextSteerChange = performance.now() + steerMin + Math.random()*(steerMax - steerMin);
-        }
-        enemy.vel.lerp(enemy.desiredVel, Math.min(1, steerLerpFactor * (dt*60)));
-      }
-
-      enemy.vel.setLength(enemySpeed);
-      enemy.pos.add(enemy.vel.clone().multiplyScalar(dt * 60));
-
-      const dist = enemy.pos.length();
-      if(dist >= sphereRadius){
-        const normal = enemy.pos.clone().normalize();
-        enemy.pos.copy(normal.clone().multiplyScalar(sphereRadius - 1));
-        const v = enemy.vel.clone();
-        const dot = v.dot(normal);
-        const reflected = v.clone().sub(normal.clone().multiplyScalar(2*dot));
-        enemy.vel.copy(reflected.setLength(enemySpeed));
-        enemy.desiredVel.copy(enemy.vel);
-      }
-
-      enemy.mesh.position.copy(enemy.pos);
-      alignShipToVelocity(enemy, 0.25);
-    }
-
-    const trailParticles = [];
-    const trailMaterial = new THREE.MeshBasicMaterial({
-      color: 0x00aaff,
-      transparent: true,
-      opacity: 1
-    });
-    const trailGeom = new THREE.SphereGeometry(5, 10, 10);
-    const BACK_OFFSET = 4.5;
-    const DOWN_OFFSET = 7.5;
-
-    function addTrailParticle(enemy) {
-      if (!enemy || !enemy.mesh) return;
-      const localOffset = new THREE.Vector3(0, BACK_OFFSET, -DOWN_OFFSET);
-      const worldOffset = localOffset.applyQuaternion(enemy.mesh.quaternion);
-      const worldPos = enemy.mesh.position.clone().add(worldOffset);
-      const particle = new THREE.Mesh(trailGeom, trailMaterial.clone());
-      particle.position.copy(worldPos);
-      trailParticles.push({mesh: particle, life: 1.0});
-      scene.add(particle);
-    }
-
-    function updateTrail(dt) {
-      for (let i = trailParticles.length - 1; i >= 0; i--) {
-        const p = trailParticles[i];
-        p.life -= dt * 0.7;
-        if (p.life <= 0) {
-          scene.remove(p.mesh);
-          trailParticles.splice(i, 1);
-          continue;
-        }
-        p.mesh.material.opacity = 0.9 * (p.life);
-      }
-    }
-
-    function createEnemy() {
-      if (!spaceshipGeometry) return null;
-      const pos = randomUnit().multiplyScalar(sphereRadius * 0.4);
-      const vel = randomUnit().multiplyScalar(enemySpeed);
-      const mesh = new THREE.Mesh(spaceshipGeometry, spaceshipMaterial.clone());
-      mesh.scale.set(0.5, 0.5, 0.5);
-      mesh.position.copy(pos);
-      const enemy = {
-        mesh,
-        pos,
-        vel,
-        desiredVel: vel.clone(),
-        nextSteerChange: performance.now() + steerMin + Math.random() * (steerMax - steerMin),
-        prevVelDir: vel.clone().normalize(),
-        hp: enemyMaxHP,
-        shield: enemyMaxShield
-      };
+    // rebuild bullets/missiles (simple + reliable)
+    for(const b of bullets) scene.remove(b.mesh);
+    bullets.length = 0;
+    for(const d of s.bullets){
+      const geom = new THREE.SphereGeometry(2.2, 10, 10);
+      const mat = new THREE.MeshBasicMaterial({color: d.o==='A'?0xffc7c7:0xc7d8ff});
+      const mesh = new THREE.Mesh(geom, mat);
+      mesh.position.set(d.p[0],d.p[1],d.p[2]);
       scene.add(mesh);
-      enemyShoot(enemy);
-      return enemy;
+      bullets.push({mesh, vel:new THREE.Vector3(d.v[0],d.v[1],d.v[2]), owner:d.o, life:d.life});
     }
 
-    function ensureEnemies() {
-      while (enemies.length < MAX_ENEMIES) {
-        const e = createEnemy();
-        if (e) enemies.push(e);
-      }
+    for(const m of missiles) scene.remove(m.mesh);
+    missiles.length = 0;
+    for(const d of s.missiles){
+      const geom = new THREE.CylinderGeometry(1.2, 1.2, 18, 10);
+      const mat = new THREE.MeshStandardMaterial({color: d.o==='A'?0xff2b2b:0x4aa3ff, roughness:0.55, metalness:0.15});
+      const mesh = new THREE.Mesh(geom, mat);
+      mesh.rotation.x = Math.PI/2;
+      mesh.position.set(d.p[0],d.p[1],d.p[2]);
+      scene.add(mesh);
+      missiles.push({mesh, vel:new THREE.Vector3(d.v[0],d.v[1],d.v[2]), owner:d.o, life:d.life});
     }
 
-    function getPrimaryEnemy() {
-      if (enemies.length === 0) return null;
-      if (selectedEnemyIndex >= enemies.length) selectedEnemyIndex = 0;
-      return enemies[selectedEnemyIndex];
+    if(gameOver){
+      ui.end.style.display = "grid";
+      const winner = shipA.score>shipB.score ? "Red" : "Blue";
+      ui.endTitle.textContent = winner + " wins!";
+      ui.endText.textContent = "Final score: " + shipA.score + " - " + shipB.score;
+    } else {
+      ui.end.style.display = "none";
     }
+  }
 
-    let defeatedCount = 0;
-    const defeatedEl = document.getElementById('defeatedCount');
+  // ---------- local input packet ----------
+  function buildLocalInput(){
+    // mouse look
+    const lookX = mouseDX; const lookY = -mouseDY;
+    mouseDX = 0; mouseDY = 0;
 
-    async function updateDefeatedUI(){
-      defeatedEl.textContent = defeatedCount;
-      const playerName = (document.getElementById('playerName') || {}).value || 'Player';
-    }
+    return {
+      KeyW: !!keys.KeyW,
+      KeyA: !!keys.KeyA,
+      KeyS: !!keys.KeyS,
+      KeyD: !!keys.KeyD,
+      boost: !!keys.ShiftLeft || !!keys.ShiftRight,
+      lookX, lookY,
+      fire: !!keys.Space,
+      missile: !!keys.KeyM,
+    };
+  }
 
-    function destroyEnemy(enemy){
-      if (!enemy) return;
-      const explosionPos = enemy.mesh.position.clone();
-      spawnExplosion(explosionPos);
+  // ---------- main loop ----------
+  let last = now();
+  function frame(t){
+    requestAnimationFrame(frame);
+    const n = t || now();
+    const dt = Math.min(0.05, (n-last)/1000);
+    last = n;
 
-      scene.remove(enemy.mesh);
-      const idx = enemies.indexOf(enemy);
-      if (idx !== -1) enemies.splice(idx, 1);
+    // show ships
+    shipA.mesh.position.copy(shipA.pos);
+    shipB.mesh.position.copy(shipB.pos);
+    shipA.mesh.rotation.set(shipA.pitch, shipA.yaw, 0, 'YXZ');
+    shipB.mesh.rotation.set(shipB.pitch, shipB.yaw, 0, 'YXZ');
 
-      if (selectedEnemyIndex >= enemies.length) selectedEnemyIndex = 0;
-
-      for (let i = enemyBullets.length - 1; i >= 0; i--){
-        scene.remove(enemyBullets[i].mesh);
-        enemyBullets.splice(i,1);
-      }
-
-      missileAmmo += 2;
-
-      const hpGain = Math.round(playerMaxHP / 10);
-      playerHP = Math.min(playerMaxHP, playerHP + hpGain);
-      playerShield = Math.min(playerMaxShield, playerShield + Math.round(playerMaxShield * 0.15));
-
-      updateMissileUI();
-      updateHP();
-
-      defeatedCount++;
-      updateDefeatedUI();
-
-      winDiv.style.display = 'block';
-      setTimeout(()=> { if(winDiv) winDiv.style.display = 'none'; }, 1800);
-
-      playerMaxShield += Math.random()*10;
-      playerShield = playerMaxShield*1.2;
-      playerHP *= 1.1
-      shieldRegenRatePerSec += Math.random();
-      bulletDamage += Math.random();
-      missileDamage *= 1+Math.random()/6;
-      missileCooldownMs -= Math.random()*missileCooldownMs*0.4;
-
-      enemyMaxHP *= 1.2;
-      enemyMaxShield *= 1.2;
-      enemyDamage += 0.01;
-      enemyFireDelay = Math.max(500, enemyFireDelay - 100);
-      accuracy = 0.3+accuracy*0.8;
-      console.log(`[SCALE] defeated=${defeatedCount} playerMaxShield=${playerMaxShield.toFixed(2)} bulletDmg=${bulletDamage.toFixed(2)} enemyHP=${enemyMaxHP.toFixed(1)}  accuracy=${accuracy}`);
-
-      ensureEnemies();
-    }
-
-    const arrow = document.getElementById('arrowIndicator');
-    let last = performance.now();
-    let trailTimer = 0;
-    let autoShooting = false;
-    let autoIntervalId = null;
-    const autoShootRateMs = 120;
-
-
-    // ---------- WEAPON SYSTEM ----------
-    
-    let weaponMode = 'normal';     // 'normal' | 'heavy' | 'laser'
-    let heavyLastShotTime = -Infinity;
-    const heavyCooldownMs = autoShootRateMs * 3; // slower fire, 3x cooldown
-    
-    let laserActive = false;       // true while laser is firing (holding Space)
-    let laserBeam = null;          // THREE.Line for visual beam
-    
-    const weaponLabel = document.getElementById('weaponLabel');
-    
-    function setWeaponMode(mode) {
-      weaponMode = mode;
-      if (weaponLabel) {
-        if (mode === 'normal') weaponLabel.textContent = 'Normal';
-        else if (mode === 'heavy') weaponLabel.textContent = 'Heavy Shot';
-        else if (mode === 'laser') weaponLabel.textContent = 'Laser';
-      }
-      if (mode !== 'laser') {
-        laserActive = false; // stop laser if switching away
-      }
-    }
-
-
-    function setAutoShooting(on){
-      const btn = document.getElementById('autoShootBtn');
-      if(on){
-        if(autoIntervalId) clearInterval(autoIntervalId);
-        autoIntervalId = setInterval(()=>{ if(!gameOver) shoot(); else setAutoShooting(false); }, autoShootRateMs);
-        autoShooting = true;
-        btn.classList.add('active');
-      } else {
-        if(autoIntervalId) clearInterval(autoIntervalId);
-        autoIntervalId = null;
-        autoShooting = false;
-        btn.classList.remove('active');
-      }
-    }
-    document.getElementById('autoShootBtn').addEventListener('click', ()=> setAutoShooting(!autoShooting));
-
-    function updateMissiles(dt) {
-      for (let i = missiles.length - 1; i >= 0; i--) {
-        const m = missiles[i];
-        if (!m || !m.mesh) {
-          missiles.splice(i, 1);
-          continue;
-        }
-
-        if (!m.target || !enemies.includes(m.target)) {
-          m.target = getPrimaryEnemy() || null;
-        }
-
-        if (m.target && m.target.mesh) {
-          const desiredDir = m.target.mesh.position.clone().sub(m.mesh.position).normalize();
-          const desiredVel = desiredDir.clone().multiplyScalar(missileSpeed);
-          m.vel.lerp(desiredVel, 0.08);
-          if (m.vel.length() > 0.0001) m.vel.setLength(Math.min(missileSpeed, Math.max(0.8, m.vel.length())));
-        }
-
-        m.mesh.position.add(m.vel.clone().multiplyScalar(dt * 60));
-
-        const velDir = m.vel.clone().normalize();
-        if (velDir.lengthSq() > 1e-8) {
-          try {
-            const modelForward = new THREE.Vector3(0,1,0);
-            m.mesh.quaternion.setFromUnitVectors(modelForward, velDir);
-          } catch (err) {
-            m.mesh.lookAt(m.mesh.position.clone().add(velDir));
-          }
-        }
-
-        m.life -= dt * 1000;
-        if (m.mesh.position.length() > sphereRadius * 2 || m.life <= 0) {
-          scene.remove(m.mesh);
-          missiles.splice(i, 1);
-          continue;
-        }
-
-        let hit = false;
-        for (const enemy of enemies) {
-          if (enemy.mesh && m.mesh.position.distanceTo(enemy.mesh.position) < 55) {
-            scene.remove(m.mesh);
-            missiles.splice(i, 1);
-            damageEnemy(enemy, missileDamage);
-            missileExplosion.currentTime = 0;
-            missileExplosion.cloneNode(true).play();
-            hit = true;
-            break;
-          }
-        }
-        if (hit) continue;
-      }
-    }
-
-    function animate(t){
-      ensureEnemies();
-      requestAnimationFrame(animate);
-
-      if (isPaused) return;
-
-      const now = t || performance.now();
-      const dt = Math.min((now - last)/1000, 0.1);
-      last = now;
-
-      // Decide local vs remote camera mapping
-      // - Host: camA = host local, camB = join remote
-      // - Join: camB = join local (for UI), camA comes from snapshots
-      if(GAME_MODE === "onlineHost") camera = camA;
-      if(GAME_MODE === "onlineJoin") camera = camB;
-
-      
-      if(gameOver){
-        updateMissileUI();
-        updateHP();
-        updateSmoke(dt);
-        updateExplosions(dt);
-        updateShockwaves(dt);
-        updateSparks(dt);
-        updateTrail(dt);
-        return;
-      }
-
-      for (const enemy of enemies) {
-        if (!enemy || !enemy.mesh) continue;
-        const ratio = enemy.hp / enemyMaxHP;
-        if (ratio < 0.25) {
-          addSmoke(enemy, dt);
-        }
-        if (ratio < 0.10 && Math.random() < dt * 10) {
-          addSparks(enemy, 1);
-        }
-      }
-
-      enemies.forEach((enemy, idx) => {
-        stepEnemy(enemy, dt, idx === selectedEnemyIndex);
-      });
-
-      updateShieldRegen(dt);
-
-      trailTimer += dt;
-      while (trailTimer > 0.02) {
-        enemies.forEach(e => addTrailParticle(e));
-        trailTimer -= 0.02;
-      }
-
-      updateTrail(dt);
-      updateBrightStars(dt);
-      updateSmoke(dt);
-      updateExplosions(dt);
-      updateShockwaves(dt);
-      updateSparks(dt);
-
-      
-      for(let i=bullets.length-1;i>=0;i--){
-        const b = bullets[i];
-        b.mesh.position.add(b.vel.clone().multiplyScalar(dt*60));
-        if(b.mesh.position.length()>sphereRadius*2){
-          scene.remove(b.mesh); bullets.splice(i,1); continue;
-        }
-        let hitEnemy = null;
-        for (const enemy of enemies) {
-          if (enemy.mesh && b.mesh.position.distanceTo(enemy.mesh.position) < 50) {
-            hitEnemy = enemy;
-            break;
-          }
-        }
-        if (hitEnemy) {
-          scene.remove(b.mesh); bullets.splice(i,1);
-          damageEnemy(hitEnemy, b.damage || bulletDamage);
-          damage.currentTime = 0;
-          safePlay(damage);
-        }
-
-      }
-
-      updateMissiles(dt);
-
-      for(let i=enemyBullets.length-1;i>=0;i--){
-        const b = enemyBullets[i];
-        b.mesh.position.add(b.vel.clone().multiplyScalar(dt*60));
-        if(b.mesh.position.length()>sphereRadius*2){
-          scene.remove(b.mesh); enemyBullets.splice(i,1); continue;
-        }
-        if(b.mesh.position.distanceTo(camera.position) < accuracy){
-          scene.remove(b.mesh); enemyBullets.splice(i,1);
-          damagePlayer(enemyDamage);
-          damage.play();
-        }
-      }
-
-      if(GAME_MODE === "onlineHost"){
-        const inputA = buildInputFromKeys();
-        const inputB = net.remoteInput || {};
-      
-        // Apply rotations
-        applyCameraInput(camA, inputA);
-        applyCameraInput(camB, inputB);
-      
-        // Host handles actions for BOTH players
-        // Fire
-        if(inputA.weaponMode !== weaponMode) setWeaponMode(inputA.weaponMode); // optional: lock to host only
-        // For simplicity: host uses its own weaponMode UI; remote weaponMode comes via inputB.weaponMode
-        if(pendingFire){ /* host local already shoots in keydown, ignore */ }
-      
-        if(inputB.fire){
-          // temporarily "pretend" camera is B to shoot from B’s view
-          const prevCam = camera;
-          camera = camB;
-          // remote weapon selection
-          const prevWM = weaponMode;
-          setWeaponMode(inputB.weaponMode || prevWM);
-          shoot();
-          setWeaponMode(prevWM);
-          camera = prevCam;
-        }
-      
-        if(inputB.missile){
-          const prevCam = camera;
-          camera = camB;
-          launchMissile();
-          camera = prevCam;
-        }
-      
-        // laser: host applies DPS from both beams (A and B)
-        // (we’ll patch laser section below)
-      } else if(GAME_MODE === "onlineJoin"){
-        // JOIN: only send input; no physics decisions
-        const nowMs = performance.now();
-        if(net.connected && nowMs - net.lastSend > 40){
-          net.lastSend = nowMs;
-          const inp = buildInputFromKeys();
-          inp.fire = pendingFire;
-          inp.missile = pendingMissile;
-          // consume edge-trigger flags
-          pendingFire = false;
-          pendingMissile = false;
-          safeSend({type:"input", payload: inp});
-        }
-      
-        // Join does NOT run updateCamera(); snapshots drive camA and enemies/bullets.
-        // You can still allow local camB rotation visually by applying it,
-        // but that would desync from host. So: do NOT rotate locally.
-      }
-
-
-      const primary = getPrimaryEnemy();
-      if (primary && primary.mesh) {
-        const pos = primary.mesh.position.clone();
-        const vector = pos.project(camera);
-        const halfW = window.innerWidth / 2;
-        const halfH = window.innerHeight / 2;
-        let x = (vector.x * halfW) + halfW;
-        let y = (-vector.y * halfH) + halfH;
-        let dirX = x - halfW;
-        let dirY = y - halfH;
-        if (vector.z > 1) {
-          dirX = -dirX;
-          dirY = -dirY;
-        }
-        if (vector.z < 1 &&
-            x >= 0 && x <= window.innerWidth &&
-            y >= 0 && y <= window.innerHeight) {
-          arrow.style.display = "none";
+    if(!gameOver){
+      roundSec -= dt;
+      if(roundSec <= 0){
+        // time up => whoever has higher HP wins this round as KO
+        if(shipA.hp === shipB.hp){
+          toast("Time! Draw round.");
+          resetRound(true);
         } else {
-          arrow.style.display = "block";
-          const angle = Math.atan2(dirY, dirX);
-          const edgeBuffer = 40;
-          const slope = dirY / dirX;
-          if (Math.abs(dirX) > Math.abs(dirY)) {
-            x = dirX > 0 ? window.innerWidth - edgeBuffer : edgeBuffer;
-            y = halfH + slope * (x - halfW);
-          } else {
-            y = dirY > 0 ? window.innerHeight - edgeBuffer : edgeBuffer;
-            x = halfW + (y - halfH) / slope;
-          }
-          arrow.style.left = `${x - 12}px`;
-          arrow.style.top = `${y - 12}px`;
-          arrow.style.transform = `rotate(${angle}rad)`;
+          const loser = (shipA.hp < shipB.hp) ? shipA : shipB;
+          loser.hp = 0;
+          const killer = (loser===shipA) ? shipB : shipA;
+          killer.score++;
+          if(shipA.score>=3 || shipB.score>=3) endMatch();
+          else resetRound(true);
         }
-      } else {
-        arrow.style.display = "none";
       }
-      // ----- LASER DPS (continuous) -----
-      if (weaponMode === 'laser' && laserActive && !gameOver) {
-        const baseDps = bulletDamage * (1000 / autoShootRateMs); // same base as others
-        const laserDps = baseDps;                                 // same DPS as heavy
-        const damageThisFrame = laserDps * dt;
-      
-        const camPos = camera.position.clone();
-        const dir = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
-      
-        let bestEnemy = null;
-        let bestT = Infinity;
-        const hitRadius = 35;
-      
-        enemies.forEach(enemy => {
-          if (!enemy || !enemy.mesh) return;
-          const toEnemy = enemy.mesh.position.clone().sub(camPos);
-          const tProj = dir.dot(toEnemy);
-          if (tProj <= 0) return; // behind the player
-          const closestPoint = camPos.clone().add(dir.clone().multiplyScalar(tProj));
-          const dist = enemy.mesh.position.distanceTo(closestPoint);
-          if (dist < hitRadius && tProj < bestT) {
-            bestT = tProj;
-            bestEnemy = enemy;
-          }
-        });
-      
-        if (bestEnemy) {
-          damageEnemy(bestEnemy, damageThisFrame);
-        }
-      
-        updateLaserBeam(true);
-      } else {
-        updateLaserBeam(false);
-      }
-
-      renderer.setScissorTest(true);
-
-      const w = window.innerWidth;
-      const h = window.innerHeight;
-      
-      // Choose which camera to render for THIS device
-      const viewCam = (GAME_MODE === "onlineJoin") ? camB : camA;
-      
-      // single full-screen render
-      renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
-      renderer.setScissorTest(false);
-      renderer.render(scene, viewCam);
-
-      
-      renderer.setScissorTest(false);
-
-      updateMissileUI();
     }
 
-    loadModels().then(() => {
-      ensureEnemies();
-      animate();
-    }).catch(err => console.error(err));
+    if(MODE === "solo"){
+      const inpA = buildLocalInput();
+      applyInputToShip(shipA, inpA, dt);
 
-    function reset(silent=false){
-      playerHP = playerMaxHP;
-      playerShield = playerMaxShield;
-      enemyMaxHP = 10;
-      enemyMaxShield = 8;
-      bulletDamage = 1;
-      missileDamage = 5;
-      enemyDamage = 1.0;
-      enemyFireDelay = 520;
-      accuracy = 1.5;
-      if(!silent){
-        winDiv.style.display='none';
-        loseDiv.style.display='none';
-      } else {
-        if(winDiv) winDiv.style.display='none';
-        if(loseDiv) loseDiv.style.display='none';
-      }
-
-      updateHP();
-
-      enemies.forEach(e => { scene.remove(e.mesh); });
-      enemies.length = 0;
-      ensureEnemies();
-      selectedEnemyIndex = 0;
-      updateHP();
-
-      missileAmmo = 4;
-      lastMissileTime = -Infinity;
-      updateMissileUI();
-      winDiv.style.display='none';
-      loseDiv.style.display='none';
-      gameOver=false;
-      setAutoShooting(false);
-
-      bullets.forEach(b=>scene.remove(b.mesh)); bullets.length=0;
-      enemyBullets.forEach(b=>scene.remove(b.mesh)); enemyBullets.length=0;
-      missiles.forEach(m=>scene.remove(m.mesh)); missiles.length=0;
-      trailParticles.forEach(p=>scene.remove(p.mesh)); trailParticles.length=0;
-      smokeParticles.forEach(p=>scene.remove(p)); smokeParticles.length=0;
-      explosionParticles.forEach(p=>scene.remove(p)); explosionParticles.length=0;
-      shockwaves.forEach(p=>scene.remove(p)); shockwaves.length=0;
-      sparkParticles.forEach(p=>scene.remove(p)); sparkParticles.length=0;
-
-      defeatedCount = 0;
-      updateDefeatedUI();
-    }
-
-    document.getElementById('resetBtn').addEventListener('click', reset);
-    document.getElementById('shootBtn').addEventListener('click', shoot);
-    document.getElementById('missileBtn').addEventListener('click', launchMissile);
-    document.getElementById('rollLeft').addEventListener('mousedown',()=>pressKey('KeyA'));
-    document.getElementById('rollLeft').addEventListener('mouseup',()=>releaseKey('KeyA'));
-    document.getElementById('rollRight').addEventListener('mousedown',()=>pressKey('KeyD'));
-    document.getElementById('rollRight').addEventListener('mouseup',()=>releaseKey('KeyD'));
-
-    window.addEventListener('resize',()=>{
-      camA.aspect = window.innerWidth/window.innerHeight;
-      camB.aspect = window.innerWidth/window.innerHeight;
-      camA.updateProjectionMatrix();
-      camB.updateProjectionMatrix();
-      renderer.setSize(window.innerWidth, window.innerHeight);
-    });
-
-    function qPack(q){ return [q.x,q.y,q.z,q.w]; }
-    function qUnpack(q, a){ q.set(a[0],a[1],a[2],a[3]); }
-    
-    function getSnapshot(){
-      return {
-        // player cameras
-        camAq: qPack(camA.quaternion),
-        camBq: qPack(camB.quaternion),
-    
-        // player stats (make B mirror A for now if you want co-op HP later)
-        playerHP, playerShield, playerMaxHP, playerMaxShield,
-    
-        // enemies (positions, velocities, hp/shield)
-        enemies: enemies.map(e => ({
-          p:[e.pos.x,e.pos.y,e.pos.z],
-          v:[e.vel.x,e.vel.y,e.vel.z],
-          hp:e.hp, sh:e.shield
-        })),
-        selectedEnemyIndex,
-    
-        // bullets
-        bullets: bullets.map(b => ({
-          p:[b.mesh.position.x,b.mesh.position.y,b.mesh.position.z],
-          v:[b.vel.x,b.vel.y,b.vel.z],
-          dmg: b.damage || bulletDamage
-        })),
-        enemyBullets: enemyBullets.map(b => ({
-          p:[b.mesh.position.x,b.mesh.position.y,b.mesh.position.z],
-          v:[b.vel.x,b.vel.y,b.vel.z]
-        })),
-    
-        missiles: missiles.map(m => ({
-          p:[m.mesh.position.x,m.mesh.position.y,m.mesh.position.z],
-          v:[m.vel.x,m.vel.y,m.vel.z],
-          life:m.life
-        })),
-    
-        gameOver,
-        defeatedCount,
-        missileAmmo,
-        lastMissileTime,
-        enemyMaxHP, enemyMaxShield,
-        bulletDamage, missileDamage, enemyDamage, enemyFireDelay, accuracy
+      // simple AI for shipB
+      const ai = {
+        KeyW:true, KeyA:false, KeyS:false, KeyD:false,
+        boost:false,
+        lookX: clamp((shipA.pos.x-shipB.pos.x)*0.02, -25, 25),
+        lookY: clamp((shipA.pos.y-shipB.pos.y)*0.02, -25, 25),
+        fire: (shipB.pos.distanceTo(shipA.pos) < 380),
+        missile: (shipB.pos.distanceTo(shipA.pos) < 300) && Math.random()<0.02
       };
-    }
-    
-    function applySnapshot(s){
-      // cameras
-      qUnpack(camA.quaternion, s.camAq);
-      qUnpack(camB.quaternion, s.camBq);
-    
-      // stats & difficulty
-      playerHP = s.playerHP; playerShield = s.playerShield;
-      playerMaxHP = s.playerMaxHP; playerMaxShield = s.playerMaxShield;
-      enemyMaxHP = s.enemyMaxHP; enemyMaxShield = s.enemyMaxShield;
-      bulletDamage = s.bulletDamage; missileDamage = s.missileDamage;
-      enemyDamage = s.enemyDamage; enemyFireDelay = s.enemyFireDelay; accuracy = s.accuracy;
-    
-      selectedEnemyIndex = s.selectedEnemyIndex|0;
-      defeatedCount = s.defeatedCount|0;
-      missileAmmo = s.missileAmmo|0;
-      lastMissileTime = s.lastMissileTime;
-    
-      // enemies: recreate if counts mismatch
-      while(enemies.length > s.enemies.length){
-        const e = enemies.pop();
-        if(e && e.mesh) scene.remove(e.mesh);
-      }
-      while(enemies.length < s.enemies.length){
-        const e = createEnemy();
-        if(e) enemies.push(e);
-        else break;
-      }
-      // apply enemy data
-      for(let i=0;i<s.enemies.length;i++){
-        const d = s.enemies[i];
-        const e = enemies[i];
-        if(!e) continue;
-        e.pos.set(d.p[0],d.p[1],d.p[2]);
-        e.vel.set(d.v[0],d.v[1],d.v[2]);
-        e.hp = d.hp; e.shield = d.sh;
-        e.mesh.position.copy(e.pos);
-      }
-    
-      // bullets: clear & rebuild (simple but fine for 10–15Hz)
-      bullets.forEach(b=> scene.remove(b.mesh)); bullets.length = 0;
-      s.bullets.forEach(d=>{
-        const bulletGeom = new THREE.SphereGeometry(2,8,8);
-        const bulletMat = new THREE.MeshBasicMaterial({color:0xffff00});
-        const mesh = new THREE.Mesh(bulletGeom, bulletMat);
-        mesh.position.set(d.p[0],d.p[1],d.p[2]);
-        scene.add(mesh);
-        bullets.push({ mesh, vel: new THREE.Vector3(d.v[0],d.v[1],d.v[2]), damage: d.dmg });
-      });
-    
-      enemyBullets.forEach(b=> scene.remove(b.mesh)); enemyBullets.length = 0;
-      s.enemyBullets.forEach(d=>{
-        const bulletGeom = new THREE.SphereGeometry(2,8,8);
-        const bulletMat = new THREE.MeshBasicMaterial({color:0x00ffff});
-        const mesh = new THREE.Mesh(bulletGeom, bulletMat);
-        mesh.position.set(d.p[0],d.p[1],d.p[2]);
-        scene.add(mesh);
-        enemyBullets.push({ mesh, vel: new THREE.Vector3(d.v[0],d.v[1],d.v[2]) });
-      });
-    
-      // missiles: clear & rebuild (same)
-      missiles.forEach(m=> scene.remove(m.mesh)); missiles.length = 0;
-      s.missiles.forEach(d=>{
-        if(!missileGeometry) return;
-        const missileMat = new THREE.MeshStandardMaterial({ color:0xff0000, side:THREE.DoubleSide, metalness:0.2, roughness:0.6 });
-        const mesh = new THREE.Mesh(missileGeometry.clone(), missileMat);
-        mesh.scale.set(0.4,0.4,0.4);
-        mesh.position.set(d.p[0],d.p[1],d.p[2]);
-        scene.add(mesh);
-        missiles.push({ mesh, vel:new THREE.Vector3(d.v[0],d.v[1],d.v[2]), target:null, life:d.life });
-      });
-    
-      gameOver = !!s.gameOver;
-      updateHP();
-      updateMissileUI();
-      updateDefeatedUI();
+      applyInputToShip(shipB, ai, dt);
+
+      stepProjectiles(dt);
+      updateCameraFollow(true);
     }
 
-    function togglePause(forceState) {
-      if (typeof forceState === 'boolean') isPaused = forceState;
-      else isPaused = !isPaused;
+    if(MODE === "onlineHost"){
+      const inpA = buildLocalInput();
+      const inpB = net.remoteInput || {lookX:0,lookY:0};
+      applyInputToShip(shipA, inpA, dt);
+      applyInputToShip(shipB, inpB, dt);
 
-      if (isPaused) {
-        pauseScreenEl.style.display = 'flex';
-        pauseScreenEl.setAttribute('aria-hidden', 'false');
-        pausedAutoShooting = autoShooting;
-        if (autoShooting) setAutoShooting(false);
-      } else {
-        pauseScreenEl.style.display = 'none';
-        pauseScreenEl.setAttribute('aria-hidden', 'true');
-        last = performance.now();
-        if (pausedAutoShooting) {
-          setAutoShooting(true);
-          pausedAutoShooting = false;
+      stepProjectiles(dt);
+
+      // send snapshots ~12Hz
+      if(net.connected){
+        const ms = now();
+        if(ms - net.lastSnap > 85){
+          net.lastSnap = ms;
+          safeSend({type:"state", payload: getSnapshot()});
         }
       }
+
+      // local view = shipA (red)
+      updateCameraFollow(true);
     }
 
-    if (resumeBtn) {
-      resumeBtn.addEventListener('click', () => togglePause(false));
+    if(MODE === "onlineJoin"){
+      // client prediction: move immediately locally
+      const inpB = buildLocalInput();
+      applyInputToShip(shipB, inpB, dt);
+
+      // send input ~25Hz
+      if(net.connected){
+        const ms = now();
+        if(ms - net.lastSend > 40){
+          net.lastSend = ms;
+          safeSend({type:"input", payload: inpB});
+        }
+      }
+
+      // BUT: host snapshots will keep correcting state (authoritative)
+      // To reduce “snap”, we only softly correct our own ship in snapshots:
+      // (handled by applySnapshot rebuilding everything; prediction still feels responsive)
+      updateCameraFollow(false);
     }
 
-    if (pauseScreenEl) {
-      pauseScreenEl.addEventListener('keydown', (e) => {
-        if (e.key && e.key.toLowerCase() === 'p') togglePause(false);
-      });
-    }
+    // render + UI
+    syncHUD();
+    renderer.render(scene, camera);
+  }
 
-  })();
-  </script>
+  // UI buttons
+  document.getElementById('btnPlay').addEventListener('click', ()=>{
+    MODE = "solo";
+    setNetBadge("Offline");
+    resetRound(true);
+    toast("Solo mode.");
+  });
+
+  document.getElementById('endRestart').addEventListener('click', ()=>restart());
+  document.getElementById('endClose').addEventListener('click', ()=>ui.end.style.display="none");
+  document.getElementById('btnPlay').click();
+
+  // start
+  resetRound(true);
+  requestAnimationFrame(frame);
+
+})();
+</script>
 </body>
 </html>

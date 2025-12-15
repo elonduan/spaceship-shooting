@@ -436,7 +436,7 @@
       laserActive: false
     };
 
-    const playerShipHitRadius = 18; // for incoming bullet/laser checks
+    const playerShipHitRadius = 28; // for incoming bullet/laser checks
     const remoteShipHitRadius = 50; // keep similar to your old enemy size
 
     // HP/shield (local)
@@ -820,7 +820,7 @@
     function lerpRemote(dt){
       if(!remote.mesh) return;
       // Smoothly follow last received target
-      const alpha = Math.min(1, 0.10 * (dt*60));
+      const alpha = Math.min(1, 0.18 * (dt*60));
       remote.pos.lerp(remote.targetPos, alpha);
       remote.quat.slerp(remote.targetQuat, alpha);
       remote.mesh.position.copy(remote.pos);
@@ -1169,8 +1169,9 @@
     function maybeSendState(){
       if(!dc || dc.readyState !== 'open') return;
       const now = performance.now();
-      if(!stateDirty && (now - lastStateSend) < 120) return; // ~8 Hz
-      if((now - lastStateSend) < 60) return; // cap
+      if(!stateDirty && (now - lastStateSend) < 50) return; // ~20 Hz
+      if((now - lastStateSend) < 33) return; // cap ~30 Hz
+
       stateDirty = false;
       lastStateSend = now;
 
@@ -1189,6 +1190,28 @@
         t: now
       });
     }
+    function clearAllKeys(){
+      for (const k in keys) keys[k] = false;
+      laserActive = false;
+      stateDirty = true; // so we tell peer laser stopped
+    }
+    window.addEventListener('blur', clearAllKeys);
+    document.addEventListener('visibilitychange', ()=> {
+      if (document.hidden) clearAllKeys();
+    });
+
+    // If no key activity for a while, auto-clear roll keys (prevents endless spin)
+    let lastKeyEvent = performance.now();
+    window.addEventListener('keydown', ()=> lastKeyEvent = performance.now(), true);
+    window.addEventListener('keyup',   ()=> lastKeyEvent = performance.now(), true);
+    
+    function safetyKeyDecay(){
+      if (performance.now() - lastKeyEvent > 2000) {
+        keys['KeyA'] = false;
+        keys['KeyD'] = false;
+      }
+    }
+
 
     // UI signaling
     function iceCompletePromise(pc){
@@ -1206,15 +1229,13 @@
 
     document.getElementById('makeOfferBtn').addEventListener('click', async ()=>{
       ensurePC();
-
-      // Create datachannel as the offerer
       dc = pc.createDataChannel('duel', { ordered:true });
       wireDC();
-
+    
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
-      await iceCompletePromise(pc);
-
+    
+      // DON'T wait for full ICE. Just copy now.
       signalBox.value = JSON.stringify(pc.localDescription);
       setConnStatus('Offer ready (send it)', false);
     });

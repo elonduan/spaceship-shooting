@@ -1421,10 +1421,7 @@
       // keep the camera on the ship
       camera.position.copy(player.pos);
       
-      // make the camera face the direction you are heading (optional)
-      if (player.vel.lengthSq() > 1e-6) {
-        updateCameraRotation();
-      }
+
       
       // if you have a visible player ship mesh:
       orientMeshToVelocity(playerShipMesh, player.vel);

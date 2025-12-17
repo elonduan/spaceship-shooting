@@ -1358,7 +1358,10 @@
       const dt = Math.min((now - last)/1000, 0.1);
       last = now;
 
-
+            // make the camera face the direction you are heading (optional)
+      if (player.vel.lengthSq() > 1e-6) {
+        updateCameraRotation();
+      }
       stepPlayer(dt);
       // ensure ship mesh exists
       ensurePlayerMesh();

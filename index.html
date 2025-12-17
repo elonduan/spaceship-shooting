@@ -470,12 +470,17 @@
     };
     
     let camLookTarget = new THREE.Vector3();
-
     function updateChaseCamera(dt, shipMesh) {
       if (!shipMesh) return;
     
-      // ship forward in world space
-      const up = new THREE.Vector3(0,1,0).applyQuaternion(shipMesh.quaternion).normalize();
+      // ship forward & up in world space
+      const forward = new THREE.Vector3(0, 0, -1)
+        .applyQuaternion(shipMesh.quaternion)
+        .normalize();
+    
+      const up = new THREE.Vector3(0, 1, 0)
+        .applyQuaternion(shipMesh.quaternion)
+        .normalize();
     
       // desired camera position: behind + above ship
       const desiredPos = shipMesh.position.clone()
@@ -486,15 +491,17 @@
       const aPos = 1 - Math.pow(1 - chase.posSmooth, dt * 60);
       camera.position.lerp(desiredPos, aPos);
     
-      // desired look target: ship position + lookAhead
+      // desired look target: slightly ahead of ship
       const desiredLook = shipMesh.position.clone()
         .add(forward.clone().multiplyScalar(chase.lookAhead));
     
-      // smooth look target then lookAt
+      // smooth look target
       const aLook = 1 - Math.pow(1 - chase.lookSmooth, dt * 60);
       camLookTarget.lerp(desiredLook, aLook);
+    
       camera.lookAt(camLookTarget);
     }
+
 
 
 

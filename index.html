@@ -1214,31 +1214,38 @@
 
 
     // UI signaling
-    function iceCompletePromise(pc){
-      return new Promise((resolve) => {
-        if(pc.iceGatheringState === 'complete') return resolve();
-        const check = () => {
-          if(pc.iceGatheringState === 'complete'){
-            pc.removeEventListener('icegatheringstatechange', check);
-            resolve();
-          }
-        };
-        pc.addEventListener('icegatheringstatechange', check);
-      });
+    function iceCompleteOrTimeout(pc, ms=3500){
+      return Promise.race([
+        new Promise(resolve => {
+          if(pc.iceGatheringState === 'complete') return resolve('complete');
+          const onChange = () => {
+            if(pc.iceGatheringState === 'complete'){
+              pc.removeEventListener('icegatheringstatechange', onChange);
+              resolve('complete');
+            }
+          };
+          pc.addEventListener('icegatheringstatechange', onChange);
+        }),
+        new Promise(resolve => setTimeout(()=>resolve('timeout'), ms))
+      ]);
     }
-
     document.getElementById('makeOfferBtn').addEventListener('click', async ()=>{
       ensurePC();
+    
       dc = pc.createDataChannel('duel', { ordered:true });
       wireDC();
     
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
     
-      // DON'T wait for full ICE. Just copy now.
+      // 🔧 IMPORTANT FIX: wait for ICE or timeout
+      await iceCompleteOrTimeout(pc, 3500);
+    
       signalBox.value = JSON.stringify(pc.localDescription);
       setConnStatus('Offer ready (send it)', false);
     });
+
+
 
     document.getElementById('acceptOfferBtn').addEventListener('click', async ()=>{
       ensurePC();
@@ -1248,9 +1255,13 @@
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
     
+      // 🔧 IMPORTANT FIX
+      await iceCompleteOrTimeout(pc, 3500);
+    
       signalBox.value = JSON.stringify(pc.localDescription);
       setConnStatus('Answer ready (send it)', false);
     });
+
 
 
     document.getElementById('acceptAnswerBtn').addEventListener('click', async ()=>{

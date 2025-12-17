@@ -439,6 +439,16 @@
     let playerMesh = null;
     let playerQuat = new THREE.Quaternion(); // ship/control orientation (NOT the camera)
 
+    // Smooth 3rd-person camera state
+    let camPosSmooth = new THREE.Vector3();
+    let camQuatSmooth = new THREE.Quaternion();
+    let camInit = false;
+    
+    // Tweak these
+    const CAM_POS_LERP = 0.12;   // 0..1 (higher = snappier)
+    const CAM_QUAT_SLERP = 0.18; // 0..1 (higher = snappier)
+
+
     // IMPORTANT: rotate STL model into your game’s forward direction.
     // We'll start with a guess and you can tweak it (see section 4).
     const shipModelFix = new THREE.Quaternion()
@@ -667,25 +677,39 @@
 
       
       // camera offset: behind and slightly above
-      // --- 3rd-person camera locked to ship orientation (NO roll drift) ---
-      const camBack = 120;   // behind ship
-      const camUp   = 35;    // above ship
+      // --- 3rd-person camera locked to ship orientation + smoothing ---
+      const camBack = 120;
+      const camUp   = 35;
       
-      // Offset is in the SHIP's local space:
-      // +Z is "behind" because ship forward is -Z
-      const camOffsetLocal = new THREE.Vector3(0, camUp, camBack);
+      // Camera offset in SHIP LOCAL space (behind is +Z because forward is -Z)
+      const desiredOffsetLocal = new THREE.Vector3(0, camUp, camBack);
       
-      // Convert local offset into world space using ship orientation
-      const camPos = player.pos.clone().add(camOffsetLocal.applyQuaternion(playerQuat));
+      // Desired camera position in world space
+      const desiredCamPos = player.pos.clone().add(
+        desiredOffsetLocal.applyQuaternion(playerQuat)
+      );
       
-      camera.position.copy(camPos);
-      
-      // Make camera orientation match the ship (so ship looks stable on screen)
-      camera.quaternion.copy(playerQuat);
-      
-      // Optional: slight downward tilt so you see more of the ship / forward space
+      // Desired camera orientation = ship orientation (+ optional small tilt)
+      const desiredCamQuat = playerQuat.clone();
       const tilt = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0), -0.12);
-      camera.quaternion.multiply(tilt);
+      desiredCamQuat.multiply(tilt);
+      
+      if(!camInit){
+        camInit = true;
+        camPosSmooth.copy(desiredCamPos);
+        camQuatSmooth.copy(desiredCamQuat);
+      } else {
+        // Frame-rate independent smoothing (dt normalized to ~60fps)
+        const posAlpha  = 1 - Math.pow(1 - CAM_POS_LERP,  dt * 60);
+        const quatAlpha = 1 - Math.pow(1 - CAM_QUAT_SLERP, dt * 60);
+      
+        camPosSmooth.lerp(desiredCamPos, posAlpha);
+        camQuatSmooth.slerp(desiredCamQuat, quatAlpha);
+      }
+      
+      camera.position.copy(camPosSmooth);
+      camera.quaternion.copy(camQuatSmooth);
+
 
 
     }
@@ -1051,6 +1075,9 @@
       loseDiv.style.display='none';
       gameOver = false;
       setAutoShooting(false);
+
+      camInit = false;
+
 
       // clear projectiles
       bullets.forEach(b=>scene.remove(b.mesh)); bullets.length=0;

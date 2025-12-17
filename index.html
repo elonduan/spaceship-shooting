@@ -409,6 +409,15 @@
       });
       return Promise.all([spaceshipPromise, missilePromise]);
     };
+    let playerShipMesh = null;
+
+    function ensurePlayerMesh(){
+      if(playerShipMesh || !spaceshipGeometry) return;
+      const mat = new THREE.MeshStandardMaterial({ color: 0xffffff });
+      playerShipMesh = new THREE.Mesh(spaceshipGeometry, mat);
+      playerShipMesh.scale.set(0.5,0.5,0.5);
+      scene.add(playerShipMesh);
+    }
 
     /*********************** Game state ***********************/
     const sphereRadius = 500;
@@ -1336,6 +1345,11 @@
 
       // Send net state
       maybeSendState();
+      ensurePlayerMesh();
+      
+      playerShipMesh.position.copy(player.pos);
+      orientMeshToVelocity(playerShipMesh, player.vel); // or aim-based version
+
 
       // keep the camera on the ship
       camera.position.copy(player.pos);

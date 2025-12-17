@@ -1319,6 +1319,21 @@
 
       updateCameraRotation();
       stepPlayer(dt);
+      // ensure ship mesh exists
+      ensurePlayerMesh();
+      
+      // position the visible ship slightly IN FRONT of the camera
+      const forward = new THREE.Vector3(0,0,-1)
+        .applyQuaternion(camera.quaternion)
+        .normalize();
+      
+      playerShipMesh.position
+        .copy(player.pos)
+        .add(forward.multiplyScalar(80)); // adjust if needed
+      
+      // 🔑 THIS IS THE LINE YOU ASKED ABOUT
+      orientMeshToVelocity(playerShipMesh, player.vel);
+
 
       lerpRemote(dt);
 
@@ -1346,6 +1361,7 @@
       // Send net state
       maybeSendState();
       ensurePlayerMesh();
+
       
       playerShipMesh.position.copy(player.pos);
       orientMeshToVelocity(playerShipMesh, player.vel); // or aim-based version
@@ -1356,8 +1372,7 @@
       
       // make the camera face the direction you are heading (optional)
       if (player.vel.lengthSq() > 1e-6) {
-        const lookTarget = player.pos.clone().add(player.vel.clone().normalize().multiplyScalar(50));
-        camera.lookAt(lookTarget);
+        updateCameraRotation();
       }
       
       // if you have a visible player ship mesh:

@@ -843,20 +843,6 @@
 
 
 
-    // 🔧 STL orientation correction (CHOOSE ONE OPTION ONLY)
-    const shipModelFix = new THREE.Quaternion()
-      .setFromEuler(new THREE.Euler(Math.PI / 2, 0, 0));
-
-    /*********************** Remote ship rendering + interpolation ***********************/
-    function ensureRemoteMesh(){
-      if(remote.mesh || !spaceshipGeometry) return;
-      const mat = new THREE.MeshStandardMaterial({ color:0xffffff });
-      const mesh = new THREE.Mesh(spaceshipGeometry, mat);
-      mesh.scale.set(0.5,0.5,0.5);
-      mesh.position.copy(remote.pos);
-      scene.add(mesh);
-      remote.mesh = mesh;
-    }
 
     function lerpRemote(dt){
       if(!remote.mesh) return;

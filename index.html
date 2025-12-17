@@ -64,7 +64,7 @@
 
   <div id="overlay">
     <div class="panel">
-      <div><strong>Ball Shooter Competition -— 2P Duel (WebRTC) - 2</strong></div>
+      <div><strong>Ball Shooter Competition -— 2P Duel (WebRTC)</strong></div>
 
       <ul style="margin:8px 0 0 18px;font-size:13px">
         <li>Arrow keys: pitch & yaw</li>
@@ -409,15 +409,6 @@
       });
       return Promise.all([spaceshipPromise, missilePromise]);
     };
-    let playerShipMesh = null;
-
-    function ensurePlayerMesh(){
-      if(playerShipMesh || !spaceshipGeometry) return;
-      const mat = new THREE.MeshStandardMaterial({ color: 0xffffff });
-      playerShipMesh = new THREE.Mesh(spaceshipGeometry, mat);
-      playerShipMesh.scale.set(0.5,0.5,0.5);
-      scene.add(playerShipMesh);
-    }
 
     /*********************** Game state ***********************/
     const sphereRadius = 500;
@@ -444,66 +435,6 @@
       weaponMode: 'normal',
       laserActive: false
     };
-    function orientMeshToVelocity(mesh, vel, modelForwardLocal = new THREE.Vector3(0, -1, 0)) {
-      if (!mesh) return;
-      if (vel.lengthSq() < 1e-6) return;
-    
-      const velDir = vel.clone().normalize();
-    
-      // current forward direction in world space
-      const worldPos = new THREE.Vector3();
-      mesh.getWorldPosition(worldPos);
-    
-      const forwardWorldPoint = mesh.localToWorld(modelForwardLocal.clone());
-      const forwardWorld = forwardWorldPoint.sub(worldPos).normalize();
-    
-      const q = new THREE.Quaternion().setFromUnitVectors(forwardWorld, velDir);
-      mesh.quaternion.premultiply(q);
-    }
-    // --- Third-person chase camera settings ---
-    const chase = {
-      dist: 140,        // how far behind the ship
-      height: 35,       // how high above the ship
-      lookAhead: 120,   // how far ahead to look
-      posSmooth: 0.10,  // camera position smoothing (0..1)
-      lookSmooth: 0.12  // look direction smoothing (0..1)
-    };
-    
-    let camLookTarget = new THREE.Vector3();
-    function updateChaseCamera(dt, shipMesh) {
-      if (!shipMesh) return;
-    
-      // ship forward & up in world space
-      const forward = new THREE.Vector3(0, 0, -1)
-        .applyQuaternion(shipMesh.quaternion)
-        .normalize();
-    
-      const up = new THREE.Vector3(0, 1, 0)
-        .applyQuaternion(shipMesh.quaternion)
-        .normalize();
-    
-      // desired camera position: behind + above ship
-      const desiredPos = shipMesh.position.clone()
-        .add(forward.clone().multiplyScalar(-chase.dist))
-        .add(up.clone().multiplyScalar(chase.height));
-    
-      // smooth camera position
-      const aPos = 1 - Math.pow(1 - chase.posSmooth, dt * 60);
-      camera.position.lerp(desiredPos, aPos);
-    
-      // desired look target: slightly ahead of ship
-      const desiredLook = shipMesh.position.clone()
-        .add(forward.clone().multiplyScalar(chase.lookAhead));
-    
-      // smooth look target
-      const aLook = 1 - Math.pow(1 - chase.lookSmooth, dt * 60);
-      camLookTarget.lerp(desiredLook, aLook);
-    
-      camera.lookAt(camLookTarget);
-    }
-
-
-
 
     const playerShipHitRadius = 28; // for incoming bullet/laser checks
     const remoteShipHitRadius = 50; // keep similar to your old enemy size
@@ -666,23 +597,20 @@
       releaseKey(e.code);
     });
 
-    function updateShipRotation(){
-      if(!playerShipMesh) return;
-      if(keys['ArrowDown']) playerShipMesh.rotateX(-accel);
-      if(keys['ArrowUp'])   playerShipMesh.rotateX(accel);
-      if(keys['ArrowLeft']) playerShipMesh.rotateY(accel);
-      if(keys['ArrowRight'])playerShipMesh.rotateY(-accel);
-      if(keys['KeyA'])      playerShipMesh.rotateZ(accel);
-      if(keys['KeyD'])      playerShipMesh.rotateZ(-accel);
+    function updateCameraRotation(){
+      if(keys['ArrowDown']) camera.rotateX(-accel);
+      if(keys['ArrowUp']) camera.rotateX(accel);
+      if(keys['ArrowLeft']) camera.rotateY(accel);
+      if(keys['ArrowRight']) camera.rotateY(-accel);
+      if(keys['KeyA']) camera.rotateZ(accel);
+      if(keys['KeyD']) camera.rotateZ(-accel);
     }
-
 
     /*********************** Movement (new: you actually fly) ***********************/
     function stepPlayer(dt){
       // Thrust forward while holding G
       if(keys['KeyG']){
-        const forward = new THREE.Vector3(0,0,-1).applyQuaternion(playerShipMesh.quaternion).normalize();
-
+        const forward = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
         const desired = forward.multiplyScalar(player.speed);
         player.vel.lerp(desired, Math.min(1, 0.08 * (dt*60)));
       } else {
@@ -707,6 +635,7 @@
         player.vel.copy(reflected.setLength(player.speed));
       }
 
+      camera.position.copy(player.pos);
     }
 
     /*********************** Bullets / Missiles ***********************/
@@ -760,9 +689,8 @@
       }
 
       // spawn locally (you see your shots)
-      spawnBulletFrom(player.pos, playerShipMesh.quaternion, -1, thisDamage, thisSpeed, false);
-      spawnBulletFrom(player.pos, playerShipMesh.quaternion, +1, thisDamage, thisSpeed, false);
-
+      spawnBulletFrom(player.pos, camera.quaternion, -1, thisDamage, thisSpeed, false);
+      spawnBulletFrom(player.pos, camera.quaternion, +1, thisDamage, thisSpeed, false);
 
       playSfx(missileFollowExp);
 
@@ -773,7 +701,7 @@
         dmg:thisDamage,
         spd:thisSpeed,
         pos: v3(player.pos),
-        quat: q4(playerShipMesh.quaternion),
+        quat: q4(camera.quaternion),
         t: performance.now()
       });
     }
@@ -794,15 +722,15 @@
       updateMissileUI();
 
       // Local missile is cosmetic (your view). Real damage is applied on the opponent when they simulate incoming missile.
-      spawnMissile(player.pos, playerShipMesh.quaternion, false);
-      
+      spawnMissile(player.pos, camera.quaternion, /*incoming*/false);
+
+      // Send missile event to remote: they will spawn an incoming missile targeting THEM (their local ship)
       sendMsg({
         type:'missile',
         pos: v3(player.pos),
-        quat: q4(playerShipMesh.quaternion),
+        quat: q4(camera.quaternion),
         t: performance.now()
       });
-
     }
 
     function spawnMissile(originPos, originQuat, incoming){
@@ -948,7 +876,7 @@
         // if your beam intersects remote ship, you only show visuals locally.
         // Real damage to them is applied on THEIR machine by your state sync (laserActive + pos/quat).
         const origin = player.pos.clone();
-        const dir = new THREE.Vector3(0,0,-1).applyQuaternion(playerShipMesh.quaternion).normalize();
+        const dir = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
         const length = sphereRadius*2;
 
         // cosmetic: see the beam
@@ -1252,7 +1180,7 @@
         name: getMyName(),
         pos: v3(player.pos),
         vel: v3(player.vel),
-        quat: playerShipMesh ? q4(playerShipMesh.quaternion) : q4(camera.quaternion),
+        quat: q4(camera.quaternion),
         weaponMode,
         laserActive,
         hp: playerHP,
@@ -1351,62 +1279,47 @@
     document.getElementById('clearBtn').addEventListener('click', ()=> signalBox.value = '');
 
     /*********************** Animate loop ***********************/
-
     let last = performance.now();
-    
+
     function animate(t){
       requestAnimationFrame(animate);
       if(isPaused) return;
-    
+
+      ensureRemoteMesh();
+
       const now = t || performance.now();
       const dt = Math.min((now - last)/1000, 0.1);
       last = now;
-    
-      // Make sure meshes exist
-      ensurePlayerMesh();
-      ensureRemoteMesh();
-    
-      // --- INPUT -> rotate ship (ONLY ONCE)
-      updateShipRotation();
-    
-      // --- MOVE -> integrate velocity/position (ONLY ONCE)
+
+      updateCameraRotation();
       stepPlayer(dt);
-    
-      // --- Place your ship at your real position (do NOT offset in front of camera for 3rd-person)
-      playerShipMesh.position.copy(player.pos);
-    
-      // Optional: keep ship facing velocity (if you want "nose follows movement")
-      orientMeshToVelocity(playerShipMesh, player.vel);
-    
-      // --- Camera follows ship (ONLY place we control camera orientation)
-      updateChaseCamera(dt, playerShipMesh);
-    
-      // Remote interpolation
+
       lerpRemote(dt);
-    
-      // Gameplay systems
+
       updateShieldRegen(dt);
+
+      // Incoming laser damage
       applyIncomingLaser(dt);
+
+      // Your laser visuals
       applyLocalLaser(dt);
-    
+
       updateBullets(dt);
       updateMissiles(dt);
-    
+
       updateSmoke(dt);
       updateExplosions(dt);
       updateShockwaves(dt);
       updateSparks(dt);
-    
+
       updateArrow();
-    
+
       renderer.render(scene, camera);
       updateMissileUI();
-    
-      // Networking
-      safetyKeyDecay();
+
+      // Send net state
       maybeSendState();
     }
-
 
     /*********************** Load + start ***********************/
     loadModels().then(()=>{

@@ -64,7 +64,7 @@
 
   <div id="overlay">
     <div class="panel">
-      <div><strong>Ball Shooter Competition -— 2P Duel (WebRTC) - 1</strong></div>
+      <div><strong>Ball Shooter Competition -— 2P Duel (WebRTC) - 2</strong></div>
 
       <ul style="margin:8px 0 0 18px;font-size:13px">
         <li>Arrow keys: pitch & yaw</li>
@@ -437,6 +437,7 @@
     };
 
     let playerMesh = null;
+    let playerQuat = new THREE.Quaternion(); // ship/control orientation (NOT the camera)
 
     // IMPORTANT: rotate STL model into your game’s forward direction.
     // We'll start with a guess and you can tweak it (see section 4).
@@ -616,19 +617,25 @@
     });
 
     function updateCameraRotation(){
-      if(keys['ArrowDown']) camera.rotateX(-accel);
-      if(keys['ArrowUp']) camera.rotateX(accel);
-      if(keys['ArrowLeft']) camera.rotateY(accel);
-      if(keys['ArrowRight']) camera.rotateY(-accel);
-      if(keys['KeyA']) camera.rotateZ(accel);
-      if(keys['KeyD']) camera.rotateZ(-accel);
+      const q = new THREE.Quaternion();
+    
+      if(keys['ArrowDown']) { q.setFromAxisAngle(new THREE.Vector3(1,0,0), -accel); playerQuat.multiply(q); }
+      if(keys['ArrowUp'])   { q.setFromAxisAngle(new THREE.Vector3(1,0,0),  accel); playerQuat.multiply(q); }
+      if(keys['ArrowLeft']) { q.setFromAxisAngle(new THREE.Vector3(0,1,0),  accel); playerQuat.multiply(q); }
+      if(keys['ArrowRight']){ q.setFromAxisAngle(new THREE.Vector3(0,1,0), -accel); playerQuat.multiply(q); }
+    
+      if(keys['KeyA'])      { q.setFromAxisAngle(new THREE.Vector3(0,0,1),  accel); playerQuat.multiply(q); }
+      if(keys['KeyD'])      { q.setFromAxisAngle(new THREE.Vector3(0,0,1), -accel); playerQuat.multiply(q); }
+    
+      playerQuat.normalize();
     }
+
 
     /*********************** Movement (new: you actually fly) ***********************/
     function stepPlayer(dt){
       // Thrust forward while holding G
       if(keys['KeyG']){
-        const forward = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
+        const forward = new THREE.Vector3(0,0,-1).applyQuaternion(playerQuat).normalize();
         const desired = forward.multiplyScalar(player.speed);
         player.vel.lerp(desired, Math.min(1, 0.08 * (dt*60)));
       } else {
@@ -655,8 +662,9 @@
 
       // --- 3rd person camera ---
       // Ship forward in your game is "-Z" in local space after applying camera.quaternion
-      const shipForward = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
-      const shipUp      = new THREE.Vector3(0,1, 0).applyQuaternion(camera.quaternion).normalize();
+      const shipForward = new THREE.Vector3(0,0,-1).applyQuaternion(playerQuat).normalize();
+      const shipUp      = new THREE.Vector3(0,1, 0).applyQuaternion(playerQuat).normalize();
+
       
       // camera offset: behind and slightly above
       const camBack = 120;  // distance behind
@@ -721,8 +729,8 @@
       }
 
       // spawn locally (you see your shots)
-      spawnBulletFrom(player.pos, camera.quaternion, -1, thisDamage, thisSpeed, false);
-      spawnBulletFrom(player.pos, camera.quaternion, +1, thisDamage, thisSpeed, false);
+      spawnBulletFrom(player.pos, playerQuat, -1, thisDamage, thisSpeed, false);
+      spawnBulletFrom(player.pos, playerQuat, +1, thisDamage, thisSpeed, false);
 
       playSfx(missileFollowExp);
 
@@ -754,13 +762,13 @@
       updateMissileUI();
 
       // Local missile is cosmetic (your view). Real damage is applied on the opponent when they simulate incoming missile.
-      spawnMissile(player.pos, camera.quaternion, /*incoming*/false);
+      spawnMissile(player.pos, playerQuat, /*incoming*/false);
 
       // Send missile event to remote: they will spawn an incoming missile targeting THEM (their local ship)
       sendMsg({
         type:'missile',
         pos: v3(player.pos),
-        quat: q4(camera.quaternion),
+        quat: q4(playerQuat),
         t: performance.now()
       });
     }
@@ -908,7 +916,7 @@
         // if your beam intersects remote ship, you only show visuals locally.
         // Real damage to them is applied on THEIR machine by your state sync (laserActive + pos/quat).
         const origin = player.pos.clone();
-        const dir = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
+        const dir = new THREE.Vector3(0,0,-1).applyQuaternion(playerQuat).normalize();
         const length = sphereRadius*2;
 
         // cosmetic: see the beam
@@ -1048,6 +1056,8 @@
       player.vel.set(1,0,-1).normalize().multiplyScalar(player.speed);
       camera.position.copy(player.pos);
       camera.quaternion.identity();
+
+      playerQuat.identity();
 
       updateHP();
       updateMissileUI();
@@ -1212,7 +1222,7 @@
         name: getMyName(),
         pos: v3(player.pos),
         vel: v3(player.vel),
-        quat: q4(camera.quaternion),
+        quat: q4(playerQuat),
         weaponMode,
         laserActive,
         hp: playerHP,
@@ -1333,7 +1343,7 @@
       
         // ship orientation = your control orientation (camera quaternion)
         // then apply the STL correction so "front" points forward
-        playerMesh.quaternion.copy(camera.quaternion).multiply(shipModelFix);
+        playerMesh.quaternion.copy(playerQuat).multiply(shipModelFix);
       }
 
 

@@ -667,14 +667,26 @@
 
       
       // camera offset: behind and slightly above
-      const camBack = 120;  // distance behind
-      const camUp   = 35;   // height
-      const camPos = player.pos.clone()
-        .add(shipForward.clone().multiplyScalar(-camBack))
-        .add(shipUp.clone().multiplyScalar(camUp));
+      // --- 3rd-person camera locked to ship orientation (NO roll drift) ---
+      const camBack = 120;   // behind ship
+      const camUp   = 35;    // above ship
+      
+      // Offset is in the SHIP's local space:
+      // +Z is "behind" because ship forward is -Z
+      const camOffsetLocal = new THREE.Vector3(0, camUp, camBack);
+      
+      // Convert local offset into world space using ship orientation
+      const camPos = player.pos.clone().add(camOffsetLocal.applyQuaternion(playerQuat));
       
       camera.position.copy(camPos);
-      camera.lookAt(player.pos.clone().add(shipForward.clone().multiplyScalar(40))); // look a bit ahead
+      
+      // Make camera orientation match the ship (so ship looks stable on screen)
+      camera.quaternion.copy(playerQuat);
+      
+      // Optional: slight downward tilt so you see more of the ship / forward space
+      const tilt = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0), -0.12);
+      camera.quaternion.multiply(tilt);
+
 
     }
 

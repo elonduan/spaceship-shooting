@@ -435,6 +435,23 @@
       weaponMode: 'normal',
       laserActive: false
     };
+    function orientMeshToVelocity(mesh, vel, modelForwardLocal = new THREE.Vector3(0, -1, 0)) {
+      if (!mesh) return;
+      if (vel.lengthSq() < 1e-6) return;
+    
+      const velDir = vel.clone().normalize();
+    
+      // current forward direction in world space
+      const worldPos = new THREE.Vector3();
+      mesh.getWorldPosition(worldPos);
+    
+      const forwardWorldPoint = mesh.localToWorld(modelForwardLocal.clone());
+      const forwardWorld = forwardWorldPoint.sub(worldPos).normalize();
+    
+      const q = new THREE.Quaternion().setFromUnitVectors(forwardWorld, velDir);
+      mesh.quaternion.premultiply(q);
+    }
+
 
     const playerShipHitRadius = 28; // for incoming bullet/laser checks
     const remoteShipHitRadius = 50; // keep similar to your old enemy size
@@ -1319,6 +1336,19 @@
 
       // Send net state
       maybeSendState();
+
+      // keep the camera on the ship
+      camera.position.copy(player.pos);
+      
+      // make the camera face the direction you are heading (optional)
+      if (player.vel.lengthSq() > 1e-6) {
+        const lookTarget = player.pos.clone().add(player.vel.clone().normalize().multiplyScalar(50));
+        camera.lookAt(lookTarget);
+      }
+      
+      // if you have a visible player ship mesh:
+      orientMeshToVelocity(playerShipMesh, player.vel);
+
     }
 
     /*********************** Load + start ***********************/

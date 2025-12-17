@@ -436,6 +436,24 @@
       laserActive: false
     };
 
+    let playerMesh = null;
+
+    // IMPORTANT: rotate STL model into your game’s forward direction.
+    // We'll start with a guess and you can tweak it (see section 4).
+    const shipModelFix = new THREE.Quaternion()
+      .setFromEuler(new THREE.Euler(Math.PI / 2, 0, 0)); // <-- tweak if needed
+    
+    function ensurePlayerMesh(){
+      if(playerMesh || !spaceshipGeometry) return;
+    
+      const mat = new THREE.MeshStandardMaterial({ color: 0x88aaff });
+      playerMesh = new THREE.Mesh(spaceshipGeometry, mat);
+      playerMesh.scale.set(0.5, 0.5, 0.5);
+      playerMesh.position.copy(player.pos);
+      scene.add(playerMesh);
+    }
+
+
     const playerShipHitRadius = 28; // for incoming bullet/laser checks
     const remoteShipHitRadius = 50; // keep similar to your old enemy size
 
@@ -635,7 +653,21 @@
         player.vel.copy(reflected.setLength(player.speed));
       }
 
-      camera.position.copy(player.pos);
+      // --- 3rd person camera ---
+      // Ship forward in your game is "-Z" in local space after applying camera.quaternion
+      const shipForward = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
+      const shipUp      = new THREE.Vector3(0,1, 0).applyQuaternion(camera.quaternion).normalize();
+      
+      // camera offset: behind and slightly above
+      const camBack = 120;  // distance behind
+      const camUp   = 35;   // height
+      const camPos = player.pos.clone()
+        .add(shipForward.clone().multiplyScalar(-camBack))
+        .add(shipUp.clone().multiplyScalar(camUp));
+      
+      camera.position.copy(camPos);
+      camera.lookAt(player.pos.clone().add(shipForward.clone().multiplyScalar(40))); // look a bit ahead
+
     }
 
     /*********************** Bullets / Missiles ***********************/
@@ -805,6 +837,16 @@
         }
       }
     }
+
+
+
+
+
+    let playerMesh = null;
+
+    // 🔧 STL orientation correction (CHOOSE ONE OPTION ONLY)
+    const shipModelFix = new THREE.Quaternion()
+      .setFromEuler(new THREE.Euler(Math.PI / 2, 0, 0));
 
     /*********************** Remote ship rendering + interpolation ***********************/
     function ensureRemoteMesh(){
@@ -1293,6 +1335,17 @@
 
       updateCameraRotation();
       stepPlayer(dt);
+
+      ensurePlayerMesh();
+
+      if (playerMesh) {
+        playerMesh.position.copy(player.pos);
+      
+        // ship orientation = your control orientation (camera quaternion)
+        // then apply the STL correction so "front" points forward
+        playerMesh.quaternion.copy(camera.quaternion).multiply(shipModelFix);
+      }
+
 
       lerpRemote(dt);
 

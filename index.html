@@ -64,7 +64,7 @@
 
   <div id="overlay">
     <div class="panel">
-      <div><strong>Ball Shooter Competition -— 2P Duel (WebRTC) - 1</strong></div>
+      <div><strong>Ball Shooter Competition -— 2P Duel (WebRTC) - 2</strong></div>
 
       <ul style="margin:8px 0 0 18px;font-size:13px">
         <li>Arrow keys: pitch & yaw</li>
@@ -460,6 +460,43 @@
       const q = new THREE.Quaternion().setFromUnitVectors(forwardWorld, velDir);
       mesh.quaternion.premultiply(q);
     }
+    // --- Third-person chase camera settings ---
+    const chase = {
+      dist: 140,        // how far behind the ship
+      height: 35,       // how high above the ship
+      lookAhead: 120,   // how far ahead to look
+      posSmooth: 0.10,  // camera position smoothing (0..1)
+      lookSmooth: 0.12  // look direction smoothing (0..1)
+    };
+    
+    let camLookTarget = new THREE.Vector3();
+
+    function updateChaseCamera(dt, shipMesh) {
+      if (!shipMesh) return;
+    
+      // ship forward in world space
+      const forward = new THREE.Vector3(0,0,-1).applyQuaternion(shipMesh.quaternion).normalize();
+      const up = new THREE.Vector3(0,1,0).applyQuaternion(shipMesh.quaternion).normalize();
+    
+      // desired camera position: behind + above ship
+      const desiredPos = shipMesh.position.clone()
+        .add(forward.clone().multiplyScalar(-chase.dist))
+        .add(up.clone().multiplyScalar(chase.height));
+    
+      // smooth camera position
+      const aPos = 1 - Math.pow(1 - chase.posSmooth, dt * 60);
+      camera.position.lerp(desiredPos, aPos);
+    
+      // desired look target: ship position + lookAhead
+      const desiredLook = shipMesh.position.clone()
+        .add(forward.clone().multiplyScalar(chase.lookAhead));
+    
+      // smooth look target then lookAt
+      const aLook = 1 - Math.pow(1 - chase.lookSmooth, dt * 60);
+      camLookTarget.lerp(desiredLook, aLook);
+      camera.lookAt(camLookTarget);
+    }
+
 
 
     const playerShipHitRadius = 28; // for incoming bullet/laser checks
@@ -623,20 +660,23 @@
       releaseKey(e.code);
     });
 
-    function updateCameraRotation(){
-      if(keys['ArrowDown']) camera.rotateX(-accel);
-      if(keys['ArrowUp']) camera.rotateX(accel);
-      if(keys['ArrowLeft']) camera.rotateY(accel);
-      if(keys['ArrowRight']) camera.rotateY(-accel);
-      if(keys['KeyA']) camera.rotateZ(accel);
-      if(keys['KeyD']) camera.rotateZ(-accel);
+    function updateShipRotation(){
+      if(!playerShipMesh) return;
+      if(keys['ArrowDown']) playerShipMesh.rotateX(-accel);
+      if(keys['ArrowUp'])   playerShipMesh.rotateX(accel);
+      if(keys['ArrowLeft']) playerShipMesh.rotateY(accel);
+      if(keys['ArrowRight'])playerShipMesh.rotateY(-accel);
+      if(keys['KeyA'])      playerShipMesh.rotateZ(accel);
+      if(keys['KeyD'])      playerShipMesh.rotateZ(-accel);
     }
+
 
     /*********************** Movement (new: you actually fly) ***********************/
     function stepPlayer(dt){
       // Thrust forward while holding G
       if(keys['KeyG']){
-        const forward = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
+        const forward = new THREE.Vector3(0,0,-1).applyQuaternion(playerShipMesh.quaternion).normalize();
+
         const desired = forward.multiplyScalar(player.speed);
         player.vel.lerp(desired, Math.min(1, 0.08 * (dt*60)));
       } else {
@@ -715,8 +755,9 @@
       }
 
       // spawn locally (you see your shots)
-      spawnBulletFrom(player.pos, camera.quaternion, -1, thisDamage, thisSpeed, false);
-      spawnBulletFrom(player.pos, camera.quaternion, +1, thisDamage, thisSpeed, false);
+      spawnBulletFrom(player.pos, playerShipMesh.quaternion, -1, thisDamage, thisSpeed, false);
+      spawnBulletFrom(player.pos, playerShipMesh.quaternion, +1, thisDamage, thisSpeed, false);
+
 
       playSfx(missileFollowExp);
 
@@ -1321,6 +1362,16 @@
       stepPlayer(dt);
       // ensure ship mesh exists
       ensurePlayerMesh();
+      
+      // 1) Rotate ship from input
+      updateShipRotation();
+      
+      // 2) Move player using ship forward direction
+      stepPlayer(dt);
+      
+      // 3) Chase camera follows ship
+      updateChaseCamera(dt, playerShipMesh);
+
       
       // position the visible ship slightly IN FRONT of the camera
       const forward = new THREE.Vector3(0,0,-1)

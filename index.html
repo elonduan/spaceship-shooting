@@ -1127,26 +1127,40 @@
 
     function ensurePC(){
       if(pc) return;
+    
       pc = new RTCPeerConnection({ iceServers: ICE });
+    
+      // --- diagnostics (safe because pc exists here) ---
 
-      pc.onicecandidate = () => {
-        // We rely on "ice gathering complete" before copying for simplicity.
+    
+      pc.onicegatheringstatechange = () => {
+        console.log('[iceGatheringState]', pc.iceGatheringState);
       };
-
+    
+      pc.onsignalingstatechange = () => {
+        console.log('[signalingState]', pc.signalingState);
+      };
+    
       pc.onconnectionstatechange = () => {
-        setConnStatus('State: ' + pc.connectionState, pc.connectionState === 'connected');
+        console.log('[connectionState]', pc.connectionState);
+        setConnStatus(
+          'State: ' + pc.connectionState,
+          pc.connectionState === 'connected'
+        );
       };
-
+    
+      pc.onicecandidate = () => {
+        // using iceCompleteOrTimeout for copy/paste flow
+      };
+    
       pc.ondatachannel = (ev) => {
         dc = ev.channel;
         wireDC();
       };
     }
 
-    pc.oniceconnectionstatechange = () => {
-      console.log('[iceConnectionState]', pc.iceConnectionState);
-      setConnStatus('ICE: ' + pc.iceConnectionState, pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed');
-    };
+
+
     
     pc.onicegatheringstatechange = () => {
       console.log('[iceGatheringState]', pc.iceGatheringState);

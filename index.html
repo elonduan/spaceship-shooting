@@ -1143,6 +1143,20 @@
       };
     }
 
+    pc.oniceconnectionstatechange = () => {
+      console.log('[iceConnectionState]', pc.iceConnectionState);
+      setConnStatus('ICE: ' + pc.iceConnectionState, pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed');
+    };
+    
+    pc.onicegatheringstatechange = () => {
+      console.log('[iceGatheringState]', pc.iceGatheringState);
+    };
+    
+    pc.onsignalingstatechange = () => {
+      console.log('[signalingState]', pc.signalingState);
+    };
+
+
     function wireDC(){
       if(!dc) return;
       dc.onopen = () => {
@@ -1320,7 +1334,7 @@
       await pc.setLocalDescription(offer);
     
       // 🔧 IMPORTANT FIX: wait for ICE or timeout
-      await iceCompleteOrTimeout(pc, 3500);
+      await iceCompleteOrTimeout(pc, 15000);
     
       signalBox.value = JSON.stringify(pc.localDescription);
       setConnStatus('Offer ready (send it)', false);
@@ -1337,10 +1351,9 @@
       await pc.setLocalDescription(answer);
     
       // 🔧 IMPORTANT FIX
-      await iceCompleteOrTimeout(pc, 3500);
-    
-      signalBox.value = JSON.stringify(pc.localDescription);
-      setConnStatus('Answer ready (send it)', false);
+      const result = await iceCompleteOrTimeout(pc, 15000);
+      setConnStatus('Offer ready (' + result + ')', false);
+
     });
 
 

@@ -138,7 +138,7 @@
         <li>G: steer ship toward crosshair (hold)</li>
         <li>C: change target ship</li>
         <li>WARNING: TURNING SOUND ON WILL NOT BE GOOD IN CLASS</li>
-        <li>WORLD RECORD IS 5</li>
+        <li>WORLD RECORD IS 37</li>
         <li>EMAIL TO ME IF YOU BEAT IT</li>
       </ul>
       <label for="sensitivity">Rotation sensitivity</label>
@@ -146,12 +146,17 @@
       <button id="resetBtn">Reset</button>
       <div style="margin-top:8px">Missiles left: <span id="missileCount">4</span></div>
       <div id="defeatedCounter">Defeated ships: <span id="defeatedCount">0</span></div>
+      <div style="margin-top:8px">
+        Weapon: <span id="weaponLabel">Normal</span>
+        <span style="font-size:11px;opacity:0.7"> (1:Normal 2:Heavy 3:Laser)</span>
+      </div>
+
 
       <label style="margin-top:8px">Name:
         <input id="playerName" type="text" maxlength="20" value="Player">
       </label>
 
-      <div id="win">You destroyed the spaceship — you win! 🎉</div>
+      <div id="win">You destroyed the spaceship — you win! </div>
       <div id="lose">The spaceship destroyed you! </div>
     </div>
   </div>
@@ -207,6 +212,9 @@
   <script>
     const missileExplosion = new Audio("https://actions.google.com/sounds/v1/weapons/big_explosion_cut_off.ogg");
     const missileFollowExp = new Audio("https://actions.google.com/sounds/v1/weapons/auto_bullets_flyby_short.ogg");
+    const backgroundMusic = new Audio("https://actions.google.com/sounds/v1/weapons/auto_bullets_flyby_short.ogg");
+    const damage = new Audio("https://actions.google.com/sounds/v1/impacts/face_hit_series.ogg");
+    missileFollowExp.volume = 0.5;
   </script>
   <script>
   (function(){
@@ -543,12 +551,13 @@
       opacity: 0.9,
       side: THREE.DoubleSide
     });
-    const shockwaveGeo = new THREE.RingGeometry(4, 4.1, 64);
+    const shockwaveGeo = new THREE.RingGeometry(4, 4.03, 64);
 
     function spawnShockwave(position) {
       const mesh = new THREE.Mesh(shockwaveGeo, shockwaveMat.clone());
       mesh.position.copy(position);
       mesh.rotation.x = -Math.PI / 2;
+      mesh.scale.set(1+Math.random, 1+Math.random, 1+Math.random); // wider ellipse
       mesh.life = 0.6;
       mesh.maxLife = mesh.life;
       mesh.startScale = 1;
@@ -574,6 +583,49 @@
         }
       }
     }
+    // -------- LASER VISUAL LINE --------
+// -------- LASER VISUAL BEAM (cylinder) --------
+    function ensureLaserBeam() {
+      if (laserBeam) return;
+    
+      // thin cylinder, height=1; we'll scale it
+      const geo = new THREE.CylinderGeometry(0.6, 0.6, 100, 16, 1, true);
+      const mat = new THREE.MeshBasicMaterial({
+        color: 0xff4444,
+        transparent: true,
+        opacity: 0.9
+      });
+    
+      laserBeam = new THREE.Mesh(geo, mat);
+      laserBeam.visible = false;
+      scene.add(laserBeam);
+    }
+    
+    function updateLaserBeam(active) {
+      ensureLaserBeam();
+      if (!active) {
+        laserBeam.visible = false;
+        return;
+      }
+      laserBeam.visible = true;
+    
+      const origin = camera.position.clone();
+      const dir = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
+      const length = sphereRadius * 2; // long beam
+    
+      // center of the cylinder is halfway along the beam
+      const mid = origin.clone().add(dir.clone().multiplyScalar(length / 2));
+      laserBeam.position.copy(mid);
+    
+      // orient cylinder so its Y axis points along 'dir'
+      const up = new THREE.Vector3(0,1,0);
+      const q = new THREE.Quaternion().setFromUnitVectors(up, dir);
+      laserBeam.quaternion.copy(q);
+    
+      // stretch height along Y
+      laserBeam.scale.set(1, length, 1);
+    }
+
 
     function randomUnit(){
       const v = new THREE.Vector3(Math.random()*2-1, Math.random()*2-1, Math.random()*2-1);
@@ -647,7 +699,7 @@
 
     let missileAmmo = 4;
     const missileCountSpan = document.getElementById('missileCount');
-    let missileCooldownMs = 1500;
+    let missileCooldownMs = 1000;
     let lastMissileTime = -Infinity;
 
     function updateMissileUI(){
@@ -795,15 +847,41 @@
 
     window.addEventListener('keydown',(e)=>{
       if(isPaused) return;
-
-      if(e.code === 'Space'){
-        shoot();
+    
+      // FIRE
+      if(e.code === 'Space'){ 
+        if (weaponMode === 'laser') {
+          // start continuous laser
+          laserActive = true;
+        } else {
+          // normal / heavy = discrete shots
+          shoot();
+        }
         return;
       }
-      if(e.code === 'KeyM'){
+
+      
+      // MISSILE
+      if(e.code === 'KeyM'){ 
         launchMissile();
         return;
       }
+    
+      // WEAPON MODE SWITCH
+      if (e.code === 'Digit1') {
+        setWeaponMode('normal');
+        return;
+      }
+      if (e.code === 'Digit2') {
+        setWeaponMode('heavy');
+        return;
+      }
+      if (e.code === 'Digit3') {
+        setWeaponMode('laser');
+        return;
+      }
+    
+      // C: cycle selected enemy (keep your existing behaviour)
       if(e.code === 'KeyC'){
         if (enemies.length > 0) {
           selectedEnemyIndex = (selectedEnemyIndex + 1) % enemies.length;
@@ -811,17 +889,27 @@
         }
         return;
       }
-      if(e.key === 'r' || e.key === 'R'){
+    
+      // RESET
+      if(e.key === 'r' || e.key === 'R'){ 
         reset();
         return;
       }
+    
+      // movement / roll keys
       pressKey(e.code);
     });
 
+
     window.addEventListener('keyup',(e)=>{
       if(isPaused) return;
+      if (e.code === 'Space' && weaponMode === 'laser') {
+        laserActive = false; // stop continuous beam
+        return;
+      }
       if(e.code !== 'Space' && e.code !== 'KeyM') releaseKey(e.code);
     });
+
 
     function updateCamera(){
       if(keys['ArrowDown']) camera.rotateX(-accel);
@@ -837,20 +925,78 @@
     const missiles = [];
     const bulletSpeed = 125;
     const missileSpeed = 4.5;
-    let accuracy = 1.5;
-
-    function shoot(){
-      if (isPaused) return;
+    let accuracy = 5;
+    
+    function spawnBulletAtSide(sideSign, damage, speed) {
+      // sideSign: -1 = left, +1 = right
       const bulletGeom = new THREE.SphereGeometry(2,8,8);
       const bulletMat = new THREE.MeshBasicMaterial({color:0xffff00});
       const bullet = new THREE.Mesh(bulletGeom, bulletMat);
-      const dir = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
-      bullet.position.copy(camera.position);
-      bullets.push({mesh:bullet,vel:dir.multiplyScalar(bulletSpeed)});
+    
+      const forward = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
+      const right   = new THREE.Vector3(1,0,0).applyQuaternion(camera.quaternion).normalize();
+    
+      // big screen-width style offset is fine
+      const lateralOffset = 70;   // your value
+      const depthOffset   = 5;    // spawn a bit in front of camera
+    
+      const camPos = camera.position.clone();
+    
+      // muzzle position for this side
+      const spawnPos = camPos.clone()
+        .add(right.clone().multiplyScalar(sideSign * lateralOffset))
+        .add(forward.clone().multiplyScalar(depthOffset));
+    
+      // virtual aim point far ahead, exactly along crosshair direction
+      const aimDistance = sphereRadius * 1.5;   // or 2000, 3000 etc.
+      const aimPoint = camPos.clone().add(forward.clone().multiplyScalar(aimDistance));
+    
+      // direction from muzzle → aim point (so both converge to crosshair)
+      const dir = aimPoint.clone().sub(spawnPos).normalize();
+    
+      bullet.position.copy(spawnPos);
+      bullets.push({
+        mesh: bullet,
+        vel: dir.multiplyScalar(speed),
+        damage
+      });
       scene.add(bullet);
+    }
+
+
+
+    function shoot(){
+      if (isPaused) return;
+      const now = performance.now();
+    
+      // BASE: DPS of normal weapon (depends on bulletDamage and fire rate)
+      const baseDps = bulletDamage * (1000 / autoShootRateMs);
+    
+      let thisDamage = bulletDamage;       // default for normal
+      let thisSpeed  = bulletSpeed;        // default speed
+    
+      if (weaponMode === 'heavy') {
+        // limit fire rate for heavy cannon
+        if (now - heavyLastShotTime < heavyCooldownMs) return;
+        heavyLastShotTime = now;
+    
+        // heavy shot does more damage but fires slower: DPS equal to base
+        thisDamage = baseDps * (heavyCooldownMs / 1000); // ~3x damage if cooldown is 3x
+        thisSpeed  = bulletSpeed * 0.6;                  // slower projectile for flavour
+      } else if (weaponMode === 'laser') {
+        // laser is handled as continuous in animate(), no discrete bullets
+        return;
+      }
+    
+      // twin guns: left (-1) and right (+1)
+      spawnBulletAtSide(-1, thisDamage, thisSpeed);
+      spawnBulletAtSide(+1, thisDamage, thisSpeed);
+    
       missileExplosion.currentTime = 0;
       missileFollowExp.cloneNode(true).play();
     }
+
+
 
     function launchMissile(){
       if (isPaused) return;
@@ -1090,18 +1236,20 @@
       winDiv.style.display = 'block';
       setTimeout(()=> { if(winDiv) winDiv.style.display = 'none'; }, 1800);
 
-      playerMaxShield += Math.random();
-      playerShield = Math.min(playerMaxShield, playerShield + 0.6);
-      shieldRegenRatePerSec += Math.random()*0.1;
+      playerMaxShield += Math.random()*10;
+      playerShield = playerMaxShield*1.2;
+      playerHP *= 1.1
+      shieldRegenRatePerSec += Math.random();
       bulletDamage += Math.random();
-      missileDamage += Math.random()*0.5;
+      missileDamage *= 1+Math.random()/6;
+      missileCooldownMs -= Math.random()*missileCooldownMs*0.4;
 
       enemyMaxHP *= 1.2;
       enemyMaxShield *= 1.2;
-      enemyDamage += 0.1;
+      enemyDamage += 0.01;
       enemyFireDelay = Math.max(500, enemyFireDelay - 100);
-      accuracy += 0.5;
-      console.log(`[SCALE] defeated=${defeatedCount} playerMaxShield=${playerMaxShield.toFixed(2)} bulletDmg=${bulletDamage.toFixed(2)} enemyHP=${enemyMaxHP.toFixed(1)} enemyDelay=${enemyFireDelay} accuracy=${accuracy}`);
+      accuracy = 0.3+accuracy*0.8;
+      console.log(`[SCALE] defeated=${defeatedCount} playerMaxShield=${playerMaxShield.toFixed(2)} bulletDmg=${bulletDamage.toFixed(2)} enemyHP=${enemyMaxHP.toFixed(1)}  accuracy=${accuracy}`);
 
       ensureEnemies();
     }
@@ -1113,6 +1261,31 @@
     let autoShooting = false;
     let autoIntervalId = null;
     const autoShootRateMs = 120;
+
+
+    // ---------- WEAPON SYSTEM ----------
+    
+    let weaponMode = 'normal';     // 'normal' | 'heavy' | 'laser'
+    let heavyLastShotTime = -Infinity;
+    const heavyCooldownMs = autoShootRateMs * 3; // slower fire, 3x cooldown
+    
+    let laserActive = false;       // true while laser is firing (holding Space)
+    let laserBeam = null;          // THREE.Line for visual beam
+    
+    const weaponLabel = document.getElementById('weaponLabel');
+    
+    function setWeaponMode(mode) {
+      weaponMode = mode;
+      if (weaponLabel) {
+        if (mode === 'normal') weaponLabel.textContent = 'Normal';
+        else if (mode === 'heavy') weaponLabel.textContent = 'Heavy Shot';
+        else if (mode === 'laser') weaponLabel.textContent = 'Laser';
+      }
+      if (mode !== 'laser') {
+        laserActive = false; // stop laser if switching away
+      }
+    }
+
 
     function setAutoShooting(on){
       const btn = document.getElementById('autoShootBtn');
@@ -1235,6 +1408,7 @@
       updateShockwaves(dt);
       updateSparks(dt);
 
+      
       for(let i=bullets.length-1;i>=0;i--){
         const b = bullets[i];
         b.mesh.position.add(b.vel.clone().multiplyScalar(dt*60));
@@ -1243,15 +1417,18 @@
         }
         let hitEnemy = null;
         for (const enemy of enemies) {
-          if (enemy.mesh && b.mesh.position.distanceTo(enemy.mesh.position) < 30) {
+          if (enemy.mesh && b.mesh.position.distanceTo(enemy.mesh.position) < 50) {
             hitEnemy = enemy;
             break;
           }
         }
         if (hitEnemy) {
           scene.remove(b.mesh); bullets.splice(i,1);
-          damageEnemy(hitEnemy, bulletDamage);
+          damageEnemy(hitEnemy, b.damage || bulletDamage);
+          damage.currentTime = 0;
+          damage.play();
         }
+
       }
 
       updateMissiles(dt);
@@ -1265,6 +1442,7 @@
         if(b.mesh.position.distanceTo(camera.position) < accuracy){
           scene.remove(b.mesh); enemyBullets.splice(i,1);
           damagePlayer(enemyDamage);
+          damage.play();
         }
       }
 
@@ -1306,6 +1484,40 @@
         }
       } else {
         arrow.style.display = "none";
+      }
+      // ----- LASER DPS (continuous) -----
+      if (weaponMode === 'laser' && laserActive && !gameOver) {
+        const baseDps = bulletDamage * (1000 / autoShootRateMs); // same base as others
+        const laserDps = baseDps;                                 // same DPS as heavy
+        const damageThisFrame = laserDps * dt;
+      
+        const camPos = camera.position.clone();
+        const dir = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
+      
+        let bestEnemy = null;
+        let bestT = Infinity;
+        const hitRadius = 35;
+      
+        enemies.forEach(enemy => {
+          if (!enemy || !enemy.mesh) return;
+          const toEnemy = enemy.mesh.position.clone().sub(camPos);
+          const tProj = dir.dot(toEnemy);
+          if (tProj <= 0) return; // behind the player
+          const closestPoint = camPos.clone().add(dir.clone().multiplyScalar(tProj));
+          const dist = enemy.mesh.position.distanceTo(closestPoint);
+          if (dist < hitRadius && tProj < bestT) {
+            bestT = tProj;
+            bestEnemy = enemy;
+          }
+        });
+      
+        if (bestEnemy) {
+          damageEnemy(bestEnemy, damageThisFrame);
+        }
+      
+        updateLaserBeam(true);
+      } else {
+        updateLaserBeam(false);
       }
 
       renderer.render(scene, camera);

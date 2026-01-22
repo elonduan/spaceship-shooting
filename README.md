@@ -36,3 +36,20 @@ C: change locked ship/target
 
 White bar: shield/regeneratable force field 
 Red bar: hull(+1/10 every destuction of spaceship)
+
+
+WHAT I HAVE LEARNED: 
+1. cool THREE.js library
+2. the logic of 3D collision
+3. the difference between p5.js and THREE.js
+4. HTML list <li> </li>
+5. sound FX, for example (covered in class as well):
+const missileExplosion = new Audio("https://actions.google.com/sounds/v1/weapons/big_explosion_cut_off.ogg");
+6. opacity in css
+7. how you can have a function of a variable, e.g.
+function spawnShockwave(position) {}
+8. how variable could also be: let abc = false;
+9. input key press detection: if(e.code === 'KeyM')...
+
+etc. etc. too many to write
+

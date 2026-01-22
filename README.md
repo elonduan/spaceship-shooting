@@ -11,8 +11,19 @@ Spaceship Game — practice physics & collision logic. Run index.html in the bro
 
 SNAP SHOT: 
 
-<img width="536.5" height="303" alt="image" src="https://github.com/user-attachments/assets/01806599-5d3e-40af-92ae-72b6ddaaf32f" />
-<img width="536.5" height="303" alt="image" src="https://github.com/user-attachments/assets/b423f770-64c9-46db-bcee-a29f330d9d8e" />
-<img width="536.5" height="303" alt="image" src="https://github.com/user-attachments/assets/80b782f4-25d4-472e-8ddd-4f4b35706621" />
-<img width="536.5" height="303" alt="image" src="https://github.com/user-attachments/assets/0e6afa2e-cf84-4d09-a0d3-52b88c6a18f9" />
+<img width="715" height="404" alt="image" src="https://github.com/user-attachments/assets/01806599-5d3e-40af-92ae-72b6ddaaf32f" />
+<img width="715" height="404" alt="image" src="https://github.com/user-attachments/assets/b423f770-64c9-46db-bcee-a29f330d9d8e" />
+<img width="715" height="404" alt="image" src="https://github.com/user-attachments/assets/80b782f4-25d4-472e-8ddd-4f4b35706621" />
+<img width="715" height="404" alt="image" src="https://github.com/user-attachments/assets/0e6afa2e-cf84-4d09-a0d3-52b88c6a18f9" />
+
+HOW TO PLAY:
+
+Controls: 
+
+Arrow keys: switch views
+
+A,D: rotate
+
+M: missile (cool down needed though)
+
 

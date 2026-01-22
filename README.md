@@ -35,6 +35,7 @@ slider: Rotation sensitivity
 C: change locked ship/target
 
 White bar: shield/regeneratable force field 
+
 Red bar: hull(+1/10 every destuction of spaceship)
 
 

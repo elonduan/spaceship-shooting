@@ -26,4 +26,13 @@ A,D: rotate
 
 M: missile (cool down needed though)
 
+space: shoot (or auto shoot button)
 
+1,2,3: weapons
+
+slider: Rotation sensitivity
+
+C: change locked ship/target
+
+White bar: shield/regeneratable force field 
+Red bar: hull(+1/10 every destuction of spaceship)

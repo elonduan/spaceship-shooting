@@ -6,17 +6,17 @@ This game was created by Elon using ChatGPT to assist with coding.
 
 https://elonduan.github.io/spaceship-shooting/
 
-###INTRODUCTION: 
+### INTRODUCTION: 
 Spaceship Game — practice physics & collision logic. Run index.html in the browser. I implemented movement, projectile collision, and a simple enemy AI. I’d welcome feedback on code structure and collision handling.
 
-###SNAP SHOT: 
+### SNAP SHOT: 
 
 <img width="715" height="404" alt="image" src="https://github.com/user-attachments/assets/01806599-5d3e-40af-92ae-72b6ddaaf32f" />
 <img width="715" height="404" alt="image" src="https://github.com/user-attachments/assets/b423f770-64c9-46db-bcee-a29f330d9d8e" />
 <img width="715" height="404" alt="image" src="https://github.com/user-attachments/assets/80b782f4-25d4-472e-8ddd-4f4b35706621" />
 <img width="715" height="404" alt="image" src="https://github.com/user-attachments/assets/0e6afa2e-cf84-4d09-a0d3-52b88c6a18f9" />
 
-###HOW TO PLAY:
+### HOW TO PLAY:
 
 Controls: 
 
@@ -39,7 +39,7 @@ White bar: shield/regeneratable force field
 Red bar: hull(+1/10 every destuction of spaceship)
 
 
-###WHAT I HAVE LEARNED: 
+### WHAT I HAVE LEARNED: 
 1. cool THREE.js library
 2. the logic of 3D collision
 3. the difference between p5.js and THREE.js

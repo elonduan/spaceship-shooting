@@ -2,7 +2,7 @@
 
 This game was created by Elon using ChatGPT to assist with coding.
 
-##The link for this game is here:
+## The link for this game is here:
 
 https://elonduan.github.io/spaceship-shooting/
 

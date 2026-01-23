@@ -1095,13 +1095,20 @@
       if (!enemy || !enemy.mesh) return;
 
       if (isPrimary && keys['KeyG'] && camera) {
-        const camForward = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
-        const targetPoint = camera.position.clone().add(camForward.multiplyScalar(800));
-        const desiredToPoint = targetPoint.clone().sub(enemy.pos).normalize().multiplyScalar(enemySpeed);
-        enemy.vel.lerp(desiredToPoint, Math.min(1, 0.08 * (dt * 60)));
-        enemy.desiredVel.copy(enemy.vel);
-        enemy.nextSteerChange = performance.now() + 400;
-      } else {
+        const camForward = new THREE.Vector3(0, 0, -1)
+          .applyQuaternion(camera.quaternion)
+          .normalize();
+      
+        // Aim *through* the crosshair relative to enemy position
+        const toTargetDir = camForward.clone();
+      
+        // Desired velocity = direction only (no magnitude fighting)
+        enemy.desiredVel.copy(toTargetDir.multiplyScalar(enemySpeed));
+      
+        // Smooth steering (frame-rate independent)
+        const steerStrength = 0.06 * (dt * 60);
+        enemy.vel.lerp(enemy.desiredVel, Math.min(1, steerStrength));
+      }else {
         if(performance.now() > enemy.nextSteerChange){
           enemy.desiredVel = randomUnit().multiplyScalar(enemySpeed);
           enemy.nextSteerChange = performance.now() + steerMin + Math.random()*(steerMax - steerMin);
@@ -1109,7 +1116,10 @@
         enemy.vel.lerp(enemy.desiredVel, Math.min(1, steerLerpFactor * (dt*60)));
       }
 
-      enemy.vel.setLength(enemySpeed);
+      if (enemy.vel.lengthSq() > 0.0001) {
+        enemy.vel.normalize().multiplyScalar(enemySpeed);
+      }
+
       enemy.pos.add(enemy.vel.clone().multiplyScalar(dt * 60));
 
       const dist = enemy.pos.length();

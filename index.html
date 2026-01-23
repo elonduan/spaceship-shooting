@@ -910,8 +910,8 @@
     });
 
     function updateCamera(dt){
-      // rotation scaled to be frame-rate independent (keeps same feel as original)
-      const frameScale = Math.min(4, Math.max(0.5, dt * 60)); // small safety clamp
+      // rotation (frame-rate independent)
+      const frameScale = Math.min(4, Math.max(0.5, dt * 60));
       const ang = accel * frameScale;
     
       if (keys['ArrowDown'])  camera.rotateX(-ang);
@@ -921,28 +921,42 @@
       if (keys['KeyA'])       camera.rotateZ( ang);
       if (keys['KeyD'])       camera.rotateZ(-ang);
     
-      // --- PLAYER TRANSLATION when holding G (moves the camera/player) ---
-      // Player movement units are scene units (enemies use enemySpeed ~3). Tune playerMoveSpeed to taste.
-      const playerMoveSpeed = 4.5; // change to make player move slower/faster
-      if (keys['KeyG']) {
-        const forward = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
-        // move scaled similarly to enemy movement (uses dt * 60 in other places)
-        const moveStep = forward.multiplyScalar(playerMoveSpeed * dt * 60);
-        camera.position.add(moveStep);
+      // --- PLAYER TRANSLATION (6DOF) ---
+      // Tune this for speed: larger => faster movement
+      const playerMoveSpeed = 4.5; // scene units per "tick" baseline
+      const moveScale = playerMoveSpeed * dt * 60; // matches other movement scaling used elsewhere
     
-        // Keep the camera inside the playable sphere (prevent leaving the world or plunging through odd geometry)
-        const maxRadius = Math.max(50, sphereRadius * 0.9); // don't let player go beyond 90% of sphere radius
+      // local basis vectors relative to camera orientation
+      const forward = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
+      const right   = new THREE.Vector3(1,0,0).applyQuaternion(camera.quaternion).normalize();
+      const up      = new THREE.Vector3(0,1,0).applyQuaternion(camera.quaternion).normalize();
+    
+      // accumulate movement from keys
+      const moveDir = new THREE.Vector3();
+      if (keys['KeyG']) moveDir.add(forward);   // forward
+      if (keys['KeyH']) moveDir.sub(forward);   // backward
+      if (keys['KeyJ']) moveDir.add(right);     // right
+      if (keys['KeyF']) moveDir.sub(right);     // left
+      if (keys['KeyT'] || keys['KeyY']) moveDir.add(up);    // up (either T or Y)
+      if (keys['KeyN']) moveDir.sub(up);        // down
+    
+      // apply movement (normalize so diagonals don't make you faster)
+      if (moveDir.lengthSq() > 0) {
+        moveDir.normalize();
+        camera.position.add(moveDir.multiplyScalar(moveScale));
+    
+        // clamp camera inside playable area
+        const maxRadius = Math.max(50, sphereRadius * 0.9);
         if (camera.position.length() > maxRadius) {
           camera.position.setLength(maxRadius);
         }
     
-        // Optionally keep camera from getting exactly at center (rare), but allow small radius.
-        const minRadius = 0.0; // set >0 if you want a minimum distance from center
-        if (camera.position.length() < minRadius) {
-          camera.position.setLength(minRadius);
-        }
+        // optional small min radius protection (prevent exactly at center if undesired)
+        const minRadius = 0.0;
+        if (camera.position.length() < minRadius) camera.position.setLength(minRadius);
       }
     }
+
 
 
     const bullets = [];
@@ -1274,7 +1288,6 @@
       setTimeout(()=> { if(winDiv) winDiv.style.display = 'none'; }, 1800);
 
       playerMaxShield += Math.random()*10;
-      playerShield = playerMaxShield*1.2;
       playerHP *= 1.1
       shieldRegenRatePerSec += Math.random();
       bulletDamage += Math.random();

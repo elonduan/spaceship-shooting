@@ -1093,49 +1093,75 @@
 
     function stepEnemy(enemy, dt, isPrimary){
       if (!enemy || !enemy.mesh) return;
-
+    
+      // --- G steering (primary enemy) ---
       if (isPrimary && keys['KeyG'] && camera) {
-        const camForward = new THREE.Vector3(0, 0, -1)
-          .applyQuaternion(camera.quaternion)
-          .normalize();
-      
-        // Aim *through* the crosshair relative to enemy position
-        const toTargetDir = camForward.clone();
-      
-        // Desired velocity = direction only (no magnitude fighting)
-        enemy.desiredVel.copy(toTargetDir.multiplyScalar(enemySpeed));
-      
-        // Smooth steering (frame-rate independent)
-        const steerStrength = 0.06 * (dt * 60);
-        enemy.vel.lerp(enemy.desiredVel, Math.min(1, steerStrength));
-      }else {
-        if(performance.now() > enemy.nextSteerChange){
+        // camera forward & position
+        const camForward = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
+        const camPos = camera.position.clone();
+    
+        // project vector from camera to enemy onto camera forward to get the best t
+        // (this finds the point along the camera ray that's closest to the enemy)
+        const toEnemy = enemy.pos.clone().sub(camPos);
+        let t = camForward.dot(toEnemy);
+        if (t < 60) t = 60; // don't aim too close to camera
+    
+        const aimPoint = camPos.clone().add(camForward.clone().multiplyScalar(t));
+        const desiredDir = aimPoint.clone().sub(enemy.pos).normalize();
+    
+        // steering strength: how fast the enemy turns toward desiredDir (per-frame, dt-aware)
+        // tweak the multiplier (5) if you want faster/slower turning
+        const steerStrength = Math.min(1, 5 * dt);
+    
+        // current forward direction (fallback to desiredVel if vel is tiny)
+        let curDir = enemy.vel.clone();
+        if (curDir.lengthSq() < 1e-6) curDir = enemy.desiredVel.clone();
+        curDir.normalize();
+    
+        // lerp direction, then set velocity with preserved desired speed
+        const newDir = curDir.lerp(desiredDir, steerStrength).normalize();
+        enemy.vel.copy(newDir.multiplyScalar(enemySpeed));
+    
+        // keep desiredVel consistent (used by idle steering)
+        enemy.desiredVel.copy(enemy.vel);
+    
+        // set a short cooldown so the random steering won't immediately overwrite us
+        enemy.nextSteerChange = performance.now() + 200;
+      } else {
+        // --- normal wandering steering ---
+        if (performance.now() > (enemy.nextSteerChange || 0)) {
           enemy.desiredVel = randomUnit().multiplyScalar(enemySpeed);
           enemy.nextSteerChange = performance.now() + steerMin + Math.random()*(steerMax - steerMin);
         }
-        enemy.vel.lerp(enemy.desiredVel, Math.min(1, steerLerpFactor * (dt*60)));
+        const smoothFactor = Math.min(1, steerLerpFactor * (dt * 60));
+        enemy.vel.lerp(enemy.desiredVel, smoothFactor);
+        // ensure not collapsing to zero
+        if (enemy.vel.lengthSq() < 1e-6) enemy.vel.copy(enemy.desiredVel);
       }
-
-      if (enemy.vel.lengthSq() > 0.0001) {
-        enemy.vel.normalize().multiplyScalar(enemySpeed);
-      }
-
+    
+      // --- move ---
       enemy.pos.add(enemy.vel.clone().multiplyScalar(dt * 60));
-
+    
+      // --- sphere boundary: gently push back and reflect (avoid instant teleports) ---
       const dist = enemy.pos.length();
-      if(dist >= sphereRadius){
+      if (dist >= sphereRadius) {
         const normal = enemy.pos.clone().normalize();
-        enemy.pos.copy(normal.clone().multiplyScalar(sphereRadius - 1));
+        // gently nudge inside so steering doesn't immediately fight the boundary
+        enemy.pos.copy(normal.clone().multiplyScalar(sphereRadius - 2));
+    
+        // reflect velocity away from the normal, keep the magnitude stable
         const v = enemy.vel.clone();
         const dot = v.dot(normal);
-        const reflected = v.clone().sub(normal.clone().multiplyScalar(2*dot));
-        enemy.vel.copy(reflected.setLength(enemySpeed));
-        enemy.desiredVel.copy(enemy.vel);
+        const reflected = v.clone().sub(normal.clone().multiplyScalar(2 * dot)).normalize().multiplyScalar(enemySpeed);
+        enemy.vel.copy(reflected);
+        enemy.desiredVel.copy(reflected);
       }
-
+    
+      // apply to mesh and orientation
       enemy.mesh.position.copy(enemy.pos);
       alignShipToVelocity(enemy, 0.25);
     }
+
 
     const trailParticles = [];
     const trailMaterial = new THREE.MeshBasicMaterial({

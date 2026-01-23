@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Ball Shooter</title>
+  <title>Ball Shooter — 3rd Person</title>
   <style>
     html,body{height:100%;margin:0;background:#000;color:#ddd;font-family:system-ui,-apple-system,Segoe UI,Roboto;overflow:hidden}
     #overlay{position:fixed;left:12px;top:12px;z-index:10;max-width:420px}
@@ -208,6 +208,7 @@
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/p5@1.5.0/lib/p5.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/js/loaders/STLLoader.js"></script>
+
   <script>
     const missileExplosion = new Audio("https://actions.google.com/sounds/v1/weapons/big_explosion_cut_off.ogg");
     const missileFollowExp = new Audio("https://actions.google.com/sounds/v1/weapons/auto_bullets_flyby_short.ogg");
@@ -215,6 +216,7 @@
     const damage = new Audio("https://actions.google.com/sounds/v1/impacts/face_hit_series.ogg");
     missileFollowExp.volume = 0.5;
   </script>
+
   <script>
   (function(){
 
@@ -243,6 +245,7 @@
     }
     scene.add(createStars());
 
+    // (helper textures and star functions kept unchanged)
     function makeRadialTextureStar(size = 256) {
       const c = document.createElement('canvas');
       c.width = c.height = size;
@@ -391,9 +394,8 @@
       }, 120);
     }
 
-    // SMOKE
+    // SMOKE (unchanged)
     const smokeGeo = new THREE.SphereGeometry(6, 10, 10);
-
     function addSmokeAt(position) {
       const mat = new THREE.MeshBasicMaterial({
         color: 0x444444,
@@ -443,7 +445,7 @@
       }
     }
 
-    // SPARKS
+    // SPARKS (unchanged)
     function addSparks(enemy, count = 4) {
       if (!enemy || !enemy.mesh) return;
       const basePos = enemy.mesh.position;
@@ -485,7 +487,7 @@
       }
     }
 
-    // EXPLOSION + SHOCKWAVE
+    // EXPLOSION + SHOCKWAVE (unchanged)
     function spawnExplosion(position) {
       const pos = position.clone();
 
@@ -582,24 +584,21 @@
         }
       }
     }
-    // -------- LASER VISUAL LINE --------
-// -------- LASER VISUAL BEAM (cylinder) --------
+
+    // LASER BEAM code retained (visual beam uses camera)
     function ensureLaserBeam() {
       if (laserBeam) return;
-    
-      // thin cylinder, height=1; we'll scale it
       const geo = new THREE.CylinderGeometry(0.6, 0.6, 100, 16, 1, true);
       const mat = new THREE.MeshBasicMaterial({
         color: 0xff4444,
         transparent: true,
         opacity: 0.9
       });
-    
       laserBeam = new THREE.Mesh(geo, mat);
       laserBeam.visible = false;
       scene.add(laserBeam);
     }
-    
+
     function updateLaserBeam(active) {
       ensureLaserBeam();
       if (!active) {
@@ -607,24 +606,16 @@
         return;
       }
       laserBeam.visible = true;
-    
       const origin = camera.position.clone();
       const dir = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
-      const length = sphereRadius * 2; // long beam
-    
-      // center of the cylinder is halfway along the beam
+      const length = sphereRadius * 2;
       const mid = origin.clone().add(dir.clone().multiplyScalar(length / 2));
       laserBeam.position.copy(mid);
-    
-      // orient cylinder so its Y axis points along 'dir'
       const up = new THREE.Vector3(0,1,0);
       const q = new THREE.Quaternion().setFromUnitVectors(up, dir);
       laserBeam.quaternion.copy(q);
-    
-      // stretch height along Y
       laserBeam.scale.set(1, length, 1);
     }
-
 
     function randomUnit(){
       const v = new THREE.Vector3(Math.random()*2-1, Math.random()*2-1, Math.random()*2-1);
@@ -846,41 +837,29 @@
 
     window.addEventListener('keydown',(e)=>{
       if(isPaused) return;
-    
+
       // FIRE
-      if(e.code === 'Space'){ 
+      if(e.code === 'Space'){
         if (weaponMode === 'laser') {
-          // start continuous laser
           laserActive = true;
         } else {
-          // normal / heavy = discrete shots
           shoot();
         }
         return;
       }
 
-      
       // MISSILE
-      if(e.code === 'KeyM'){ 
+      if(e.code === 'KeyM'){
         launchMissile();
         return;
       }
-    
+
       // WEAPON MODE SWITCH
-      if (e.code === 'Digit1') {
-        setWeaponMode('normal');
-        return;
-      }
-      if (e.code === 'Digit2') {
-        setWeaponMode('heavy');
-        return;
-      }
-      if (e.code === 'Digit3') {
-        setWeaponMode('laser');
-        return;
-      }
-    
-      // C: cycle selected enemy (keep your existing behaviour)
+      if (e.code === 'Digit1') { setWeaponMode('normal'); return; }
+      if (e.code === 'Digit2') { setWeaponMode('heavy'); return; }
+      if (e.code === 'Digit3') { setWeaponMode('laser'); return; }
+
+      // C: cycle selected enemy
       if(e.code === 'KeyC'){
         if (enemies.length > 0) {
           selectedEnemyIndex = (selectedEnemyIndex + 1) % enemies.length;
@@ -888,111 +867,61 @@
         }
         return;
       }
-    
+
       // RESET
-      if(e.key === 'r' || e.key === 'R'){ 
+      if(e.key === 'r' || e.key === 'R'){
         reset();
         return;
       }
-    
-      // movement / roll keys
+
+      // movement / roll keys (we still record)
       pressKey(e.code);
     });
-
 
     window.addEventListener('keyup',(e)=>{
       if(isPaused) return;
       if (e.code === 'Space' && weaponMode === 'laser') {
-        laserActive = false; // stop continuous beam
+        laserActive = false;
         return;
       }
       if(e.code !== 'Space' && e.code !== 'KeyM') releaseKey(e.code);
     });
 
-    function updateCamera(dt){
-      // rotation (frame-rate independent)
-      const frameScale = Math.min(4, Math.max(0.5, dt * 60));
-      const ang = accel * frameScale;
-    
-      if (keys['ArrowDown'])  camera.rotateX(-ang);
-      if (keys['ArrowUp'])    camera.rotateX( ang);
-      if (keys['ArrowLeft'])  camera.rotateY( ang);
-      if (keys['ArrowRight']) camera.rotateY(-ang);
-      if (keys['KeyA'])       camera.rotateZ( ang);
-      if (keys['KeyD'])       camera.rotateZ(-ang);
-    
-      // --- PLAYER TRANSLATION (6DOF) ---
-      // Tune this for speed: larger => faster movement
-      const playerMoveSpeed = 4.5; // scene units per "tick" baseline
-      const moveScale = playerMoveSpeed * dt * 60; // matches other movement scaling used elsewhere
-    
-      // local basis vectors relative to camera orientation
-      const forward = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
-      const right   = new THREE.Vector3(1,0,0).applyQuaternion(camera.quaternion).normalize();
-      const up      = new THREE.Vector3(0,1,0).applyQuaternion(camera.quaternion).normalize();
-    
-      // accumulate movement from keys
-      const moveDir = new THREE.Vector3();
-      if (keys['KeyG']) moveDir.add(forward);   // forward
-      if (keys['KeyH']) moveDir.sub(forward);   // backward
-      if (keys['KeyJ']) moveDir.add(right);     // right
-      if (keys['KeyF']) moveDir.sub(right);     // left
-      if (keys['KeyT'] || keys['KeyY']) moveDir.add(up);    // up (either T or Y)
-      if (keys['KeyN']) moveDir.sub(up);        // down
-    
-      // apply movement (normalize so diagonals don't make you faster)
-      if (moveDir.lengthSq() > 0) {
-        moveDir.normalize();
-        camera.position.add(moveDir.multiplyScalar(moveScale));
-    
-        // clamp camera inside playable area
-        const maxRadius = Math.max(50, sphereRadius * 0.9);
-        if (camera.position.length() > maxRadius) {
-          camera.position.setLength(maxRadius);
-        }
-    
-        // optional small min radius protection (prevent exactly at center if undesired)
-        const minRadius = 0.0;
-        if (camera.position.length() < minRadius) camera.position.setLength(minRadius);
-      }
-    }
+    // ---------- PLAYER (3rd-person) ----------
+    let player = null; // will be { mesh, pos, vel, hp... }
+    const modelForwardLocal = new THREE.Vector3(0, -1, 0); // forward in model local space
 
-
-
+    // bullets and missiles arrays kept
     const bullets = [];
     const enemyBullets = [];
     const missiles = [];
     const bulletSpeed = 125;
     const missileSpeed = 4.5;
     let accuracy = 5;
-    
+
     function spawnBulletAtSide(sideSign, damage, speed) {
-      // sideSign: -1 = left, +1 = right
       const bulletGeom = new THREE.SphereGeometry(2,8,8);
       const bulletMat = new THREE.MeshBasicMaterial({color:0xffff00});
       const bullet = new THREE.Mesh(bulletGeom, bulletMat);
-    
-      const forward = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
-      const right   = new THREE.Vector3(1,0,0).applyQuaternion(camera.quaternion).normalize();
-    
-      // big screen-width style offset is fine
-      const lateralOffset = 70;   // your value
-      const depthOffset   = 5;    // spawn a bit in front of camera
-    
-      const camPos = camera.position.clone();
-    
-      // muzzle position for this side
-      const spawnPos = camPos.clone()
+
+      // Use player's orientation and position for origin & aim
+      const forward = modelForwardLocal.clone().applyQuaternion(player.mesh.quaternion).normalize();
+      const right   = new THREE.Vector3(1,0,0).applyQuaternion(player.mesh.quaternion).normalize();
+
+      const lateralOffset = 12;   // relative to ship
+      const depthOffset   = 24;    // in front of ship
+
+      const spawnPos = player.mesh.position.clone()
         .add(right.clone().multiplyScalar(sideSign * lateralOffset))
         .add(forward.clone().multiplyScalar(depthOffset));
-    
-      // virtual aim point far ahead, exactly along crosshair direction
-      const aimDistance = sphereRadius * 1.5;   // or 2000, 3000 etc.
-      const aimPoint = camPos.clone().add(forward.clone().multiplyScalar(aimDistance));
-    
-      // direction from muzzle → aim point (so both converge to crosshair)
+
+      // aim point: far ahead along camera forward (so crosshair alignment remains)
+      const aimDir = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
+      const aimDistance = sphereRadius * 1.5;
+      const aimPoint = camera.position.clone().add(aimDir.clone().multiplyScalar(aimDistance));
+
       const dir = aimPoint.clone().sub(spawnPos).normalize();
-    
+
       bullet.position.copy(spawnPos);
       bullets.push({
         mesh: bullet,
@@ -1002,43 +931,34 @@
       scene.add(bullet);
     }
 
-
-
     function shoot(){
-      if (isPaused) return;
+      if (isPaused || !player) return;
       const now = performance.now();
-    
-      // BASE: DPS of normal weapon (depends on bulletDamage and fire rate)
+
       const baseDps = bulletDamage * (1000 / autoShootRateMs);
-    
-      let thisDamage = bulletDamage;       // default for normal
-      let thisSpeed  = bulletSpeed;        // default speed
-    
+
+      let thisDamage = bulletDamage;
+      let thisSpeed  = bulletSpeed;
+
       if (weaponMode === 'heavy') {
-        // limit fire rate for heavy cannon
         if (now - heavyLastShotTime < heavyCooldownMs) return;
         heavyLastShotTime = now;
-    
-        // heavy shot does more damage but fires slower: DPS equal to base
-        thisDamage = baseDps * (heavyCooldownMs / 1000); // ~3x damage if cooldown is 3x
-        thisSpeed  = bulletSpeed * 0.6;                  // slower projectile for flavour
+        thisDamage = baseDps * (heavyCooldownMs / 1000);
+        thisSpeed  = bulletSpeed * 0.6;
       } else if (weaponMode === 'laser') {
-        // laser is handled as continuous in animate(), no discrete bullets
         return;
       }
-    
-      // twin guns: left (-1) and right (+1)
+
       spawnBulletAtSide(-1, thisDamage, thisSpeed);
       spawnBulletAtSide(+1, thisDamage, thisSpeed);
-    
-      missileExplosion.currentTime = 0;
-      missileFollowExp.cloneNode(true).play();
+
+      if (missileFollowExp) {
+        try { missileFollowExp.cloneNode(true).play(); } catch(e){}
+      }
     }
 
-
-
     function launchMissile(){
-      if (isPaused) return;
+      if (isPaused || !player) return;
       if(!missileGeometry) return;
       const now = performance.now();
       const ui = document.getElementById('missileCountUI');
@@ -1065,9 +985,9 @@
       });
       const missile = new THREE.Mesh(geom, missileMat);
       missile.scale.set(0.4, 0.4, 0.4);
-      const dir = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
-      missile.position.copy(camera.position.clone().add(dir.clone().multiplyScalar(10)));
-      const initialVel = dir.clone().multiplyScalar(missileSpeed);
+      const forward = modelForwardLocal.clone().applyQuaternion(player.mesh.quaternion).normalize();
+      missile.position.copy(player.mesh.position.clone().add(forward.clone().multiplyScalar(30)));
+      const initialVel = forward.clone().multiplyScalar(missileSpeed);
       missiles.push({
         mesh: missile,
         vel: initialVel,
@@ -1082,7 +1002,7 @@
       const bulletGeom = new THREE.SphereGeometry(2,8,8);
       const bulletMat = new THREE.MeshBasicMaterial({color:0x00ffff});
       const bullet = new THREE.Mesh(bulletGeom, bulletMat);
-      const dir = camera.position.clone().sub(enemy.mesh.position).normalize();
+      const dir = player.mesh.position.clone().sub(enemy.mesh.position).normalize();
       bullet.position.copy(enemy.mesh.position);
       enemyBullets.push({mesh:bullet,vel:dir.multiplyScalar(bulletSpeed*0.8)});
       scene.add(bullet);
@@ -1090,8 +1010,6 @@
       const delay = Math.max(150, enemyFireDelay + jitter);
       setTimeout(()=> enemyShoot(enemy), delay);
     }
-
-    const modelForwardLocal = new THREE.Vector3(0, -1, 0);
 
     function alignShipToVelocity(enemy, t = 0.35){
       if(!enemy || !enemy.mesh) return;
@@ -1133,51 +1051,38 @@
 
     function stepEnemy(enemy, dt, isPrimary){
       if (!enemy || !enemy.mesh) return;
-    
-      // Normal wandering: occasionally pick a new desiredVel, then lerp toward it.
+
       if (performance.now() > (enemy.nextSteerChange || 0)) {
         enemy.desiredVel = randomUnit().multiplyScalar(enemySpeed);
         enemy.nextSteerChange = performance.now() + steerMin + Math.random()*(steerMax - steerMin);
       }
-    
-      // Smoothly steer toward desiredVel (frame-rate aware)
+
       const smoothFactor = Math.min(1, steerLerpFactor * (dt * 60));
       enemy.vel.lerp(enemy.desiredVel, smoothFactor);
-    
-      // Ensure we maintain a stable speed (without instant snapping)
+
       if (enemy.vel.lengthSq() < 1e-6) {
         enemy.vel.copy(enemy.desiredVel);
       }
-      // Normalize the velocity magnitude to the enemySpeed
       if (enemy.vel.lengthSq() > 1e-8) {
         enemy.vel.normalize().multiplyScalar(enemySpeed);
       }
-    
-      // Move
+
       enemy.pos.add(enemy.vel.clone().multiplyScalar(dt * 60));
-    
-      // Gentle sphere boundary handling
+
       const dist = enemy.pos.length();
       if (dist >= sphereRadius) {
         const normal = enemy.pos.clone().normalize();
-        // Nudge inside slightly so we don't fight steering
         enemy.pos.copy(normal.clone().multiplyScalar(sphereRadius - 1));
-        // Reflect velocity away from normal while preserving speed
         const v = enemy.vel.clone();
         const dot = v.dot(normal);
         const reflected = v.clone().sub(normal.clone().multiplyScalar(2 * dot)).normalize().multiplyScalar(enemySpeed);
         enemy.vel.copy(reflected);
         enemy.desiredVel.copy(reflected);
       }
-    
-      // Apply to mesh and orient
+
       enemy.mesh.position.copy(enemy.pos);
       alignShipToVelocity(enemy, 0.25);
     }
-
-
-
-
 
     const trailParticles = [];
     const trailMaterial = new THREE.MeshBasicMaterial({
@@ -1312,18 +1217,14 @@
     let autoIntervalId = null;
     const autoShootRateMs = 120;
 
-
     // ---------- WEAPON SYSTEM ----------
-    
-    let weaponMode = 'normal';     // 'normal' | 'heavy' | 'laser'
+    let weaponMode = 'normal';
     let heavyLastShotTime = -Infinity;
-    const heavyCooldownMs = autoShootRateMs * 3; // slower fire, 3x cooldown
-    
-    let laserActive = false;       // true while laser is firing (holding Space)
-    let laserBeam = null;          // THREE.Line for visual beam
-    
+    const heavyCooldownMs = autoShootRateMs * 3;
+    let laserActive = false;
+    let laserBeam = null;
     const weaponLabel = document.getElementById('weaponLabel');
-    
+
     function setWeaponMode(mode) {
       weaponMode = mode;
       if (weaponLabel) {
@@ -1332,10 +1233,9 @@
         else if (mode === 'laser') weaponLabel.textContent = 'Laser';
       }
       if (mode !== 'laser') {
-        laserActive = false; // stop laser if switching away
+        laserActive = false;
       }
     }
-
 
     function setAutoShooting(on){
       const btn = document.getElementById('autoShootBtn');
@@ -1407,6 +1307,64 @@
       }
     }
 
+    // ---------- PLAYER & CAMERA UPDATE ----------
+    const cameraFollowOffset = new THREE.Vector3(0, 80, 200); // fallback (we use forward-based offset)
+    function updatePlayerAndCamera(dt){
+      if(!player) return;
+      // rotations from keys (local ship rotations)
+      const frameScale = Math.min(4, Math.max(0.5, dt * 60));
+      const ang = accel * frameScale;
+
+      // pitch
+      if (keys['ArrowDown'])  player.mesh.rotateX(-ang);
+      if (keys['ArrowUp'])    player.mesh.rotateX( ang);
+      // yaw (rotate around local Y)
+      if (keys['ArrowLeft'])  player.mesh.rotateY( ang);
+      if (keys['ArrowRight']) player.mesh.rotateY(-ang);
+      // roll
+      if (keys['KeyA'])       player.mesh.rotateZ( ang);
+      if (keys['KeyD'])       player.mesh.rotateZ(-ang);
+
+      // --- PLAYER TRANSLATION (local) ---
+      const playerMoveSpeed = 4.5;
+      const moveScale = playerMoveSpeed * dt * 60;
+
+      const forward = modelForwardLocal.clone().applyQuaternion(player.mesh.quaternion).normalize();
+      const right   = new THREE.Vector3(1,0,0).applyQuaternion(player.mesh.quaternion).normalize();
+      const up      = new THREE.Vector3(0,1,0); // world up
+
+      const moveDir = new THREE.Vector3();
+      if (keys['KeyG']) moveDir.add(forward);   // forward
+      if (keys['KeyH']) moveDir.sub(forward);   // backward
+      if (keys['KeyJ']) moveDir.add(right);     // right
+      if (keys['KeyF']) moveDir.sub(right);     // left
+      if (keys['KeyT'] || keys['KeyY']) moveDir.add(up);    // up (world)
+      if (keys['KeyN']) moveDir.sub(up);        // down
+
+      if (moveDir.lengthSq() > 0) {
+        moveDir.normalize();
+        player.mesh.position.add(moveDir.multiplyScalar(moveScale));
+        const maxRadius = Math.max(50, sphereRadius * 0.9);
+        if (player.mesh.position.length() > maxRadius) {
+          player.mesh.position.setLength(maxRadius);
+        }
+      }
+
+      // update camera: place behind & above relative to player's forward
+      const forwardWorld = modelForwardLocal.clone().applyQuaternion(player.mesh.quaternion).normalize();
+      const desiredCamPos = player.mesh.position.clone()
+        .add(forwardWorld.clone().multiplyScalar(-180))   // behind
+        .add(new THREE.Vector3(0, 60, 0));                // up in world Y
+
+      // smooth follow
+      camera.position.lerp(desiredCamPos, 0.14);
+
+      // aim point a bit in front of ship so the camera looks forward
+      const lookAtPoint = player.mesh.position.clone().add(forwardWorld.clone().multiplyScalar(30));
+      camera.lookAt(lookAtPoint);
+    }
+
+    // ---------- MAIN ANIMATE ----------
     function animate(t){
       ensureEnemies();
       requestAnimationFrame(animate);
@@ -1458,7 +1416,6 @@
       updateShockwaves(dt);
       updateSparks(dt);
 
-      
       for(let i=bullets.length-1;i>=0;i--){
         const b = bullets[i];
         b.mesh.position.add(b.vel.clone().multiplyScalar(dt*60));
@@ -1476,7 +1433,7 @@
           scene.remove(b.mesh); bullets.splice(i,1);
           damageEnemy(hitEnemy, b.damage || bulletDamage);
           damage.currentTime = 0;
-          damage.play();
+          try{ damage.play(); }catch(e){}
         }
 
       }
@@ -1489,14 +1446,15 @@
         if(b.mesh.position.length()>sphereRadius*2){
           scene.remove(b.mesh); enemyBullets.splice(i,1); continue;
         }
-        if(b.mesh.position.distanceTo(camera.position) < accuracy){
+        if(b.mesh.position.distanceTo(player.mesh.position) < accuracy){
           scene.remove(b.mesh); enemyBullets.splice(i,1);
           damagePlayer(enemyDamage);
-          damage.play();
+          try{ damage.play(); }catch(e){}
         }
       }
 
-      updateCamera(dt);
+      // camera & player update (replaces old updateCamera)
+      updatePlayerAndCamera(dt);
 
       const primary = getPrimaryEnemy();
       if (primary && primary.mesh) {
@@ -1535,24 +1493,25 @@
       } else {
         arrow.style.display = "none";
       }
-      // ----- LASER DPS (continuous) -----
+
+      // LASER DPS:
       if (weaponMode === 'laser' && laserActive && !gameOver) {
-        const baseDps = bulletDamage * (1000 / autoShootRateMs); // same base as others
-        const laserDps = baseDps;                                 // same DPS as heavy
+        const baseDps = bulletDamage * (1000 / autoShootRateMs);
+        const laserDps = baseDps;
         const damageThisFrame = laserDps * dt;
-      
+
         const camPos = camera.position.clone();
         const dir = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
-      
+
         let bestEnemy = null;
         let bestT = Infinity;
         const hitRadius = 35;
-      
+
         enemies.forEach(enemy => {
           if (!enemy || !enemy.mesh) return;
           const toEnemy = enemy.mesh.position.clone().sub(camPos);
           const tProj = dir.dot(toEnemy);
-          if (tProj <= 0) return; // behind the player
+          if (tProj <= 0) return;
           const closestPoint = camPos.clone().add(dir.clone().multiplyScalar(tProj));
           const dist = enemy.mesh.position.distanceTo(closestPoint);
           if (dist < hitRadius && tProj < bestT) {
@@ -1560,11 +1519,11 @@
             bestEnemy = enemy;
           }
         });
-      
+
         if (bestEnemy) {
           damageEnemy(bestEnemy, damageThisFrame);
         }
-      
+
         updateLaserBeam(true);
       } else {
         updateLaserBeam(false);
@@ -1574,11 +1533,32 @@
       updateMissileUI();
     }
 
+    // ---------- Initialization of models, player, enemies ----------
     loadModels().then(() => {
+      // create player ship using spaceshipGeometry
+      player = {
+        mesh: new THREE.Mesh(spaceshipGeometry, spaceshipMaterial.clone()),
+        hp: playerHP,
+        shield: playerShield,
+        vel: new THREE.Vector3()
+      };
+      player.mesh.scale.set(0.7, 0.7, 0.7);
+      player.mesh.position.set(0, 0, 0);
+      scene.add(player.mesh);
+
+      // initial camera placement (behind & above)
+      const forwardWorld = modelForwardLocal.clone().applyQuaternion(player.mesh.quaternion).normalize();
+      const initCam = player.mesh.position.clone()
+        .add(forwardWorld.clone().multiplyScalar(-180))
+        .add(new THREE.Vector3(0,60,0));
+      camera.position.copy(initCam);
+      camera.lookAt(player.mesh.position.clone().add(forwardWorld.clone().multiplyScalar(30)));
+
       ensureEnemies();
       animate();
     }).catch(err => console.error(err));
 
+    // ---------- Reset function ----------
     function reset(){
       playerHP = playerMaxHP;
       playerShield = playerMaxShield;
@@ -1617,6 +1597,12 @@
 
       defeatedCount = 0;
       updateDefeatedUI();
+
+      // reset player
+      if (player && player.mesh) {
+        player.mesh.position.set(0,0,0);
+        player.mesh.quaternion.set(0,0,0,1);
+      }
     }
 
     document.getElementById('resetBtn').addEventListener('click', reset);

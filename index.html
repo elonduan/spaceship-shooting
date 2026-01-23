@@ -1287,16 +1287,16 @@
       winDiv.style.display = 'block';
       setTimeout(()=> { if(winDiv) winDiv.style.display = 'none'; }, 1800);
 
-      playerMaxShield += Math.random()*3;
+      playerMaxShield += Math.random()*2;
       playerHP *= 1.1
       shieldRegenRatePerSec += Math.random();
       bulletDamage += Math.random();
       missileDamage *= 1+Math.random()/6;
       missileCooldownMs -= Math.random()*missileCooldownMs*0.4;
 
-      enemyMaxHP *= 1.2;
+      enemyMaxHP *= 1.1;
       enemyMaxShield *= 1.1;
-      enemyDamage += 0.01;
+      enemyDamage += 1;
       enemyFireDelay = Math.max(300, enemyFireDelay - 100);
       accuracy = 0.3+accuracy*0.8;
       console.log(`[SCALE] defeated=${defeatedCount} playerMaxShield=${playerMaxShield.toFixed(2)} bulletDmg=${bulletDamage.toFixed(2)} enemyHP=${enemyMaxHP.toFixed(1)}  accuracy=${accuracy}`);

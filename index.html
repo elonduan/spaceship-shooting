@@ -1094,73 +1094,99 @@
     function stepEnemy(enemy, dt, isPrimary){
       if (!enemy || !enemy.mesh) return;
     
-      // --- G steering (primary enemy) ---
+      // remember previous pos so we can derive a velocity from the positional change
+      const prevPos = enemy.pos.clone();
+    
+      // === G steering: rotate enemy position along the sphere toward camera forward ===
       if (isPrimary && keys['KeyG'] && camera) {
-        // camera forward & position
+        // camera forward from camera origin
         const camForward = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
-        const camPos = camera.position.clone();
     
-        // project vector from camera to enemy onto camera forward to get the best t
-        // (this finds the point along the camera ray that's closest to the enemy)
-        const toEnemy = enemy.pos.clone().sub(camPos);
-        let t = camForward.dot(toEnemy);
-        if (t < 60) t = 60; // don't aim too close to camera
+        // keep the enemy's current radius (don't shove it to the surface if it's inside)
+        const radius = Math.max(1e-6, enemy.pos.length());
+        // compute the target point that lies on the same radius in the camera-forward direction
+        const desiredPoint = camForward.clone().multiplyScalar(radius);
     
-        const aimPoint = camPos.clone().add(camForward.clone().multiplyScalar(t));
-        const desiredDir = aimPoint.clone().sub(enemy.pos).normalize();
+        // normalized directions
+        const pNorm = enemy.pos.clone().normalize();
+        const dNorm = desiredPoint.clone().normalize();
     
-        // steering strength: how fast the enemy turns toward desiredDir (per-frame, dt-aware)
-        // tweak the multiplier (5) if you want faster/slower turning
-        const steerStrength = Math.min(1, 5 * dt);
+        // angle between current and desired (clamped)
+        let dot = pNorm.dot(dNorm);
+        dot = Math.max(-1, Math.min(1, dot));
+        const angleBetween = Math.acos(dot);
     
-        // current forward direction (fallback to desiredVel if vel is tiny)
-        let curDir = enemy.vel.clone();
-        if (curDir.lengthSq() < 1e-6) curDir = enemy.desiredVel.clone();
-        curDir.normalize();
+        if (angleBetween > 1e-5) {
+          // rotation axis (safe for near-opposite vectors)
+          let axis = new THREE.Vector3().crossVectors(pNorm, dNorm);
+          if (axis.lengthSq() < 1e-8) {
+            // almost colinear/opposite: pick a stable perpendicular axis
+            axis.set(1,0,0);
+            if (Math.abs(pNorm.x) > 0.9) axis.set(0,1,0);
+          }
+          axis.normalize();
     
-        // lerp direction, then set velocity with preserved desired speed
-        const newDir = curDir.lerp(desiredDir, steerStrength).normalize();
-        enemy.vel.copy(newDir.multiplyScalar(enemySpeed));
+          // TURN_SPEED is radians/sec — tweak this to make turning faster/slower
+          const TURN_SPEED = 3.5; // ~200°/s; increase to turn faster
+          const maxTurn = TURN_SPEED * dt;
+          // rotate by the smaller of angleBetween or the max allowed this frame
+          const turn = Math.min(angleBetween, maxTurn);
     
-        // keep desiredVel consistent (used by idle steering)
+          // rotate enemy.pos around axis by 'turn' radians, preserving radius
+          const q = new THREE.Quaternion().setFromAxisAngle(axis, turn);
+          enemy.pos.copy(enemy.pos.clone().applyQuaternion(q).setLength(radius));
+        }
+    
+        // derive velocity from positional change so other systems (alignment, missiles) still work
+        const displacement = enemy.pos.clone().sub(prevPos);
+        // original code used pos += vel * (dt*60), so invert that scaling here:
+        const invScale = 1 / Math.max(dt * 60, 1e-6);
+        enemy.vel.copy(displacement.multiplyScalar(invScale));
+    
+        // if movement was extremely small (very close or perfectly aligned), provide a tiny tangent fallback
+        if (enemy.vel.lengthSq() < 1e-6) {
+          // compute a tangent direction pointing generally toward the desiredPoint
+          let tangent = new THREE.Vector3().crossVectors(axis || new THREE.Vector3(0,1,0), enemy.pos).normalize();
+          if (tangent.lengthSq() < 1e-6) tangent = new THREE.Vector3(1,0,0); // last resort
+          enemy.vel.copy(tangent.multiplyScalar(enemySpeed));
+          // reproject position consistently so vel and pos don't fight (gentle nudge)
+          enemy.pos.add(enemy.vel.clone().multiplyScalar(dt * 60));
+        }
+    
+        // keep desiredVel consistent so normal wandering won't immediately overwrite steering
         enemy.desiredVel.copy(enemy.vel);
-    
-        // set a short cooldown so the random steering won't immediately overwrite us
-        enemy.nextSteerChange = performance.now() + 200;
+        enemy.nextSteerChange = performance.now() + 250; // short cooldown so random steering doesn't interrupt
       } else {
-        // --- normal wandering steering ---
+        // === normal wandering (unchanged behavior but with safety) ===
         if (performance.now() > (enemy.nextSteerChange || 0)) {
           enemy.desiredVel = randomUnit().multiplyScalar(enemySpeed);
           enemy.nextSteerChange = performance.now() + steerMin + Math.random()*(steerMax - steerMin);
         }
         const smoothFactor = Math.min(1, steerLerpFactor * (dt * 60));
         enemy.vel.lerp(enemy.desiredVel, smoothFactor);
-        // ensure not collapsing to zero
         if (enemy.vel.lengthSq() < 1e-6) enemy.vel.copy(enemy.desiredVel);
+        enemy.pos.add(enemy.vel.clone().multiplyScalar(dt * 60));
       }
     
-      // --- move ---
-      enemy.pos.add(enemy.vel.clone().multiplyScalar(dt * 60));
-    
-      // --- sphere boundary: gently push back and reflect (avoid instant teleports) ---
+      // === gentle sphere boundary handling ===
       const dist = enemy.pos.length();
       if (dist >= sphereRadius) {
         const normal = enemy.pos.clone().normalize();
-        // gently nudge inside so steering doesn't immediately fight the boundary
-        enemy.pos.copy(normal.clone().multiplyScalar(sphereRadius - 2));
-    
-        // reflect velocity away from the normal, keep the magnitude stable
+        // nudge slightly inside instead of snapping to avoid immediate fight with steering
+        enemy.pos.copy(normal.clone().multiplyScalar(sphereRadius - 1));
+        // reflect the velocity and keep magnitude stable
         const v = enemy.vel.clone();
-        const dot = v.dot(normal);
-        const reflected = v.clone().sub(normal.clone().multiplyScalar(2 * dot)).normalize().multiplyScalar(enemySpeed);
+        const dotv = v.dot(normal);
+        const reflected = v.clone().sub(normal.clone().multiplyScalar(2 * dotv)).normalize().multiplyScalar(enemySpeed);
         enemy.vel.copy(reflected);
         enemy.desiredVel.copy(reflected);
       }
     
-      // apply to mesh and orientation
-      enemy.mesh.position.copy(enemy.pos);
+      // update mesh transform and orientation
+      if (enemy.mesh) enemy.mesh.position.copy(enemy.pos);
       alignShipToVelocity(enemy, 0.25);
     }
+
 
 
     const trailParticles = [];

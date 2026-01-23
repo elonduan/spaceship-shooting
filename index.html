@@ -909,15 +909,41 @@
       if(e.code !== 'Space' && e.code !== 'KeyM') releaseKey(e.code);
     });
 
-
-    function updateCamera(){
-      if(keys['ArrowDown']) camera.rotateX(-accel);
-      if(keys['ArrowUp']) camera.rotateX(accel);
-      if(keys['ArrowLeft']) camera.rotateY(accel);
-      if(keys['ArrowRight']) camera.rotateY(-accel);
-      if(keys['KeyA']) camera.rotateZ(accel);
-      if(keys['KeyD']) camera.rotateZ(-accel);
+    function updateCamera(dt){
+      // rotation scaled to be frame-rate independent (keeps same feel as original)
+      const frameScale = Math.min(4, Math.max(0.5, dt * 60)); // small safety clamp
+      const ang = accel * frameScale;
+    
+      if (keys['ArrowDown'])  camera.rotateX(-ang);
+      if (keys['ArrowUp'])    camera.rotateX( ang);
+      if (keys['ArrowLeft'])  camera.rotateY( ang);
+      if (keys['ArrowRight']) camera.rotateY(-ang);
+      if (keys['KeyA'])       camera.rotateZ( ang);
+      if (keys['KeyD'])       camera.rotateZ(-ang);
+    
+      // --- PLAYER TRANSLATION when holding G (moves the camera/player) ---
+      // Player movement units are scene units (enemies use enemySpeed ~3). Tune playerMoveSpeed to taste.
+      const playerMoveSpeed = 4.5; // change to make player move slower/faster
+      if (keys['KeyG']) {
+        const forward = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
+        // move scaled similarly to enemy movement (uses dt * 60 in other places)
+        const moveStep = forward.multiplyScalar(playerMoveSpeed * dt * 60);
+        camera.position.add(moveStep);
+    
+        // Keep the camera inside the playable sphere (prevent leaving the world or plunging through odd geometry)
+        const maxRadius = Math.max(50, sphereRadius * 0.9); // don't let player go beyond 90% of sphere radius
+        if (camera.position.length() > maxRadius) {
+          camera.position.setLength(maxRadius);
+        }
+    
+        // Optionally keep camera from getting exactly at center (rare), but allow small radius.
+        const minRadius = 0.0; // set >0 if you want a minimum distance from center
+        if (camera.position.length() < minRadius) {
+          camera.position.setLength(minRadius);
+        }
+      }
     }
+
 
     const bullets = [];
     const enemyBullets = [];
@@ -1094,78 +1120,47 @@
     function stepEnemy(enemy, dt, isPrimary){
       if (!enemy || !enemy.mesh) return;
     
-      const prevPos = enemy.pos.clone();
-    
-      if (isPrimary && keys['KeyG'] && camera) {
-        // ---- camera forward ----
-        const camForward = new THREE.Vector3(0,0,-1)
-          .applyQuaternion(camera.quaternion)
-          .normalize();
-    
-        // ---- keep enemy on its current radius ----
-        const radius = Math.max(enemy.pos.length(), 1e-4);
-    
-        const curDir = enemy.pos.clone().normalize();
-        const tgtDir = camForward.clone().normalize();
-    
-        // ---- compute angle ----
-        let dot = curDir.dot(tgtDir);
-        dot = THREE.MathUtils.clamp(dot, -1, 1);
-        const angle = Math.acos(dot);
-    
-        // ---- ALWAYS define axis ----
-        let axis = new THREE.Vector3().crossVectors(curDir, tgtDir);
-        if (axis.lengthSq() < 1e-8) {
-          // stable fallback axis
-          axis = Math.abs(curDir.x) < 0.9
-            ? new THREE.Vector3(1,0,0)
-            : new THREE.Vector3(0,1,0);
-        }
-        axis.normalize();
-    
-        // ---- rotate along sphere ----
-        const TURN_SPEED = 3.0; // radians/sec (tweak)
-        const turn = Math.min(angle, TURN_SPEED * dt);
-    
-        const q = new THREE.Quaternion().setFromAxisAngle(axis, turn);
-        enemy.pos.applyQuaternion(q).setLength(radius);
-    
-        // ---- derive velocity from movement (CLAMPED) ----
-        const disp = enemy.pos.clone().sub(prevPos);
-        const maxStep = enemySpeed * dt * 60;
-    
-        if (disp.length() > maxStep) {
-          disp.setLength(maxStep);
-          enemy.pos.copy(prevPos).add(disp);
-        }
-    
-        enemy.vel.copy(disp.multiplyScalar(1 / Math.max(dt * 60, 1e-6)));
-        enemy.desiredVel.copy(enemy.vel);
-        enemy.nextSteerChange = performance.now() + 300;
-      }
-      else {
-        // ---- normal wandering ----
-        if (performance.now() > (enemy.nextSteerChange || 0)) {
-          enemy.desiredVel = randomUnit().multiplyScalar(enemySpeed);
-          enemy.nextSteerChange =
-            performance.now() + steerMin + Math.random() * (steerMax - steerMin);
-        }
-    
-        enemy.vel.lerp(enemy.desiredVel, Math.min(1, steerLerpFactor * dt * 60));
-        enemy.pos.add(enemy.vel.clone().multiplyScalar(dt * 60));
+      // Normal wandering: occasionally pick a new desiredVel, then lerp toward it.
+      if (performance.now() > (enemy.nextSteerChange || 0)) {
+        enemy.desiredVel = randomUnit().multiplyScalar(enemySpeed);
+        enemy.nextSteerChange = performance.now() + steerMin + Math.random()*(steerMax - steerMin);
       }
     
-      // ---- sphere boundary (hard safety) ----
+      // Smoothly steer toward desiredVel (frame-rate aware)
+      const smoothFactor = Math.min(1, steerLerpFactor * (dt * 60));
+      enemy.vel.lerp(enemy.desiredVel, smoothFactor);
+    
+      // Ensure we maintain a stable speed (without instant snapping)
+      if (enemy.vel.lengthSq() < 1e-6) {
+        enemy.vel.copy(enemy.desiredVel);
+      }
+      // Normalize the velocity magnitude to the enemySpeed
+      if (enemy.vel.lengthSq() > 1e-8) {
+        enemy.vel.normalize().multiplyScalar(enemySpeed);
+      }
+    
+      // Move
+      enemy.pos.add(enemy.vel.clone().multiplyScalar(dt * 60));
+    
+      // Gentle sphere boundary handling
       const dist = enemy.pos.length();
-      if (dist > sphereRadius) {
-        enemy.pos.normalize().multiplyScalar(sphereRadius);
-        enemy.vel.reflect(enemy.pos.clone().normalize()).setLength(enemySpeed);
-        enemy.desiredVel.copy(enemy.vel);
+      if (dist >= sphereRadius) {
+        const normal = enemy.pos.clone().normalize();
+        // Nudge inside slightly so we don't fight steering
+        enemy.pos.copy(normal.clone().multiplyScalar(sphereRadius - 1));
+        // Reflect velocity away from normal while preserving speed
+        const v = enemy.vel.clone();
+        const dot = v.dot(normal);
+        const reflected = v.clone().sub(normal.clone().multiplyScalar(2 * dot)).normalize().multiplyScalar(enemySpeed);
+        enemy.vel.copy(reflected);
+        enemy.desiredVel.copy(reflected);
       }
     
+      // Apply to mesh and orient
       enemy.mesh.position.copy(enemy.pos);
       alignShipToVelocity(enemy, 0.25);
     }
+
 
 
 
@@ -1488,7 +1483,7 @@
         }
       }
 
-      updateCamera();
+      updateCamera(dt);
 
       const primary = getPrimaryEnemy();
       if (primary && primary.mesh) {

@@ -818,6 +818,10 @@
         if (changed) updateHP();
       }
     }
+    let yaw = 0;
+    let pitch = 0;
+    const maxPitch = Math.PI / 2 - 0.01; // prevent flip
+    let pointerLocked = false;
 
     let accel = parseFloat(document.getElementById('sensitivity').value);
     const sensitivityInput = document.getElementById('sensitivity');
@@ -913,11 +917,20 @@
       // rotation (frame-rate independent)
       const frameScale = Math.min(4, Math.max(0.5, dt * 60));
       const ang = accel * frameScale;
-    
-      if (keys['ArrowDown'])  camera.rotateX(-ang);
-      if (keys['ArrowUp'])    camera.rotateX( ang);
-      if (keys['ArrowLeft'])  camera.rotateY( ang);
-      if (keys['ArrowRight']) camera.rotateY(-ang);
+      
+      document.addEventListener('mousemove', (e) => {
+        if (!pointerLocked || isPaused) return;
+      
+        const sensitivity = accel * 0.6; // tune feel here
+      
+        yaw   -= e.movementX * sensitivity;
+        pitch -= e.movementY * sensitivity;
+      
+        pitch = Math.max(-maxPitch, Math.min(maxPitch, pitch));
+      
+        camera.rotation.set(pitch, yaw, camera.rotation.z);
+      });
+
       if (keys['KeyA'])       camera.rotateZ( ang);
       if (keys['KeyD'])       camera.rotateZ(-ang);
     
@@ -1632,10 +1645,25 @@
       camera.updateProjectionMatrix();
       renderer.setSize(window.innerWidth, window.innerHeight);
     });
+    const canvas = renderer.domElement;
+
+    canvas.addEventListener('click', () => {
+      canvas.requestPointerLock();
+    });
+    
+    document.addEventListener('pointerlockchange', () => {
+      pointerLocked = (document.pointerLockElement === canvas);
+    });
+
 
     function togglePause(forceState) {
       if (typeof forceState === 'boolean') isPaused = forceState;
       else isPaused = !isPaused;
+
+      if (document.pointerLockElement) {
+        document.exitPointerLock();
+      }
+
 
       if (isPaused) {
         pauseScreenEl.style.display = 'flex';

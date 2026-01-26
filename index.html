@@ -1578,11 +1578,9 @@
     function updateCamera(dt){
       if (!player || !player.mesh) return;
     
-      // rotation (frame-rate independent) now controls playerEuler instead of camera
+      // apply rotation from input to the player
       const frameScale = Math.min(4, Math.max(0.5, dt * 60));
       const ang = accel * frameScale;
-    
-      // mapping kept consistent with previous camera.rotate calls:
       if (keys['ArrowDown'])  playerEuler.x -= ang;
       if (keys['ArrowUp'])    playerEuler.x += ang;
       if (keys['ArrowLeft'])  playerEuler.y += ang;
@@ -1590,66 +1588,49 @@
       if (keys['KeyA'])       playerEuler.z += ang;
       if (keys['KeyD'])       playerEuler.z -= ang;
     
-      // clamp pitch a bit so ship doesn't flip completely (optional)
+      // limit pitch so it doesn't flip
       const maxPitch = Math.PI * 0.48;
       playerEuler.x = Math.max(-maxPitch, Math.min(maxPitch, playerEuler.x));
-    
-      // apply rotation to player mesh
       player.mesh.quaternion.setFromEuler(playerEuler);
     
-      // --- PLAYER TRANSLATION (6DOF) ---
-      const playerMoveSpeed = 4.5; // scene units per "tick" baseline
-      const moveScale = playerMoveSpeed * dt * 60; // consistent with previous scaling
-    
-      // basis vectors from player orientation
+      // translation
+      const playerMoveSpeed = 4.5;
+      const moveScale = playerMoveSpeed * dt * 60;
       const forward = new THREE.Vector3(0,0,-1).applyQuaternion(player.mesh.quaternion).normalize();
       const right   = new THREE.Vector3(1,0,0).applyQuaternion(player.mesh.quaternion).normalize();
       const up      = new THREE.Vector3(0,1,0).applyQuaternion(player.mesh.quaternion).normalize();
     
       const moveDir = new THREE.Vector3();
-      if (keys['KeyG']) moveDir.add(forward);   // forward
-      if (keys['KeyH']) moveDir.sub(forward);   // backward
-      if (keys['KeyJ']) moveDir.add(right);     // right
-      if (keys['KeyF']) moveDir.sub(right);     // left
-      if (keys['KeyT'] || keys['KeyY']) moveDir.add(up);    // up (either T or Y)
-      if (keys['KeyN']) moveDir.sub(up);        // down
+      if (keys['KeyG']) moveDir.add(forward);
+      if (keys['KeyH']) moveDir.sub(forward);
+      if (keys['KeyJ']) moveDir.add(right);
+      if (keys['KeyF']) moveDir.sub(right);
+      if (keys['KeyT'] || keys['KeyY']) moveDir.add(up);
+      if (keys['KeyN']) moveDir.sub(up);
     
       if (moveDir.lengthSq() > 0) {
         moveDir.normalize();
         playerPos.add(moveDir.multiplyScalar(moveScale));
-    
-        // clamp player inside playable area
         const maxRadius = Math.max(50, sphereRadius * 0.9);
-        if (playerPos.length() > maxRadius) {
-          playerPos.setLength(maxRadius);
-        }
+        if (playerPos.length() > maxRadius) playerPos.setLength(maxRadius);
       }
-    
-      // apply player position
       player.mesh.position.copy(playerPos);
     
-      // ---------------- Camera locked to ship ----------------
-      // desired camera offset in ship-local coords: (x=0, y=camHeight, z=camBack)
-      const camOffsetLocal = new THREE.Vector3(0, 28, 140); // tweak these values as needed
-      const desiredCamPos = player.mesh.position.clone().add(camOffsetLocal.applyQuaternion(player.mesh.quaternion));
+      // ---- FULLY LOCKED CAMERA ----
+      // local offset: x=0 (center), y=camHeight, z=camBack (positive Z is behind the ship in local coords)
+      const camOffsetLocal = new THREE.Vector3(0, 28, 140);
+      // compute world offset without mutating the local vector
+      const worldOffset = camOffsetLocal.clone().applyQuaternion(player.mesh.quaternion);
+      const desiredCamPos = player.mesh.position.clone().add(worldOffset);
     
-      // choose whether to snap or smooth the camera
-      const SMOOTH = true;
-      if (SMOOTH) {
-        // interpolation factor (0 = no move, 1 = snap). increase for tighter lock
-        const followLerp = 0.22; // set to 1.0 for fully locked camera (no smoothing)
-        camera.position.lerp(desiredCamPos, followLerp);
-      } else {
-        camera.position.copy(desiredCamPos);
-      }
+      // SNAP camera to desired position (set to lerp with factor <1 for smoothing)
+      camera.position.copy(desiredCamPos);
     
-      // look at a point slightly ahead of the ship (so camera points in same direction ship faces)
-      const lookAheadLocal = new THREE.Vector3(0, 10, -40); // slightly up and forward relative to ship
-      const lookAtPoint = player.mesh.position.clone().add(lookAheadLocal.applyQuaternion(player.mesh.quaternion));
-      camera.lookAt(lookAtPoint);
-    
-      // OPTIONAL: keep camera's up aligned with world up (prevents roll causing horizon tilt)
+      // look at point slightly ahead of ship
+      const lookAheadLocal = new THREE.Vector3(0, 10, -40);
+      const lookAtPoint = player.mesh.position.clone().add(lookAheadLocal.clone().applyQuaternion(player.mesh.quaternion));
       camera.up.set(0,1,0);
+      camera.lookAt(lookAtPoint);
     }
 
 
@@ -1663,6 +1644,11 @@
       player.mesh.quaternion.setFromEuler(playerEuler);
       scene.add(player.mesh);
     
+      // DEBUG: add axes helper so we can visually check forward direction
+      const axes = new THREE.AxesHelper(28);
+      // axes orientation: X=red (right), Y=green (up), Z=blue (forward)
+      player.mesh.add(axes);
+    
       // start camera behind player (immediate correct placement)
       const camOffsetLocal = new THREE.Vector3(0, 28, 140);
       const initialCamPos = player.mesh.position.clone().add(camOffsetLocal.applyQuaternion(player.mesh.quaternion));
@@ -1675,6 +1661,7 @@
       ensureEnemies();
       animate();
     }).catch(err => console.error(err));
+
 
 
     function reset(){

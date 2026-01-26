@@ -397,6 +397,16 @@
     const explosionParticles = [];
     const shockwaves = [];
     const sparkParticles = [];
+    let yaw = 0;
+    let pitch = 0;
+    let pointerLocked = false;
+    let roll = 0;
+
+    
+    function wrapAngle(a){
+      const t = Math.PI * 2;
+      return ((a % t) + t) % t;
+    }
 
     const screenFlashEl = document.getElementById('screenFlash');
     function screenFlash() {
@@ -834,16 +844,7 @@
         if (changed) updateHP();
       }
     }
-    let yaw = 0;
-    let pitch = 0;
-    let pointerLocked = false;
-    let roll = 0;
 
-    
-    function wrapAngle(a){
-      const t = Math.PI * 2;
-      return ((a % t) + t) % t;
-    }
 
 
 

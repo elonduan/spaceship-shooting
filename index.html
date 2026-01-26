@@ -645,41 +645,61 @@
 
     const loadModels = () => {
       const spaceshipPromise = new Promise((resolve, reject) => {
-        loader.load('./res/spaceship.stl', (geometry) => {
-          geometry.computeBoundingBox();
-        
-          // 1. Center geometry
-          const bb = geometry.boundingBox;
-          const center = new THREE.Vector3();
-          bb.getCenter(center);
-          geometry.translate(-center.x, -center.y, -center.z);
-        
-          // 2. FIX FORWARD AXIS
-          // STL nose is pointing -Y → rotate so nose points -Z (Three.js forward)
-          geometry.rotateX(Math.PI / 2);
-        
-          // 3. OPTIONAL: fine forward offset (if nose still feels back)
-        
-          spaceshipGeometry = geometry;
-          spaceshipMaterial = new THREE.MeshStandardMaterial({
-            color: 0xffffff,
-            metalness: 0.6,
-            roughness: 0.35
-          });
-        });
+        loader.load(
+          './res/spaceship.stl',
+          (geometry) => {
+            geometry.computeBoundingBox();
+    
+            // 1. Center geometry
+            const bb = geometry.boundingBox;
+            const center = new THREE.Vector3();
+            bb.getCenter(center);
+            geometry.translate(-center.x, -center.y, -center.z);
+    
+            // 2. FIX FORWARD AXIS
+            // rotate so nose points -Z (Three.js forward). Adjust if your model uses a different axis.
+            geometry.rotateX(Math.PI / 2);
+    
+            spaceshipGeometry = geometry;
+            spaceshipMaterial = new THREE.MeshStandardMaterial({
+              color: 0xffffff,
+              metalness: 0.6,
+              roughness: 0.35
+            });
+    
+            // IMPORTANT: resolve the promise so Promise.all completes
+            resolve();
+          },
+          undefined,
+          (err) => {
+            console.error('Failed to load spaceship.stl', err);
+            reject(err);
+          }
+        );
       });
+    
       const missilePromise = new Promise((resolve, reject) => {
-        loader.load('./res/missile.stl', (geometry) => {
-          geometry.computeBoundingBox();
-          const bb = geometry.boundingBox;
-          const center = new THREE.Vector3(); bb.getCenter(center);
-          geometry.translate(-center.x, -center.y, -center.z);
-          missileGeometry = geometry;
-          resolve();
-        }, undefined, reject);
+        loader.load(
+          './res/missile.stl',
+          (geometry) => {
+            geometry.computeBoundingBox();
+            const bb = geometry.boundingBox;
+            const center = new THREE.Vector3(); bb.getCenter(center);
+            geometry.translate(-center.x, -center.y, -center.z);
+            missileGeometry = geometry;
+            resolve();
+          },
+          undefined,
+          (err) => {
+            console.error('Failed to load missile.stl', err);
+            reject(err);
+          }
+        );
       });
+    
       return Promise.all([spaceshipPromise, missilePromise]);
     };
+
 
     // HP etc.
     let playerMaxHP = 20;
@@ -1049,7 +1069,13 @@
     }
 
     function enemyShoot(enemy){
+      
       if(!enemy || !enemy.mesh || gameOver) return;
+      if (!player || !player.mesh) {
+        // postpone shooting a bit
+        setTimeout(()=> enemyShoot(enemy), 250);
+        return;
+      }
       const bulletGeom = new THREE.SphereGeometry(2,8,8);
       const bulletMat = new THREE.MeshBasicMaterial({color:0x00ffff});
       const bullet = new THREE.Mesh(bulletGeom, bulletMat);
@@ -1688,23 +1714,7 @@
       camera.updateProjectionMatrix();
       renderer.setSize(window.innerWidth, window.innerHeight);
     });
-
-    function updateThirdPersonCamera() {
-      if (!playerShip) return;
     
-      // ship follows camera logic
-      playerShip.position.copy(camera.position);
-      playerShip.quaternion.copy(camera.quaternion);
-    
-      // third-person offset
-      const backOffset = new THREE.Vector3(0, 12, 35);
-      backOffset.applyQuaternion(playerShip.quaternion);
-    
-      camera.position.add(backOffset);
-      camera.lookAt(playerShip.position);
-    }
-
-
     function togglePause(forceState) {
       if (typeof forceState === 'boolean') isPaused = forceState;
       else isPaused = !isPaused;

@@ -659,7 +659,6 @@
           geometry.rotateX(Math.PI / 2);
         
           // 3. OPTIONAL: fine forward offset (if nose still feels back)
-          geometry.translate(0, 0, -12);
         
           spaceshipGeometry = geometry;
           spaceshipMaterial = new THREE.MeshStandardMaterial({
@@ -1689,6 +1688,22 @@
       camera.updateProjectionMatrix();
       renderer.setSize(window.innerWidth, window.innerHeight);
     });
+
+    function updateThirdPersonCamera() {
+      if (!playerShip) return;
+    
+      // ship follows camera logic
+      playerShip.position.copy(camera.position);
+      playerShip.quaternion.copy(camera.quaternion);
+    
+      // third-person offset
+      const backOffset = new THREE.Vector3(0, 12, 35);
+      backOffset.applyQuaternion(playerShip.quaternion);
+    
+      camera.position.add(backOffset);
+      camera.lookAt(playerShip.position);
+    }
+
 
     function togglePause(forceState) {
       if (typeof forceState === 'boolean') isPaused = forceState;

@@ -241,7 +241,7 @@
     // reset camera local transform
     camera.position.set(0,0,0);
     camera.rotation.set(0,0,0);
-    camera.rotation.z = roll;
+
 
 
     function createStars(){
@@ -847,7 +847,7 @@
 
 
 
-
+    camera.rotation.z = roll;
     let accel = parseFloat(document.getElementById('sensitivity').value);
     const sensitivityInput = document.getElementById('sensitivity');
     sensitivityInput.addEventListener('input', (e) => { accel = parseFloat(e.target.value); });

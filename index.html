@@ -135,7 +135,7 @@
         <li>Shoot button / Space: fire</li>
         <li>M: launch missile (4 per game)</li>
         <li>R: reset</li>
-        <li>G: steer ship toward crosshair (hold)</li>
+        <li>G: steer ship toward crosfhair (hold)</li>
         <li>C: change target ship</li>
         <li>WORLD RECORD IS 40</li>
         <li>EMAIL TO ME IF YOU BEAT IT</li>
@@ -241,6 +241,7 @@
     // reset camera local transform
     camera.position.set(0,0,0);
     camera.rotation.set(0,0,0);
+    camera.rotation.z = roll;
 
 
     function createStars(){
@@ -836,6 +837,9 @@
     let yaw = 0;
     let pitch = 0;
     let pointerLocked = false;
+    let roll = 0;
+    const maxRoll = 0.35;
+
     
     function wrapAngle(a){
       const t = Math.PI * 2;
@@ -890,6 +894,10 @@
         launchMissile();
         return;
       }
+      if (keys['KeyA']) roll =  maxRoll;
+      else if (keys['KeyD']) roll = -maxRoll;
+      else roll = 0;
+
     
       // WEAPON MODE SWITCH
       if (e.code === 'Digit1') {
@@ -947,6 +955,7 @@
     
       // pitch axis is camera-local X after yaw, but easier: create pitch around X and then apply yaw first
       const qPitch = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0), pitch);
+      
     
       // combine yaw then pitch
       const q = qYaw.clone().multiply(qPitch);
@@ -958,6 +967,7 @@
     
       // final orientation
       q.multiply(qRoll);
+      
     
       // apply final quaternion to camera (single authoritative write)
       camera.quaternion.copy(q);

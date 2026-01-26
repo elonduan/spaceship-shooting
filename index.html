@@ -818,14 +818,19 @@
         if (changed) updateHP();
       }
     }
-    // --- mouse look state (replace previous camera.rotation usage) ---
+    // --- mouse look state (continuous wrapping pitch) ---
     let yaw = 0, pitch = 0, roll = 0;
-    const maxPitch = Math.PI/2 - 0.01; // prevent flipping
     let pointerLocked = false;
-    
-    // reusable objects to avoid creating each frame
     const WORLD_UP = new THREE.Vector3(0,1,0);
-    const _tmpVec = new THREE.Vector3();
+    
+    // wrap angle into (-PI, PI]
+    function wrapAngle(a){
+      const twoPI = Math.PI * 2;
+      a = ((a % twoPI) + twoPI) % twoPI; // positive modulo
+      if (a > Math.PI) a -= twoPI;
+      return a;
+    }
+
 
     let accel = parseFloat(document.getElementById('sensitivity').value);
     const sensitivityInput = document.getElementById('sensitivity');
@@ -1666,15 +1671,18 @@
       pointerLocked = (document.pointerLockElement === canvas);
     });
     
-    // mouse movement -> yaw/pitch
     document.addEventListener('mousemove', (e) => {
       if (!pointerLocked || isPaused) return;
-      // use accel as base sensitivity (user slider). Feel free to multiply for preference
-      const sens = accel;
+      const sens = accel; // existing sensitivity slider still applies
+    
       yaw   -= e.movementX * sens;
       pitch -= e.movementY * sens;
-      pitch = Math.max(-maxPitch, Math.min(maxPitch, pitch));
+    
+      // wrap angles so they loop smoothly instead of clamping
+      yaw = wrapAngle(yaw);
+      pitch = wrapAngle(pitch);
     });
+
 
 
 

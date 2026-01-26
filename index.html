@@ -608,8 +608,9 @@
       }
       laserBeam.visible = true;
     
-      const origin = camera.position.clone();
-      const dir = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
+      // Use player's position/orientation as beam origin in 3rd-person
+      const origin = player.pos.clone();
+      const dir = new THREE.Vector3(0,0,-1).applyQuaternion(player.mesh.quaternion).normalize();
       const length = sphereRadius * 2; // long beam
     
       // center of the cylinder is halfway along the beam
@@ -671,6 +672,17 @@
       });
       return Promise.all([spaceshipPromise, missilePromise]);
     };
+
+    // NEW: Player object (3rd-person ship)
+    const player = {
+      mesh: null,
+      pos: new THREE.Vector3(0, 0, 0),
+      vel: new THREE.Vector3(0, 0, 0),
+      forwardLocal: new THREE.Vector3(0, -1, 0) // model local forward (matches enemy code)
+    };
+    const cameraOffsetBack = 140; // how far behind the ship
+    const cameraOffsetUp = 60;    // how far above the ship
+    const cameraLag = 0.18;       // smoothing for camera follow
 
     // HP etc.
     let playerMaxHP = 20;
@@ -909,27 +921,32 @@
       if(e.code !== 'Space' && e.code !== 'KeyM') releaseKey(e.code);
     });
 
+    // ---------- PLAYER/CAMERA update ----------
+    // This function now updates the player ship (rotation+translation) and positions the camera behind it.
     function updateCamera(dt){
       // rotation (frame-rate independent)
       const frameScale = Math.min(4, Math.max(0.5, dt * 60));
       const ang = accel * frameScale;
     
-      if (keys['ArrowDown'])  camera.rotateX(-ang);
-      if (keys['ArrowUp'])    camera.rotateX( ang);
-      if (keys['ArrowLeft'])  camera.rotateY( ang);
-      if (keys['ArrowRight']) camera.rotateY(-ang);
-      if (keys['KeyA'])       camera.rotateZ( ang);
-      if (keys['KeyD'])       camera.rotateZ(-ang);
+      // -- rotate the player's ship (not the camera) --
+      if (player.mesh) {
+        if (keys['ArrowDown'])  player.mesh.rotateX(-ang);
+        if (keys['ArrowUp'])    player.mesh.rotateX( ang);
+        if (keys['ArrowLeft'])  player.mesh.rotateY( ang);
+        if (keys['ArrowRight']) player.mesh.rotateY(-ang);
+        if (keys['KeyA'])       player.mesh.rotateZ( ang);
+        if (keys['KeyD'])       player.mesh.rotateZ(-ang);
+      }
     
       // --- PLAYER TRANSLATION (6DOF) ---
       // Tune this for speed: larger => faster movement
       const playerMoveSpeed = 4.5; // scene units per "tick" baseline
       const moveScale = playerMoveSpeed * dt * 60; // matches other movement scaling used elsewhere
     
-      // local basis vectors relative to camera orientation
-      const forward = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
-      const right   = new THREE.Vector3(1,0,0).applyQuaternion(camera.quaternion).normalize();
-      const up      = new THREE.Vector3(0,1,0).applyQuaternion(camera.quaternion).normalize();
+      // local basis vectors relative to player orientation
+      const forward = new THREE.Vector3(0,0,-1).applyQuaternion(player.mesh.quaternion).normalize();
+      const right   = new THREE.Vector3(1,0,0).applyQuaternion(player.mesh.quaternion).normalize();
+      const up      = new THREE.Vector3(0,1,0).applyQuaternion(player.mesh.quaternion).normalize();
     
       // accumulate movement from keys
       const moveDir = new THREE.Vector3();
@@ -943,18 +960,27 @@
       // apply movement (normalize so diagonals don't make you faster)
       if (moveDir.lengthSq() > 0) {
         moveDir.normalize();
-        camera.position.add(moveDir.multiplyScalar(moveScale));
+        player.pos.add(moveDir.multiplyScalar(moveScale));
+        player.mesh.position.copy(player.pos);
     
         // clamp camera inside playable area
         const maxRadius = Math.max(50, sphereRadius * 0.9);
-        if (camera.position.length() > maxRadius) {
-          camera.position.setLength(maxRadius);
+        if (player.pos.length() > maxRadius) {
+          player.pos.setLength(maxRadius);
+          player.mesh.position.copy(player.pos);
         }
-    
-        // optional small min radius protection (prevent exactly at center if undesired)
-        const minRadius = 0.0;
-        if (camera.position.length() < minRadius) camera.position.setLength(minRadius);
       }
+    
+      // smooth camera follow from above and behind the ship
+      const modelForwardWorld = player.forwardLocal.clone().applyQuaternion(player.mesh.quaternion).normalize();
+      const desiredCamPos = player.mesh.position.clone()
+                               .add(modelForwardWorld.clone().multiplyScalar(-cameraOffsetBack))
+                               .add(new THREE.Vector3(0, cameraOffsetUp, 0));
+      // lerp for smoothing
+      camera.position.lerp(desiredCamPos, cameraLag);
+      // look slightly above the ship so camera sits behind & above
+      const lookTarget = player.mesh.position.clone().add(new THREE.Vector3(0, 12, 0));
+      camera.lookAt(lookTarget);
     }
 
 
@@ -972,21 +998,22 @@
       const bulletMat = new THREE.MeshBasicMaterial({color:0xffff00});
       const bullet = new THREE.Mesh(bulletGeom, bulletMat);
     
-      const forward = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
-      const right   = new THREE.Vector3(1,0,0).applyQuaternion(camera.quaternion).normalize();
+      // Use player's orientation/position as origin in 3rd-person
+      const forward = new THREE.Vector3(0,0,-1).applyQuaternion(player.mesh.quaternion).normalize();
+      const right   = new THREE.Vector3(1,0,0).applyQuaternion(player.mesh.quaternion).normalize();
     
       // big screen-width style offset is fine
       const lateralOffset = 70;   // your value
-      const depthOffset   = 5;    // spawn a bit in front of camera
+      const depthOffset   = 5;    // spawn a bit in front of ship (nose)
     
-      const camPos = camera.position.clone();
+      const camPos = player.pos.clone();
     
       // muzzle position for this side
       const spawnPos = camPos.clone()
         .add(right.clone().multiplyScalar(sideSign * lateralOffset))
         .add(forward.clone().multiplyScalar(depthOffset));
     
-      // virtual aim point far ahead, exactly along crosshair direction
+      // virtual aim point far ahead, exactly along crosshair direction (based on player's forward)
       const aimDistance = sphereRadius * 1.5;   // or 2000, 3000 etc.
       const aimPoint = camPos.clone().add(forward.clone().multiplyScalar(aimDistance));
     
@@ -1065,8 +1092,9 @@
       });
       const missile = new THREE.Mesh(geom, missileMat);
       missile.scale.set(0.4, 0.4, 0.4);
-      const dir = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
-      missile.position.copy(camera.position.clone().add(dir.clone().multiplyScalar(10)));
+      // spawn in front of player's ship nose
+      const dir = new THREE.Vector3(0,0,-1).applyQuaternion(player.mesh.quaternion).normalize();
+      missile.position.copy(player.pos.clone().add(dir.clone().multiplyScalar(10)));
       const initialVel = dir.clone().multiplyScalar(missileSpeed);
       missiles.push({
         mesh: missile,
@@ -1082,7 +1110,8 @@
       const bulletGeom = new THREE.SphereGeometry(2,8,8);
       const bulletMat = new THREE.MeshBasicMaterial({color:0x00ffff});
       const bullet = new THREE.Mesh(bulletGeom, bulletMat);
-      const dir = camera.position.clone().sub(enemy.mesh.position).normalize();
+      // target the player's ship position now (not camera)
+      const dir = player.pos.clone().sub(enemy.mesh.position).normalize();
       bullet.position.copy(enemy.mesh.position);
       enemyBullets.push({mesh:bullet,vel:dir.multiplyScalar(bulletSpeed*0.8)});
       scene.add(bullet);
@@ -1489,7 +1518,8 @@
         if(b.mesh.position.length()>sphereRadius*2){
           scene.remove(b.mesh); enemyBullets.splice(i,1); continue;
         }
-        if(b.mesh.position.distanceTo(camera.position) < accuracy){
+        // check against player ship position (third-person)
+        if(b.mesh.position.distanceTo(player.pos) < accuracy){
           scene.remove(b.mesh); enemyBullets.splice(i,1);
           damagePlayer(enemyDamage);
           damage.play();
@@ -1541,8 +1571,8 @@
         const laserDps = baseDps;                                 // same DPS as heavy
         const damageThisFrame = laserDps * dt;
       
-        const camPos = camera.position.clone();
-        const dir = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
+        const camPos = player.pos.clone();
+        const dir = new THREE.Vector3(0,0,-1).applyQuaternion(player.mesh.quaternion).normalize();
       
         let bestEnemy = null;
         let bestT = Infinity;
@@ -1574,8 +1604,20 @@
       updateMissileUI();
     }
 
+    // Create player mesh once models are loaded
     loadModels().then(() => {
+      // player ship (third-person visible model)
+      player.mesh = new THREE.Mesh(spaceshipGeometry, new THREE.MeshStandardMaterial({color:0x99ddff}));
+      player.mesh.scale.set(0.6,0.6,0.6);
+      player.mesh.position.copy(player.pos);
+      scene.add(player.mesh);
+
+      // ensure enemies spawn and then start the loop
       ensureEnemies();
+      // put camera initially behind player
+      const initialForward = player.forwardLocal.clone().applyQuaternion(player.mesh.quaternion).normalize();
+      camera.position.copy(player.mesh.position.clone().add(initialForward.clone().multiplyScalar(-cameraOffsetBack)).add(new THREE.Vector3(0,cameraOffsetUp,0)));
+      camera.lookAt(player.mesh.position.clone().add(new THREE.Vector3(0,12,0)));
       animate();
     }).catch(err => console.error(err));
 
@@ -1617,6 +1659,17 @@
 
       defeatedCount = 0;
       updateDefeatedUI();
+
+      // reset player position & orientation if present
+      if (player.mesh) {
+        player.pos.set(0,0,0);
+        player.mesh.position.copy(player.pos);
+        player.mesh.quaternion.set(0,0,0,1);
+        // reset camera behind
+        const initialForward = player.forwardLocal.clone().applyQuaternion(player.mesh.quaternion).normalize();
+        camera.position.copy(player.mesh.position.clone().add(initialForward.clone().multiplyScalar(-cameraOffsetBack)).add(new THREE.Vector3(0,cameraOffsetUp,0)));
+        camera.lookAt(player.mesh.position.clone().add(new THREE.Vector3(0,12,0)));
+      }
     }
 
     document.getElementById('resetBtn').addEventListener('click', reset);

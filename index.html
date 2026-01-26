@@ -228,6 +228,21 @@
     const camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.1, 5000);
     camera.position.set(0,0,0);
 
+    // --- camera hierarchy ---
+    const yawObject = new THREE.Object3D();
+    const pitchObject = new THREE.Object3D();
+    
+    yawObject.position.copy(camera.position);
+    yawObject.add(pitchObject);
+    pitchObject.add(camera);
+    
+    scene.add(yawObject);
+    
+    // reset camera local transform
+    camera.position.set(0,0,0);
+    camera.rotation.set(0,0,0);
+
+
     function createStars(){
       const starCount = 3000;
       const geom = new THREE.BufferGeometry();
@@ -818,18 +833,15 @@
         if (changed) updateHP();
       }
     }
-    // --- mouse look state (continuous wrapping pitch) ---
-    let yaw = 0, pitch = 0, roll = 0;
+    let yaw = 0;
+    let pitch = 0;
     let pointerLocked = false;
-    const WORLD_UP = new THREE.Vector3(0,1,0);
     
-    // wrap angle into (-PI, PI]
     function wrapAngle(a){
-      const twoPI = Math.PI * 2;
-      a = ((a % twoPI) + twoPI) % twoPI; // positive modulo
-      if (a > Math.PI) a -= twoPI;
-      return a;
+      const t = Math.PI * 2;
+      return ((a % t) + t) % t;
     }
+
 
 
     let accel = parseFloat(document.getElementById('sensitivity').value);
@@ -940,8 +952,7 @@
       const q = qYaw.clone().multiply(qPitch);
     
       // forward vector after yaw & pitch (used as roll axis)
-      const forward = new THREE.Vector3(0,0,-1).applyQuaternion(q).normalize();
-    
+      
       // roll about current forward
       const qRoll = new THREE.Quaternion().setFromAxisAngle(forward, roll);
     
@@ -954,8 +965,16 @@
       // --- REST OF updateCamera: translation (unchanged) ---
       // local basis vectors relative to camera orientation
       const forwardVec = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
-      const right   = new THREE.Vector3(1,0,0).applyQuaternion(camera.quaternion).normalize();
-      const up      = new THREE.Vector3(0,1,0).applyQuaternion(camera.quaternion).normalize();
+      const forward = new THREE.Vector3(0,0,-1)
+        .applyQuaternion(yawObject.quaternion)
+        .normalize();
+      
+      const right = new THREE.Vector3(1,0,0)
+        .applyQuaternion(yawObject.quaternion)
+        .normalize();
+      
+      const up = new THREE.Vector3(0,1,0);
+
     
       // movement code you already had below (keep it):
       const playerMoveSpeed = 4.5;
@@ -1673,15 +1692,18 @@
     
     document.addEventListener('mousemove', (e) => {
       if (!pointerLocked || isPaused) return;
-      const sens = accel; // existing sensitivity slider still applies
+      const sens = accel;
     
       yaw   -= e.movementX * sens;
       pitch -= e.movementY * sens;
     
-      // wrap angles so they loop smoothly instead of clamping
-      yaw = wrapAngle(yaw);
+      yaw   = wrapAngle(yaw);
       pitch = wrapAngle(pitch);
+    
+      yawObject.rotation.y = yaw;
+      pitchObject.rotation.x = pitch;
     });
+
 
 
 

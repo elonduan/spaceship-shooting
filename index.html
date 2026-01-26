@@ -921,7 +921,7 @@
       document.addEventListener('mousemove', (e) => {
         if (!pointerLocked || isPaused) return;
       
-        const sensitivity = accel * 0.006; // tune feel here
+        const sensitivity = accel * 0.002; // tune feel here
       
         yaw   -= e.movementX * sensitivity;
         pitch -= e.movementY * sensitivity;

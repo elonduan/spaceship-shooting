@@ -799,6 +799,15 @@
         setAutoShooting(false);
       }
     }
+    function updateCameraFollow() {
+      if (!player || !player.mesh) return;
+    
+      const offset = new THREE.Vector3(0, 30, 140);
+      offset.applyQuaternion(player.mesh.quaternion);
+    
+      camera.position.copy(player.mesh.position).add(offset);
+      camera.lookAt(player.mesh.position);
+    }
 
     function damageEnemy(enemy, amount){
       if (!enemy) return;
@@ -1568,7 +1577,8 @@
       } else {
         updateLaserBeam(false);
       }
-
+      updatePlayer(dt);
+      updateCameraFollow();
       renderer.render(scene, camera);
       updateMissileUI();
     }

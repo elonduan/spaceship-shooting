@@ -1660,16 +1660,22 @@
       };
       player.mesh.scale.set(0.7, 0.7, 0.7);
       player.mesh.position.copy(playerPos);
+      player.mesh.quaternion.setFromEuler(playerEuler);
       scene.add(player.mesh);
-
-      // start camera behind player
-      const initialForward = new THREE.Vector3(0,0,-1).applyQuaternion(player.mesh.quaternion);
-      camera.position.copy(player.mesh.position.clone().add(new THREE.Vector3(0,28,140).applyQuaternion(player.mesh.quaternion)));
-      camera.lookAt(player.mesh.position.clone().add(initialForward.clone().multiplyScalar(40)));
-
+    
+      // start camera behind player (immediate correct placement)
+      const camOffsetLocal = new THREE.Vector3(0, 28, 140);
+      const initialCamPos = player.mesh.position.clone().add(camOffsetLocal.applyQuaternion(player.mesh.quaternion));
+      camera.position.copy(initialCamPos);
+    
+      // look slightly ahead
+      const forward = new THREE.Vector3(0,0,-1).applyQuaternion(player.mesh.quaternion);
+      camera.lookAt(player.mesh.position.clone().add(forward.clone().multiplyScalar(40)));
+    
       ensureEnemies();
       animate();
     }).catch(err => console.error(err));
+
 
     function reset(){
       playerHP = playerMaxHP;

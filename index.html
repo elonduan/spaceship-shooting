@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Ball Shooter — 3rd Person</title>
+  <title>Ball Shooter</title>
   <style>
     html,body{height:100%;margin:0;background:#000;color:#ddd;font-family:system-ui,-apple-system,Segoe UI,Roboto;overflow:hidden}
     #overlay{position:fixed;left:12px;top:12px;z-index:10;max-width:420px}
@@ -12,7 +12,7 @@
     #win{background:linear-gradient(90deg,#0f0,#005500);color:#001}
     #lose{background:linear-gradient(90deg,#f00,#550000);color:#fff}
     #canvas-container{width:100%;height:100vh;display:block}
-    input[pltype=range]{width:100%}
+    input[type=range]{width:100%}
     label{font-size:13px;display:block;margin-top:10px}
     #crosshair{position:fixed;left:50%;top:50%;width:20px;height:20px;margin-left:-10px;margin-top:-10px;z-index:5;pointer-events:none}
     #crosshair:before,#crosshair:after{content:"";position:absolute;background:#fff}
@@ -128,7 +128,7 @@
   <div id="overlay">
     <div class="panel">
       &nbsp;
-      <div><strong>Ball Shooter Competition — Made by Elon - 5 (3rd-person)</strong></div>
+      <div><strong>Ball Shooter Competition — Made by Elon - 5</strong></div>
       <ul style="margin:8px 0 0 18px;font-size:13px">
         <li>Arrow keys / Joystick: pitch & yaw</li>
         <li>A / D buttons: roll</li>
@@ -226,7 +226,7 @@
     renderer.setSize(window.innerWidth, window.innerHeight);
     container.appendChild(renderer.domElement);
     const camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.1, 5000);
-    
+    camera.position.set(0,0,0);
 
     function createStars(){
       const starCount = 3000;
@@ -573,7 +573,9 @@
         const s = w.startScale + (w.endScale - w.startScale) * t;
         w.scale.set(s, s, s);
         w.material.opacity = 0.9 * (1 - t/6);
-
+        if (camera) {
+          w.lookAt(camera.position);
+        }
         if (w.life <= 0) {
           scene.remove(w);
           shockwaves.splice(i, 1);
@@ -598,13 +600,17 @@
       scene.add(laserBeam);
     }
     
-    function updateLaserBeam(active, origin, dir, length = sphereRadius * 2) {
+    function updateLaserBeam(active) {
       ensureLaserBeam();
       if (!active) {
         laserBeam.visible = false;
         return;
       }
       laserBeam.visible = true;
+    
+      const origin = camera.position.clone();
+      const dir = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
+      const length = sphereRadius * 2; // long beam
     
       // center of the cylinder is halfway along the beam
       const mid = origin.clone().add(dir.clone().multiplyScalar(length / 2));
@@ -643,61 +649,28 @@
 
     const loadModels = () => {
       const spaceshipPromise = new Promise((resolve, reject) => {
-        loader.load(
-          './res/spaceship.stl',
-          (geometry) => {
-            geometry.computeBoundingBox();
-    
-            // 1. Center geometry
-            const bb = geometry.boundingBox;
-            const center = new THREE.Vector3();
-            bb.getCenter(center);
-            geometry.translate(-center.x, -center.y, -center.z);
-    
-            // 2. FIX FORWARD AXIS
-            // rotate so nose points -Z (Three.js forward). Adjust if your model uses a different axis.
-            geometry.rotateX(Math.PI / 2);
-    
-            spaceshipGeometry = geometry;
-            spaceshipMaterial = new THREE.MeshStandardMaterial({
-              color: 0xffffff,
-              metalness: 0.6,
-              roughness: 0.35
-            });
-    
-            // IMPORTANT: resolve the promise so Promise.all completes
-            resolve();
-          },
-          undefined,
-          (err) => {
-            console.error('Failed to load spaceship.stl', err);
-            reject(err);
-          }
-        );
+        loader.load('./res/spaceship.stl', (geometry) => {
+          geometry.computeBoundingBox();
+          const bb = geometry.boundingBox;
+          const center = new THREE.Vector3(); bb.getCenter(center);
+          geometry.translate(-center.x, -center.y, -center.z);
+          spaceshipGeometry = geometry;
+          spaceshipMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff });
+          resolve();
+        }, undefined, reject);
       });
-    
       const missilePromise = new Promise((resolve, reject) => {
-        loader.load(
-          './res/missile.stl',
-          (geometry) => {
-            geometry.computeBoundingBox();
-            const bb = geometry.boundingBox;
-            const center = new THREE.Vector3(); bb.getCenter(center);
-            geometry.translate(-center.x, -center.y, -center.z);
-            missileGeometry = geometry;
-            resolve();
-          },
-          undefined,
-          (err) => {
-            console.error('Failed to load missile.stl', err);
-            reject(err);
-          }
-        );
+        loader.load('./res/missile.stl', (geometry) => {
+          geometry.computeBoundingBox();
+          const bb = geometry.boundingBox;
+          const center = new THREE.Vector3(); bb.getCenter(center);
+          geometry.translate(-center.x, -center.y, -center.z);
+          missileGeometry = geometry;
+          resolve();
+        }, undefined, reject);
       });
-    
       return Promise.all([spaceshipPromise, missilePromise]);
     };
-
 
     // HP etc.
     let playerMaxHP = 20;
@@ -798,15 +771,6 @@
         gameOver = true;
         setAutoShooting(false);
       }
-    }
-    function updateCameraFollow() {
-      if (!player || !player.mesh) return;
-    
-      const offset = new THREE.Vector3(0, 30, 140);
-      offset.applyQuaternion(player.mesh.quaternion);
-    
-      camera.position.copy(player.mesh.position).add(offset);
-      camera.lookAt(player.mesh.position);
     }
 
     function damageEnemy(enemy, amount){
@@ -945,15 +909,55 @@
       if(e.code !== 'Space' && e.code !== 'KeyM') releaseKey(e.code);
     });
 
-    // ---------- PLAYER (3rd-person) ----------
-    let player = null;
-    let playerEuler = new THREE.Euler(0, Math.PI, 0, 'XYZ'); // initial facing direction
-    let playerPos = new THREE.Vector3(0, 0, 0);
-    const playerForwardLocal = new THREE.Vector3(0,0,-1);
-    const playerRightLocal = new THREE.Vector3(1,0,0);
-    const playerUpLocal = new THREE.Vector3(0,1,0);
+    function updateCamera(dt){
+      // rotation (frame-rate independent)
+      const frameScale = Math.min(4, Math.max(0.5, dt * 60));
+      const ang = accel * frameScale;
+    
+      if (keys['ArrowDown'])  camera.rotateX(-ang);
+      if (keys['ArrowUp'])    camera.rotateX( ang);
+      if (keys['ArrowLeft'])  camera.rotateY( ang);
+      if (keys['ArrowRight']) camera.rotateY(-ang);
+      if (keys['KeyA'])       camera.rotateZ( ang);
+      if (keys['KeyD'])       camera.rotateZ(-ang);
+    
+      // --- PLAYER TRANSLATION (6DOF) ---
+      // Tune this for speed: larger => faster movement
+      const playerMoveSpeed = 4.5; // scene units per "tick" baseline
+      const moveScale = playerMoveSpeed * dt * 60; // matches other movement scaling used elsewhere
+    
+      // local basis vectors relative to camera orientation
+      const forward = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
+      const right   = new THREE.Vector3(1,0,0).applyQuaternion(camera.quaternion).normalize();
+      const up      = new THREE.Vector3(0,1,0).applyQuaternion(camera.quaternion).normalize();
+    
+      // accumulate movement from keys
+      const moveDir = new THREE.Vector3();
+      if (keys['KeyG']) moveDir.add(forward);   // forward
+      if (keys['KeyH']) moveDir.sub(forward);   // backward
+      if (keys['KeyJ']) moveDir.add(right);     // right
+      if (keys['KeyF']) moveDir.sub(right);     // left
+      if (keys['KeyT'] || keys['KeyY']) moveDir.add(up);    // up (either T or Y)
+      if (keys['KeyN']) moveDir.sub(up);        // down
+    
+      // apply movement (normalize so diagonals don't make you faster)
+      if (moveDir.lengthSq() > 0) {
+        moveDir.normalize();
+        camera.position.add(moveDir.multiplyScalar(moveScale));
+    
+        // clamp camera inside playable area
+        const maxRadius = Math.max(50, sphereRadius * 0.9);
+        if (camera.position.length() > maxRadius) {
+          camera.position.setLength(maxRadius);
+        }
+    
+        // optional small min radius protection (prevent exactly at center if undesired)
+        const minRadius = 0.0;
+        if (camera.position.length() < minRadius) camera.position.setLength(minRadius);
+      }
+    }
 
-    // We'll create the player's mesh after models load
+
 
     const bullets = [];
     const enemyBullets = [];
@@ -968,24 +972,23 @@
       const bulletMat = new THREE.MeshBasicMaterial({color:0xffff00});
       const bullet = new THREE.Mesh(bulletGeom, bulletMat);
     
-      // Use player's orientation now (so shots come from ship forward)
-      const forward = new THREE.Vector3(0,0,-1).applyQuaternion(player.mesh.quaternion).normalize();
-      const right   = new THREE.Vector3(1,0,0).applyQuaternion(player.mesh.quaternion).normalize();
+      const forward = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
+      const right   = new THREE.Vector3(1,0,0).applyQuaternion(camera.quaternion).normalize();
     
-      // lateral offset and depth offset relative to ship
-      const lateralOffset = 14;   // reduced because spawn from ship
-      const depthOffset   = 20;   // spawn a bit in front of ship
+      // big screen-width style offset is fine
+      const lateralOffset = 70;   // your value
+      const depthOffset   = 5;    // spawn a bit in front of camera
     
-      const shipPos = player.mesh.position.clone();
+      const camPos = camera.position.clone();
     
-      // muzzle position for this side (local offset)
-      const spawnPos = shipPos.clone()
+      // muzzle position for this side
+      const spawnPos = camPos.clone()
         .add(right.clone().multiplyScalar(sideSign * lateralOffset))
         .add(forward.clone().multiplyScalar(depthOffset));
     
-      // virtual aim point far ahead, exactly along crosshair direction from ship
-      const aimDistance = sphereRadius * 1.5;
-      const aimPoint = shipPos.clone().add(forward.clone().multiplyScalar(aimDistance));
+      // virtual aim point far ahead, exactly along crosshair direction
+      const aimDistance = sphereRadius * 1.5;   // or 2000, 3000 etc.
+      const aimPoint = camPos.clone().add(forward.clone().multiplyScalar(aimDistance));
     
       // direction from muzzle → aim point (so both converge to crosshair)
       const dir = aimPoint.clone().sub(spawnPos).normalize();
@@ -1062,9 +1065,8 @@
       });
       const missile = new THREE.Mesh(geom, missileMat);
       missile.scale.set(0.4, 0.4, 0.4);
-      // spawn in front of ship
-      const dir = new THREE.Vector3(0,0,-1).applyQuaternion(player.mesh.quaternion).normalize();
-      missile.position.copy(player.mesh.position.clone().add(dir.clone().multiplyScalar(20)));
+      const dir = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
+      missile.position.copy(camera.position.clone().add(dir.clone().multiplyScalar(10)));
       const initialVel = dir.clone().multiplyScalar(missileSpeed);
       missiles.push({
         mesh: missile,
@@ -1076,18 +1078,11 @@
     }
 
     function enemyShoot(enemy){
-      
       if(!enemy || !enemy.mesh || gameOver) return;
-      if (!player || !player.mesh) {
-        // postpone shooting a bit
-        setTimeout(()=> enemyShoot(enemy), 250);
-        return;
-      }
       const bulletGeom = new THREE.SphereGeometry(2,8,8);
       const bulletMat = new THREE.MeshBasicMaterial({color:0x00ffff});
       const bullet = new THREE.Mesh(bulletGeom, bulletMat);
-      // target the player's ship position instead of camera
-      const dir = player.mesh.position.clone().sub(enemy.mesh.position).normalize();
+      const dir = camera.position.clone().sub(enemy.mesh.position).normalize();
       bullet.position.copy(enemy.mesh.position);
       enemyBullets.push({mesh:bullet,vel:dir.multiplyScalar(bulletSpeed*0.8)});
       scene.add(bullet);
@@ -1095,8 +1090,8 @@
       const delay = Math.max(150, enemyFireDelay + jitter);
       setTimeout(()=> enemyShoot(enemy), delay);
     }
-    const modelForwardLocal = new THREE.Vector3(0, 0, -1);
 
+    const modelForwardLocal = new THREE.Vector3(0, -1, 0);
 
     function alignShipToVelocity(enemy, t = 0.35){
       if(!enemy || !enemy.mesh) return;
@@ -1494,8 +1489,7 @@
         if(b.mesh.position.length()>sphereRadius*2){
           scene.remove(b.mesh); enemyBullets.splice(i,1); continue;
         }
-        // collision against player ship position
-        if(b.mesh.position.distanceTo(player.mesh.position) < accuracy){
+        if(b.mesh.position.distanceTo(camera.position) < accuracy){
           scene.remove(b.mesh); enemyBullets.splice(i,1);
           damagePlayer(enemyDamage);
           damage.play();
@@ -1547,10 +1541,8 @@
         const laserDps = baseDps;                                 // same DPS as heavy
         const damageThisFrame = laserDps * dt;
       
-        // use ship muzzle as laser origin
-        const camPos = player.mesh.position.clone();
-        const dir = new THREE.Vector3(0,0,-1).applyQuaternion(player.mesh.quaternion).normalize();
-        const muzzle = camPos.clone().add(dir.clone().multiplyScalar(20));
+        const camPos = camera.position.clone();
+        const dir = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
       
         let bestEnemy = null;
         let bestT = Infinity;
@@ -1558,10 +1550,10 @@
       
         enemies.forEach(enemy => {
           if (!enemy || !enemy.mesh) return;
-          const toEnemy = enemy.mesh.position.clone().sub(muzzle);
+          const toEnemy = enemy.mesh.position.clone().sub(camPos);
           const tProj = dir.dot(toEnemy);
           if (tProj <= 0) return; // behind the player
-          const closestPoint = muzzle.clone().add(dir.clone().multiplyScalar(tProj));
+          const closestPoint = camPos.clone().add(dir.clone().multiplyScalar(tProj));
           const dist = enemy.mesh.position.distanceTo(closestPoint);
           if (dist < hitRadius && tProj < bestT) {
             bestT = tProj;
@@ -1573,78 +1565,19 @@
           damageEnemy(bestEnemy, damageThisFrame);
         }
       
-        updateLaserBeam(true, muzzle, dir, sphereRadius * 1.5);
+        updateLaserBeam(true);
       } else {
         updateLaserBeam(false);
       }
-      updatePlayer(dt);
-      updateCameraFollow();
+
       renderer.render(scene, camera);
       updateMissileUI();
     }
-    // ---------- Camera follow / player input -> controls ----------
-    function updatePlayer(dt) {
-      if (!player || !player.mesh) return;
-    
-      const rotSpeed = 1.5 * dt;
-      const moveSpeed = 60 * dt;
-    
-      // rotation
-      if (keys['ArrowUp'])    player.mesh.rotateX(-rotSpeed);
-      if (keys['ArrowDown'])  player.mesh.rotateX(rotSpeed);
-      if (keys['ArrowLeft'])  player.mesh.rotateY(rotSpeed);
-      if (keys['ArrowRight']) player.mesh.rotateY(-rotSpeed);
-      if (keys['KeyA'])       player.mesh.rotateZ(rotSpeed);
-      if (keys['KeyD'])       player.mesh.rotateZ(-rotSpeed);
-    
-      // movement (LOCAL SPACE)
-      if (keys['KeyG']) player.mesh.translateZ(-moveSpeed);
-      if (keys['KeyH']) player.mesh.translateZ(moveSpeed);
-      if (keys['KeyF']) player.mesh.translateX(-moveSpeed);
-      if (keys['KeyJ']) player.mesh.translateX(moveSpeed);
-      if (keys['KeyT'] || keys['KeyY']) player.mesh.translateY(moveSpeed);
-      if (keys['KeyN']) player.mesh.translateY(-moveSpeed);
-    }
-
-
 
     loadModels().then(() => {
-      // create player ship from loaded geometry
-      player = {
-        mesh: new THREE.Mesh(spaceshipGeometry, spaceshipMaterial)
-      };
-      
-      player.mesh.scale.set(1, 1, 1);
-      player.mesh.position.set(0, 0, 0);
-      player.mesh.rotation.set(0, 0, 0);
-      
-      scene.add(player.mesh);
-      
-      // HARD VISUAL PROOF
-      player.mesh.add(new THREE.AxesHelper(50));
-      player.mesh.add(new THREE.BoxHelper(player.mesh, 0xff0000));
-      
-      console.log("PLAYER SHIP ADDED", player.mesh);
-
-    
-      // DEBUG: add axes helper so we can visually check forward direction
-      const axes = new THREE.AxesHelper(28);
-      // axes orientation: X=red (right), Y=green (up), Z=blue (forward)
-      player.mesh.add(axes);
-    
-      // start camera behind player (immediate correct placement)
-      const camOffsetLocal = new THREE.Vector3(0, 28, 140);
-      const initialCamPos = player.mesh.position.clone().add(camOffsetLocal.applyQuaternion(player.mesh.quaternion));
-      
-    
-      // look slightly ahead
-      const forward = new THREE.Vector3(0,0,-1).applyQuaternion(player.mesh.quaternion);
-      
       ensureEnemies();
       animate();
     }).catch(err => console.error(err));
-
-
 
     function reset(){
       playerHP = playerMaxHP;
@@ -1684,12 +1617,6 @@
 
       defeatedCount = 0;
       updateDefeatedUI();
-
-      // reset player position & rotation
-      playerPos.set(0,0,0);
-      player.mesh.position.copy(playerPos);
-      playerEuler.set(0, Math.PI, 0);
-      player.mesh.quaternion.setFromEuler(playerEuler);
     }
 
     document.getElementById('resetBtn').addEventListener('click', reset);
@@ -1701,10 +1628,11 @@
     document.getElementById('rollRight').addEventListener('mouseup',()=>releaseKey('KeyD'));
 
     window.addEventListener('resize',()=>{
-      
+      camera.aspect = window.innerWidth/window.innerHeight;
+      camera.updateProjectionMatrix();
       renderer.setSize(window.innerWidth, window.innerHeight);
     });
-    
+
     function togglePause(forceState) {
       if (typeof forceState === 'boolean') isPaused = forceState;
       else isPaused = !isPaused;

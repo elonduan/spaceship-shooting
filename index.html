@@ -970,8 +970,8 @@
     document.addEventListener('mousemove', (e) => {
       if (!pointerLocked || isPaused) return;
       const sens = accel;
-      yaw   -= e.movementX * sens/2;
-      pitch -= e.movementY * sens/2;
+      yaw   -= e.movementX * sens/3;
+      pitch -= e.movementY * sens/3;
       // clamp pitch to avoid singularity
       pitch = Math.max(-maxPitch, Math.min(maxPitch, pitch));
       // normalize yaw to keep numbers stable

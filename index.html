@@ -1033,7 +1033,7 @@
     
     function spawnBulletAtSide(sideSign, damage, speed) {
       // sideSign: -1 = left, +1 = right
-      const bulletGeom = new THREE.SphereGeometry(1,8,8);
+      const bulletGeom = new THREE.SphereGeometry(1.5,8,8);
       const bulletMat = new THREE.MeshBasicMaterial({color:0xffff00});
       const bullet = new THREE.Mesh(bulletGeom, bulletMat);
     
@@ -1041,7 +1041,7 @@
       const right   = new THREE.Vector3(1,0,0).applyQuaternion(camera.quaternion).normalize();
     
       // big screen-width style offset is fine
-      const lateralOffset = 70;   // your value
+      const lateralOffset = 50;   // your value
       const depthOffset   = 5;    // spawn a bit in front of camera
     
       const camPos = camera.position.clone();

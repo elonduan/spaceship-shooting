@@ -6,7 +6,7 @@
   <title>Ball Shooter</title>
   <style>
     html,body{height:100%;margin:0;background:#000;color:#ddd;font-family:system-ui,-apple-system,Segoe UI,Roboto;overflow:hidden}
-    #overlay{position:fixed;left:12px;top:12px;z-index:10;max-width:420px}
+    #overlay{position:fixed;left:12pxtop:12px;z-index:10;max-width:420px}
     .panel{background:rgba(0,0,0,0.45);padding:12px;border-radius:8px;backdrop-filter:blur(4px)}
     #win,#lose{display:none;padding:18px;margin-top:12px;border-radius:8px;font-weight:700}
     #win{background:linear-gradient(90deg,#0f0,#005500);color:#001}
@@ -1044,7 +1044,7 @@
       }
     
       // ===== CAMERA FOLLOW (3RD PERSON) =====
-      const camOffset = new THREE.Vector3(0, 72, 115); // ↑ up, ← behind
+      const camOffset = new THREE.Vector3(0, 42, 115); // ↑ up, ← behind
       camOffset.applyQuaternion(q);
     
       camera.position.copy(

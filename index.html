@@ -1371,9 +1371,7 @@
     
       missileAmmo += 2;
     
-      const hpGain = Math.round(playerMaxHP / 10);
-      playerHP = Math.min(playerMaxHP, playerHP + hpGain);
-      playerShield = Math.min(playerMaxShield, playerShield + Math.round(playerMaxShield * 0.15));
+
     
       updateMissileUI();
       updateHP();
@@ -1385,17 +1383,17 @@
       setTimeout(()=> { if(winDiv) winDiv.style.display = 'none'; }, 1800);
     
       playerMaxShield += Math.random()*2;
-      playerHP *= 1.1
+
       shieldRegenRatePerSec += Math.random();
       bulletDamage += Math.random();
-      missileDamage *= 1+Math.random()/6;
+      missileDamage += 1+Math.random();
       missileCooldownMs -= Math.random()*missileCooldownMs*0.4;
     
-      enemyMaxHP *= 1.1;
-      enemyMaxShield *= 1.1;
+      enemyMaxHP += Math.random()*3;
+      enemyMaxShield += 1.1;
       enemyDamage += 1;
-      enemyFireDelay = Math.max(300, enemyFireDelay - 100);
-      accuracy = 0.3+accuracy*0.8;
+      enemyFireDelay = Math.max(100, enemyFireDelay - 100);
+
       console.log(`[SCALE] defeated=${defeatedCount} playerMaxShield=${playerMaxShield.toFixed(2)} bulletDmg=${bulletDamage.toFixed(2)} enemyHP=${enemyMaxHP.toFixed(1)}  accuracy=${accuracy}`);
     
       ensureEnemies();

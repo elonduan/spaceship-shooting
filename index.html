@@ -1215,6 +1215,16 @@
       const forwardWorldPoint = enemy.mesh.localToWorld(forwardLocalPoint.clone());
       const forwardWorld = forwardWorldPoint.sub(meshWorldPos).normalize();
 
+      let qdelta = new THREE.Quaternion();
+      if(forwardWorld.dot(velDir) < -0.9999){
+        const tmp = new THREE.Vector3(1,0,0);
+        if(Math.abs(forwardWorld.x) > 0.9) tmp.set(0,1,0);
+        const axis = new THREE.Vector3().crossVectors(forwardWorld, tmp).normalize();
+        qdelta.setFromAxisAngle(axis, Math.PI);
+      } else {
+        qdelta.setFromUnitVectors(forwardWorld, velDir);
+      }
+
 
       const prev = enemy.prevVelDir.clone();
       const cur = velDir.clone();

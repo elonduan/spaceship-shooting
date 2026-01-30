@@ -666,7 +666,6 @@
           
           geometry.rotateX(-Math.PI / 2);
           geometry.rotateY(Math.PI);
-          geometry.scale(92, 92, 92);
           
           spaceshipGeometry = geometry;
           spaceshipMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff });
@@ -1045,7 +1044,7 @@
       }
     
       // ===== CAMERA FOLLOW (3RD PERSON) =====
-      const camOffset = new THREE.Vector3(0, 42, 115); // ↑ up, ← behind
+      const camOffset = new THREE.Vector3(0, 42, 145); // ↑ up, ← behind
       camOffset.applyQuaternion(q);
     
       camera.position.copy(

@@ -1142,8 +1142,11 @@
       scene.add(missile);
     }
 
+    // replace enemyShoot()
     function enemyShoot(enemy){
-      if(!enemy || !enemy.mesh || gameOver) return;
+      // bail out if enemy gone, dead, or game ended
+      if(!enemy || !enemy.mesh || !enemy.alive || gameOver) return;
+    
       const bulletGeom = new THREE.SphereGeometry(2,8,8);
       const bulletMat = new THREE.MeshBasicMaterial({color:0x00ffff});
       const bullet = new THREE.Mesh(bulletGeom, bulletMat);
@@ -1151,10 +1154,20 @@
       bullet.position.copy(enemy.mesh.position);
       enemyBullets.push({mesh:bullet,vel:dir.multiplyScalar(bulletSpeed*0.8)});
       scene.add(bullet);
+    
+      // schedule next shot, but keep the timeout handle on the enemy so it can be cancelled
       const jitter = Math.random()*800 - 400;
       const delay = Math.max(150, enemyFireDelay + jitter);
-      setTimeout(()=> enemyShoot(enemy), delay);
+      if (enemy._shootTimeout) {
+        clearTimeout(enemy._shootTimeout);
+        enemy._shootTimeout = null;
+      }
+      enemy._shootTimeout = setTimeout(()=>{
+        enemy._shootTimeout = null;
+        enemyShoot(enemy);
+      }, delay);
     }
+
 
     const modelForwardLocal = new THREE.Vector3(0, -1, 0);
 
@@ -1278,6 +1291,7 @@
       }
     }
 
+    // replace createEnemy()
     function createEnemy() {
       if (!spaceshipGeometry) return null;
       const pos = randomUnit().multiplyScalar(sphereRadius * 0.4);
@@ -1293,12 +1307,15 @@
         nextSteerChange: performance.now() + steerMin + Math.random() * (steerMax - steerMin),
         prevVelDir: vel.clone().normalize(),
         hp: enemyMaxHP,
-        shield: enemyMaxShield
+        shield: enemyMaxShield,
+        alive: true,          // <-- mark as alive
+        _shootTimeout: null   // <-- will store timeout handle
       };
       scene.add(mesh);
       enemyShoot(enemy);
       return enemy;
     }
+
 
     function ensureEnemies() {
       while (enemies.length < MAX_ENEMIES) {
@@ -1320,52 +1337,67 @@
       defeatedEl.textContent = defeatedCount;
       const playerName = (document.getElementById('playerName') || {}).value || 'Player';
     }
-
+    
+    // replace destroyEnemy()
     function destroyEnemy(enemy){
       if (!enemy) return;
-      const explosionPos = enemy.mesh.position.clone();
+      const explosionPos = (enemy.mesh && enemy.mesh.position) ? enemy.mesh.position.clone() : new THREE.Vector3();
       spawnExplosion(explosionPos);
-
-      scene.remove(enemy.mesh);
+    
+      // remove mesh (if present)
+      if (enemy.mesh) {
+        scene.remove(enemy.mesh);
+        // free reference so future checks fail quickly
+        enemy.mesh = null;
+      }
+    
+      // prevent any future shooting from this enemy
+      enemy.alive = false;
+      if (enemy._shootTimeout) {
+        clearTimeout(enemy._shootTimeout);
+        enemy._shootTimeout = null;
+      }
+    
       const idx = enemies.indexOf(enemy);
       if (idx !== -1) enemies.splice(idx, 1);
-
+    
       if (selectedEnemyIndex >= enemies.length) selectedEnemyIndex = 0;
-
+    
+      // clear any existing enemy bullets (your previous code already did this)
       for (let i = enemyBullets.length - 1; i >= 0; i--){
         scene.remove(enemyBullets[i].mesh);
         enemyBullets.splice(i,1);
       }
-
+    
       missileAmmo += 2;
-
+    
       const hpGain = Math.round(playerMaxHP / 10);
       playerHP = Math.min(playerMaxHP, playerHP + hpGain);
       playerShield = Math.min(playerMaxShield, playerShield + Math.round(playerMaxShield * 0.15));
-
+    
       updateMissileUI();
       updateHP();
-
+    
       defeatedCount++;
       updateDefeatedUI();
-
+    
       winDiv.style.display = 'block';
       setTimeout(()=> { if(winDiv) winDiv.style.display = 'none'; }, 1800);
-
+    
       playerMaxShield += Math.random()*2;
       playerHP *= 1.1
       shieldRegenRatePerSec += Math.random();
       bulletDamage += Math.random();
       missileDamage *= 1+Math.random()/6;
       missileCooldownMs -= Math.random()*missileCooldownMs*0.4;
-
+    
       enemyMaxHP *= 1.1;
       enemyMaxShield *= 1.1;
       enemyDamage += 1;
       enemyFireDelay = Math.max(300, enemyFireDelay - 100);
       accuracy = 0.3+accuracy*0.8;
       console.log(`[SCALE] defeated=${defeatedCount} playerMaxShield=${playerMaxShield.toFixed(2)} bulletDmg=${bulletDamage.toFixed(2)} enemyHP=${enemyMaxHP.toFixed(1)}  accuracy=${accuracy}`);
-
+    
       ensureEnemies();
     }
 

@@ -681,6 +681,32 @@
       return Promise.all([spaceshipPromise, missilePromise]);
     };
 
+    let playerShip = null;
+    const player = {
+      position: new THREE.Vector3(0, 0, 200),
+      velocity: new THREE.Vector3(),
+      yaw: 0,
+      pitch: 0,
+      roll: 0
+    };
+    
+    function createPlayerShip() {
+      const mesh = new THREE.Mesh(
+        spaceshipGeometry.clone(),
+        new THREE.MeshStandardMaterial({
+          color: 0xddddff,
+          metalness: 0.4,
+          roughness: 0.35
+        })
+      );
+    
+      mesh.scale.set(0.6, 0.6, 0.6);
+      mesh.position.copy(player.position);
+      scene.add(mesh);
+      playerShip = mesh;
+    }
+
+
     // HP etc.
     let playerMaxHP = 20;
     let playerHP = 40;
@@ -976,51 +1002,52 @@
 
     // -------------------------
     // updateCamera - rotation & translation
-    // -------------------------
-    function updateCamera(dt){
-      // rotation: roll is cosmetic and lerped from A/D keys
-      const desiredRoll = (keys['KeyA'] ?  maxRoll * 0.6 : 0) + (keys['KeyD'] ? -maxRoll * 0.6 : 0);
-      const rollLerp = Math.min(1, dt * 8.0);
-      roll = THREE.MathUtils.lerp(roll, desiredRoll, rollLerp);
-
-      // compose and set camera quaternion authoritatively
-      const desiredQ = composeCameraQuaternion(yaw, pitch, roll);
-      camera.quaternion.copy(desiredQ);
-
-      // --- PLAYER TRANSLATION (6DOF) ---
-      const playerMoveSpeed = 4.5; // scene units per "tick" baseline
-      const moveScale = playerMoveSpeed * dt * 60; // matches other movement scaling used elsewhere
-
-      // local basis vectors relative to camera orientation
-      const forward = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
-      const right   = new THREE.Vector3(1,0,0).applyQuaternion(camera.quaternion).normalize();
-      const up      = new THREE.Vector3(0,1,0).applyQuaternion(camera.quaternion).normalize();
-
-      // accumulate movement from keys
-      const moveDir = new THREE.Vector3();
-      if (keys['KeyG']) moveDir.add(forward);   // forward
-      if (keys['KeyH']) moveDir.sub(forward);   // backward
-      if (keys['KeyJ']) moveDir.add(right);     // right
-      if (keys['KeyF']) moveDir.sub(right);     // left
-      if (keys['KeyT'] || keys['KeyY']) moveDir.add(up);    // up (either T or Y)
-      if (keys['KeyN']) moveDir.sub(up);        // down
-
-      // apply movement (normalize so diagonals don't make you faster)
-      if (moveDir.lengthSq() > 0) {
-        moveDir.normalize();
-        camera.position.add(moveDir.multiplyScalar(moveScale));
-
-        // clamp camera inside playable area
-        const maxRadius = Math.max(50, sphereRadius * 0.9);
-        if (camera.position.length() > maxRadius) {
-          camera.position.setLength(maxRadius);
-        }
-
-        // optional small min radius protection (prevent exactly at center if undesired)
-        const minRadius = 0.0;
-        if (camera.position.length() < minRadius) camera.position.setLength(minRadius);
+    function updateCamera(dt) {
+      // roll (cosmetic)
+      const desiredRoll =
+        (keys['KeyA'] ?  maxRoll * 0.6 : 0) +
+        (keys['KeyD'] ? -maxRoll * 0.6 : 0);
+    
+      roll = THREE.MathUtils.lerp(roll, desiredRoll, dt * 8);
+    
+      // compose rotation
+      const q = composeCameraQuaternion(yaw, pitch, roll);
+      camera.quaternion.copy(q);
+    
+      // ===== SHIP MOVEMENT =====
+      const moveSpeed = 6.0;
+      const forward = new THREE.Vector3(0,0,-1).applyQuaternion(q).normalize();
+      const right   = new THREE.Vector3(1,0,0).applyQuaternion(q).normalize();
+      const up      = new THREE.Vector3(0,1,0).applyQuaternion(q).normalize();
+    
+      const move = new THREE.Vector3();
+      if (keys['KeyG']) move.add(forward);
+      if (keys['KeyH']) move.sub(forward);
+      if (keys['KeyJ']) move.add(right);
+      if (keys['KeyF']) move.sub(right);
+      if (keys['KeyT'] || keys['KeyY']) move.add(up);
+      if (keys['KeyN']) move.sub(up);
+    
+      if (move.lengthSq() > 0) {
+        move.normalize().multiplyScalar(moveSpeed * dt * 60);
+        player.position.add(move);
       }
+    
+      // ===== UPDATE SHIP TRANSFORM =====
+      if (playerShip) {
+        playerShip.position.copy(player.position);
+        playerShip.quaternion.copy(q);
+      }
+    
+      // ===== CAMERA FOLLOW (3RD PERSON) =====
+      const camOffset = new THREE.Vector3(0, 22, 75); // ↑ up, ← behind
+      camOffset.applyQuaternion(q);
+    
+      camera.position.copy(
+        player.position.clone().add(camOffset)
+      );
     }
+
 
 
 
@@ -1044,7 +1071,7 @@
       const lateralOffset = 50;   // your value
       const depthOffset   = 5;    // spawn a bit in front of camera
     
-      const camPos = camera.position.clone();
+      const camPos = playerShip.position.clone();
     
       // muzzle position for this side
       const spawnPos = camPos.clone()
@@ -1131,7 +1158,10 @@
       const missile = new THREE.Mesh(geom, missileMat);
       missile.scale.set(0.4, 0.4, 0.4);
       const dir = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
-      missile.position.copy(camera.position.clone().add(dir.clone().multiplyScalar(10)));
+      missile.position.copy(
+        playerShip.position.clone().add(dir.clone().multiplyScalar(10))
+      );
+
       const initialVel = dir.clone().multiplyScalar(missileSpeed);
       missiles.push({
         mesh: missile,
@@ -1635,7 +1665,6 @@
         const laserDps = baseDps;                                 // same DPS as heavy
         const damageThisFrame = laserDps * dt;
       
-        const camPos = camera.position.clone();
         const dir = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
       
         let bestEnemy = null;
@@ -1671,6 +1700,7 @@
     loadModels().then(() => {
       ensureEnemies();
       animate();
+      createPlayerShip();
     }).catch(err => console.error(err));
 
     function reset(){

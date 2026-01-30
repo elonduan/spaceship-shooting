@@ -683,7 +683,7 @@
 
     // HP etc.
     let playerMaxHP = 20;
-    let playerHP = 20;
+    let playerHP = 40;
     let enemyMaxHP = 10;
     let enemyHP = 10;
 
@@ -1386,12 +1386,12 @@
 
       shieldRegenRatePerSec += Math.random();
       bulletDamage += Math.random();
-      missileDamage += 1+Math.random();
-      missileCooldownMs -= Math.random()*missileCooldownMs*0.4;
+      missileDamage += Math.random();
+      missileCooldownMs -= Math.random()*missileCooldownMs*0.1;
     
-      enemyMaxHP += Math.random()*10;
-      enemyMaxShield += 1.1;
-      enemyDamage += 1;
+      enemyMaxHP += Math.random()*30;
+      enemyMaxShield += 3;
+      enemyDamage += 10;
       enemyFireDelay = Math.max(100, enemyFireDelay - 100);
 
       console.log(`[SCALE] defeated=${defeatedCount} playerMaxShield=${playerMaxShield.toFixed(2)} bulletDmg=${bulletDamage.toFixed(2)} enemyHP=${enemyMaxHP.toFixed(1)}  accuracy=${accuracy}`);

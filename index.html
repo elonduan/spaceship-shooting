@@ -1235,6 +1235,276 @@
         enemyShoot(enemy);
       }, delay);
     }
+    
+    // FIXED canonical forward (match your STL ONCE)
+    const MODEL_FORWARD = new THREE.Vector3(0, 0, -1); // after loader rotations
+    
+    function alignShipToVelocity(enemy) {
+      if (!enemy || !enemy.mesh) return;
+      if (enemy.vel.lengthSq() < 1e-6) return;
+    
+      const velDir = enemy.vel.clone().normalize();
+    
+      // desired orientation: model-forward → velocity
+      const targetQuat = new THREE.Quaternion()
+        .setFromUnitVectors(MODEL_FORWARD, velDir);
+    
+      // REAL smoothing (this finally works)
+      enemy.mesh.quaternion.slerp(targetQuat, ROTATION_LAG);
+    }
+
+      if(forwardWorld.dot(velDir) < -0.9999){
+        const tmp = new THREE.Vector3(1,0,0);
+        if(Math.abs(forwardWorld.x) > 0.9) tmp.set(0,1,0);
+        const axis = new THREE.Vector3().crossVectors(forwardWorld, tmp).normalize();
+        qdelta.setFromAxisAngle(axis, Math.PI);
+      } else {
+        qdelta.setFromUnitVectors(forwardWorld, velDir);
+      }
+      }, delay);
+    }
+
+
+    const modelForwardLocal = new THREE.Vector3(0, -1, 1);
+
+    function alignShipToVelocity(enemy, t = 0.35){
+      if(!enemy || !enemy.mesh) return;
+      if(enemy.vel.lengthSq() < 1e-6) return;
+      const velDir = enemy.vel.clone().normalize();
+      const meshWorldPos = new THREE.Vector3();
+      enemy.mesh.getWorldPosition(meshWorldPos);
+      const forwardLocalPoint = modelForwardLocal.clone();
+      const forwardWorldPoint = enemy.mesh.localToWorld(forwardLocalPoint.clone());
+      const forwardWorld = forwardWorldPoint.sub(meshWorldPos).normalize();
+
+      let qdelta = new THREE.Quaternion();
+      if(forwardWorld.dot(velDir) < -0.9999){
+        const tmp = new THREE.Vector3(1,0,0);
+        if(Math.abs(forwardWorld.x) > 0.9) tmp.set(0,1,0);
+        const axis = new THREE.Vector3().crossVectors(forwardWorld, tmp).normalize();
+        qdelta.setFromAxisAngle(axis, Math.PI);
+      } else {
+        qdelta.setFromUnitVectors(forwardWorld, velDir);
+      }
+        if(Math.abs(forwardWorld.x) > 0.9) tmp.set(0,1,0);
+        const axis = new THREE.Vector3().crossVectors(forwardWorld, tmp).normalize();
+        qdelta.setFromAxisAngle(axis, Math.PI);
+      } else {
+        qdelta.setFromUnitVectors(forwardWorld, velDir);
+      }
+      }, delay);
+    }
+
+
+    const modelForwardLocal = new THREE.Vector3(0, -1, 1);
+
+    function alignShipToVelocity(enemy, t = 0.35){
+      if(!enemy || !enemy.mesh) return;
+      if(enemy.vel.lengthSq() < 1e-6) return;
+      const velDir = enemy.vel.clone().normalize();
+      const meshWorldPos = new THREE.Vector3();
+      enemy.mesh.getWorldPosition(meshWorldPos);
+      const forwardLocalPoint = modelForwardLocal.clone();
+      const forwardWorldPoint = enemy.mesh.localToWorld(forwardLocalPoint.clone());
+      const forwardWorld = forwardWorldPoint.sub(meshWorldPos).normalize();
+
+      let qdelta = new THREE.Quaternion();
+      if(forwardWorld.dot(velDir) < -0.9999){
+        const tmp = new THREE.Vector3(1,0,0);
+        if(Math.abs(forwardWorld.x) > 0.9) tmp.set(0,1,0);
+        const axis = new THREE.Vector3().crossVectors(forwardWorld, tmp).normalize();
+        qdelta.setFromAxisAngle(axis, Math.PI);
+      } else {
+        qdelta.setFromUnitVectors(forwardWorld, velDir);
+      }
+        if(Math.abs(forwardWorld.x) > 0.9) tmp.set(0,1,0);
+        const axis = new THREE.Vector3().crossVectors(forwardWorld, tmp).normalize();
+        qdelta.setFromAxisAngle(axis, Math.PI);
+      } else {
+        qdelta.setFromUnitVectors(forwardWorld, velDir);
+      }
+      }, delay);
+    }
+
+
+    const modelForwardLocal = new THREE.Vector3(0, -1, 1);
+
+    function alignShipToVelocity(enemy, t = 0.35){
+      if(!enemy || !enemy.mesh) return;
+      if(enemy.vel.lengthSq() < 1e-6) return;
+      const velDir = enemy.vel.clone().normalize();
+      const meshWorldPos = new THREE.Vector3();
+      enemy.mesh.getWorldPosition(meshWorldPos);
+      const forwardLocalPoint = modelForwardLocal.clone();
+      const forwardWorldPoint = enemy.mesh.localToWorld(forwardLocalPoint.clone());
+      const forwardWorld = forwardWorldPoint.sub(meshWorldPos).normalize();
+
+      let qdelta = new THREE.Quaternion();
+      if(forwardWorld.dot(velDir) < -0.9999){
+        const tmp = new THREE.Vector3(1,0,0);
+        if(Math.abs(forwardWorld.x) > 0.9) tmp.set(0,1,0);
+        const axis = new THREE.Vector3().crossVectors(forwardWorld, tmp).normalize();
+        qdelta.setFromAxisAngle(axis, Math.PI);
+      } else {
+        qdelta.setFromUnitVectors(forwardWorld, velDir);
+      }
+        if(Math.abs(forwardWorld.x) > 0.9) tmp.set(0,1,0);
+        const axis = new THREE.Vector3().crossVectors(forwardWorld, tmp).normalize();
+        qdelta.setFromAxisAngle(axis, Math.PI);
+      } else {
+        qdelta.setFromUnitVectors(forwardWorld, velDir);
+      }
+      }, delay);
+    }
+
+
+    const modelForwardLocal = new THREE.Vector3(0, -1, 1);
+
+    function alignShipToVelocity(enemy, t = 0.35){
+      if(!enemy || !enemy.mesh) return;
+      if(enemy.vel.lengthSq() < 1e-6) return;
+      const velDir = enemy.vel.clone().normalize();
+      const meshWorldPos = new THREE.Vector3();
+      enemy.mesh.getWorldPosition(meshWorldPos);
+      const forwardLocalPoint = modelForwardLocal.clone();
+      const forwardWorldPoint = enemy.mesh.localToWorld(forwardLocalPoint.clone());
+      const forwardWorld = forwardWorldPoint.sub(meshWorldPos).normalize();
+
+      let qdelta = new THREE.Quaternion();
+      if(forwardWorld.dot(velDir) < -0.9999){
+        const tmp = new THREE.Vector3(1,0,0);
+        if(Math.abs(forwardWorld.x) > 0.9) tmp.set(0,1,0);
+        const axis = new THREE.Vector3().crossVectors(forwardWorld, tmp).normalize();
+        qdelta.setFromAxisAngle(axis, Math.PI);
+      } else {
+        qdelta.setFromUnitVectors(forwardWorld, velDir);
+      }
+        if(Math.abs(forwardWorld.x) > 0.9) tmp.set(0,1,0);
+        const axis = new THREE.Vector3().crossVectors(forwardWorld, tmp).normalize();
+        qdelta.setFromAxisAngle(axis, Math.PI);
+      } else {
+        qdelta.setFromUnitVectors(forwardWorld, velDir);
+      }
+      }, delay);
+    }
+
+
+    const modelForwardLocal = new THREE.Vector3(0, -1, 1);
+
+    function alignShipToVelocity(enemy, t = 0.35){
+      if(!enemy || !enemy.mesh) return;
+      if(enemy.vel.lengthSq() < 1e-6) return;
+      const velDir = enemy.vel.clone().normalize();
+      const meshWorldPos = new THREE.Vector3();
+      enemy.mesh.getWorldPosition(meshWorldPos);
+      const forwardLocalPoint = modelForwardLocal.clone();
+      const forwardWorldPoint = enemy.mesh.localToWorld(forwardLocalPoint.clone());
+      const forwardWorld = forwardWorldPoint.sub(meshWorldPos).normalize();
+
+      let qdelta = new THREE.Quaternion();
+      if(forwardWorld.dot(velDir) < -0.9999){
+        const tmp = new THREE.Vector3(1,0,0);
+        if(Math.abs(forwardWorld.x) > 0.9) tmp.set(0,1,0);
+        const axis = new THREE.Vector3().crossVectors(forwardWorld, tmp).normalize();
+        qdelta.setFromAxisAngle(axis, Math.PI);
+      } else {
+        qdelta.setFromUnitVectors(forwardWorld, velDir);
+      }
+        if(Math.abs(forwardWorld.x) > 0.9) tmp.set(0,1,0);
+        const axis = new THREE.Vector3().crossVectors(forwardWorld, tmp).normalize();
+        qdelta.setFromAxisAngle(axis, Math.PI);
+      } else {
+        qdelta.setFromUnitVectors(forwardWorld, velDir);
+      }
+      }, delay);
+    }
+
+
+    const modelForwardLocal = new THREE.Vector3(0, -1, 1);
+
+    function alignShipToVelocity(enemy, t = 0.35){
+      if(!enemy || !enemy.mesh) return;
+      if(enemy.vel.lengthSq() < 1e-6) return;
+      const velDir = enemy.vel.clone().normalize();
+      const meshWorldPos = new THREE.Vector3();
+      enemy.mesh.getWorldPosition(meshWorldPos);
+      const forwardLocalPoint = modelForwardLocal.clone();
+      const forwardWorldPoint = enemy.mesh.localToWorld(forwardLocalPoint.clone());
+      const forwardWorld = forwardWorldPoint.sub(meshWorldPos).normalize();
+
+      let qdelta = new THREE.Quaternion();
+      if(forwardWorld.dot(velDir) < -0.9999){
+        const tmp = new THREE.Vector3(1,0,0);
+        if(Math.abs(forwardWorld.x) > 0.9) tmp.set(0,1,0);
+        const axis = new THREE.Vector3().crossVectors(forwardWorld, tmp).normalize();
+        qdelta.setFromAxisAngle(axis, Math.PI);
+      } else {
+        qdelta.setFromUnitVectors(forwardWorld, velDir);
+      }
+        if(Math.abs(forwardWorld.x) > 0.9) tmp.set(0,1,0);
+        const axis = new THREE.Vector3().crossVectors(forwardWorld, tmp).normalize();
+        qdelta.setFromAxisAngle(axis, Math.PI);
+      } else {
+        qdelta.setFromUnitVectors(forwardWorld, velDir);
+      }
+      }, delay);
+    }
+
+
+    const modelForwardLocal = new THREE.Vector3(0, -1, 1);
+
+    function alignShipToVelocity(enemy, t = 0.35){
+      if(!enemy || !enemy.mesh) return;
+      if(enemy.vel.lengthSq() < 1e-6) return;
+      const velDir = enemy.vel.clone().normalize();
+      const meshWorldPos = new THREE.Vector3();
+      enemy.mesh.getWorldPosition(meshWorldPos);
+      const forwardLocalPoint = modelForwardLocal.clone();
+      const forwardWorldPoint = enemy.mesh.localToWorld(forwardLocalPoint.clone());
+      const forwardWorld = forwardWorldPoint.sub(meshWorldPos).normalize();
+
+      let qdelta = new THREE.Quaternion();
+      if(forwardWorld.dot(velDir) < -0.9999){
+        const tmp = new THREE.Vector3(1,0,0);
+        if(Math.abs(forwardWorld.x) > 0.9) tmp.set(0,1,0);
+        const axis = new THREE.Vector3().crossVectors(forwardWorld, tmp).normalize();
+        qdelta.setFromAxisAngle(axis, Math.PI);
+      } else {
+        qdelta.setFromUnitVectors(forwardWorld, velDir);
+      }
+        if(Math.abs(forwardWorld.x) > 0.9) tmp.set(0,1,0);
+        const axis = new THREE.Vector3().crossVectors(forwardWorld, tmp).normalize();
+        qdelta.setFromAxisAngle(axis, Math.PI);
+      } else {
+        qdelta.setFromUnitVectors(forwardWorld, velDir);
+      }
+      }, delay);
+    }
+
+
+    const modelForwardLocal = new THREE.Vector3(0, -1, 1);
+
+    function alignShipToVelocity(enemy, t = 0.35){
+      if(!enemy || !enemy.mesh) return;
+      if(enemy.vel.lengthSq() < 1e-6) return;
+      const velDir = enemy.vel.clone().normalize();
+      const meshWorldPos = new THREE.Vector3();
+      enemy.mesh.getWorldPosition(meshWorldPos);
+      const forwardLocalPoint = modelForwardLocal.clone();
+      const forwardWorldPoint = enemy.mesh.localToWorld(forwardLocalPoint.clone());
+      const forwardWorld = forwardWorldPoint.sub(meshWorldPos).normalize();
+
+      let qdelta = new THREE.Quaternion();
+      if(forwardWorld.dot(velDir) < -0.9999){
+        const tmp = new THREE.Vector3(1,0,0);
+        if(Math.abs(forwardWorld.x) > 0.9) tmp.set(0,1,0);
+        const axis = new THREE.Vector3().crossVectors(forwardWorld, tmp).normalize();
+        qdelta.setFromAxisAngle(axis, Math.PI);
+      } else {
+        qdelta.setFromUnitVectors(forwardWorld, velDir);
+      }
+      }, delay);
+    }
 
 
     const modelForwardLocal = new THREE.Vector3(0, -1, 1);
@@ -1271,19 +1541,6 @@
       const currentQ = enemy.mesh.quaternion.clone();
       const baseTargetQ = qdelta.multiply(currentQ);
       const targetQ = rollQuat.multiply(baseTargetQ);
-
-      // build target orientation from velocity
-      const m = new THREE.Matrix4();
-      m.lookAt(
-        new THREE.Vector3(0, 0, 0),
-        enemy.vel.clone().normalize(),
-        new THREE.Vector3(0, 1, 0)
-      );
-      
-      const targetQuat = new THREE.Quaternion().setFromRotationMatrix(m);
-      
-      // 🔥 smooth yaw + pitch lag
-      enemy.mesh.quaternion.slerp(targetQuat, ROTATION_LAG);
       
       enemy.prevVelDir.lerp(velDir, 0.15).normalize();
     }

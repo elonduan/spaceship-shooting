@@ -1275,18 +1275,19 @@
       const targetQuaternion = new THREE.Quaternion();
       const targetMatrix = new THREE.Matrix4();
       
-      // forward direction (velocity-based or target-based)
       if (!enemy.vel || enemy.vel.lengthSq() === 0) return;
-
+      
       const forward = enemy.vel.clone().normalize();
       
-      // build orientation
-      targetMatrix.lookAt(
+      // build target orientation
+      const targetQuat = new THREE.Quaternion();
+      const m = new THREE.Matrix4();
+      m.lookAt(
         new THREE.Vector3(0, 0, 0),
         forward,
         new THREE.Vector3(0, 1, 0)
       );
-      
+      targetQuat.setFromRotationMatrix(m);
       targetQuaternion.setFromRotationMatrix(targetMatrix);
       
       // 🔥 SMOOTH ROTATION

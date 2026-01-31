@@ -1272,28 +1272,19 @@
       const baseTargetQ = qdelta.multiply(currentQ);
       const targetQ = rollQuat.multiply(baseTargetQ);
 
-      const targetQuaternion = new THREE.Quaternion();
-      const targetMatrix = new THREE.Matrix4();
-      
-      if (!enemy.vel || enemy.vel.lengthSq() === 0) return;
-      
-      const forward = enemy.vel.clone().normalize();
-      
-      // build target orientation
-      const targetQuat = new THREE.Quaternion();
+      // build target orientation from velocity
       const m = new THREE.Matrix4();
       m.lookAt(
         new THREE.Vector3(0, 0, 0),
-        forward,
+        enemy.vel.clone().normalize(),
         new THREE.Vector3(0, 1, 0)
       );
-      targetQuat.setFromRotationMatrix(m);
-      targetQuaternion.setFromRotationMatrix(targetMatrix);
       
-      // 🔥 SMOOTH ROTATION
-      enemy.mesh.quaternion.slerp(targetQuaternion, ROTATION_LAG);
-
-
+      const targetQuat = new THREE.Quaternion().setFromRotationMatrix(m);
+      
+      // 🔥 smooth yaw + pitch lag
+      enemy.mesh.quaternion.slerp(targetQuat, ROTATION_LAG);
+      
       enemy.prevVelDir.lerp(velDir, 0.15).normalize();
     }
 

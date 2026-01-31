@@ -1246,55 +1246,36 @@
 
 
     const modelForwardLocal = new THREE.Vector3(0, -1, 1);
-
-    function alignShipToVelocity(enemy, t = 0.35){
-      if(!enemy || !enemy.mesh) return;
-      if(enemy.vel.lengthSq() < 1e-6) return;
+    function alignShipToVelocity(enemy, turnSpeed = 3.5, deadZone = 0.002) {
+      if (!enemy || !enemy.mesh) return;
+      if (enemy.vel.lengthSq() < 1e-6) return;
+    
       const velDir = enemy.vel.clone().normalize();
-      const meshWorldPos = new THREE.Vector3();
-      enemy.mesh.getWorldPosition(meshWorldPos);
-      const forwardLocalPoint = modelForwardLocal.clone();
-      const forwardWorldPoint = enemy.mesh.localToWorld(forwardLocalPoint.clone());
-      const forwardWorld = forwardWorldPoint.sub(meshWorldPos).normalize();
-
-      let qdelta = new THREE.Quaternion();
-      if(forwardWorld.dot(velDir) < -0.9999){
-        const tmp = new THREE.Vector3(1,0,0);
-        if(Math.abs(forwardWorld.x) > 0.9) tmp.set(0,1,0);
-        const axis = new THREE.Vector3().crossVectors(forwardWorld, tmp).normalize();
-        qdelta.setFromAxisAngle(axis, Math.PI);
-      } else {
-        qdelta.setFromUnitVectors(forwardWorld, velDir);
-      }
-
-
-      const prev = enemy.prevVelDir.clone();
-      const cur = velDir.clone();
-      const angleBetween = Math.acos(Math.min(Math.max(prev.dot(cur), -1), 1));
-      const turnAxis = new THREE.Vector3().crossVectors(prev, cur);
-      const sign = Math.sign(turnAxis.dot(new THREE.Vector3(0,1,0)) || 1);
-      const desiredRoll = Math.max(-maxRoll, Math.min(maxRoll, sign * angleBetween * 1.8));
-      const rollQuat = new THREE.Quaternion().setFromAxisAngle(velDir.clone(), desiredRoll);
-
-      const currentQ = enemy.mesh.quaternion.clone();
-      const baseTargetQ = qdelta.multiply(currentQ);
-      const targetQ = rollQuat.multiply(baseTargetQ);
-
-      // build target orientation from velocity
-      const m = new THREE.Matrix4();
-      m.lookAt(
-        new THREE.Vector3(0, 0, 0),
-        enemy.vel.clone().normalize(),
-        new THREE.Vector3(0, 1, 0)
+    
+      // current forward direction of the ship
+      const forward = new THREE.Vector3(0, 0, -1)
+        .applyQuaternion(enemy.mesh.quaternion)
+        .normalize();
+    
+      // angle between forward and velocity
+      const dot = THREE.MathUtils.clamp(forward.dot(velDir), -1, 1);
+      const angle = Math.acos(dot);
+    
+      // ---- DEAD ZONE (THIS STOPS THE WIGGLE) ----
+      if (angle < deadZone) return;
+    
+      // target rotation
+      const targetQuat = new THREE.Quaternion()
+        .setFromUnitVectors(forward, velDir)
+        .multiply(enemy.mesh.quaternion);
+    
+      // smooth turn
+      enemy.mesh.quaternion.slerp(
+        targetQuat,
+        1 - Math.exp(-turnSpeed * clock.getDelta())
       );
-
-      const targetQuat = new THREE.Quaternion().setFromRotationMatrix(m);
-
-      // 🔥 smooth yaw + pitch lag
-      enemy.mesh.quaternion.slerp(targetQuat, ROTATION_LAG);
-
-      enemy.prevVelDir.lerp(velDir, 0.15).normalize();
     }
+
 
     function stepEnemy(enemy, dt, isPrimary){
       if (!enemy || !enemy.mesh) return;

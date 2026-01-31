@@ -1236,6 +1236,8 @@
       }, delay);
     }
     
+
+    
     // FIXED canonical forward (match your STL ONCE)
     const MODEL_FORWARD = new THREE.Vector3(0, 0, -1); // after loader rotations
     
@@ -1253,16 +1255,7 @@
       enemy.mesh.quaternion.slerp(targetQuat, ROTATION_LAG);
     }
 
-      if(forwardWorld.dot(velDir) < -0.9999){
-        const tmp = new THREE.Vector3(1,0,0);
-        if(Math.abs(forwardWorld.x) > 0.9) tmp.set(0,1,0);
-        const axis = new THREE.Vector3().crossVectors(forwardWorld, tmp).normalize();
-        qdelta.setFromAxisAngle(axis, Math.PI);
-      } else {
-        qdelta.setFromUnitVectors(forwardWorld, velDir);
-      }
-      }, delay);
-    }
+    
 
 
     const modelForwardLocal = new THREE.Vector3(0, -1, 1);

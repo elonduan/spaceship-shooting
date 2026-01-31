@@ -1276,7 +1276,9 @@
       const targetMatrix = new THREE.Matrix4();
       
       // forward direction (velocity-based or target-based)
-      const forward = enemy.velocity.clone().normalize();
+      if (!enemy.vel || enemy.vel.lengthSq() === 0) return;
+
+      const forward = enemy.vel.clone().normalize();
       
       // build orientation
       targetMatrix.lookAt(

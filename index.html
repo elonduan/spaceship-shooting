@@ -595,7 +595,7 @@
     let laserBeam = null;
     function ensureLaserBeam() {
       if (laserBeam) return;
-    
+
       // thin cylinder, height=1; we'll scale it
       const geo = new THREE.CylinderGeometry(0.6, 0.6, 100, 16, 1, true);
       const mat = new THREE.MeshBasicMaterial({
@@ -603,12 +603,12 @@
         transparent: true,
         opacity: 0.9
       });
-    
+
       laserBeam = new THREE.Mesh(geo, mat);
       laserBeam.visible = false;
       scene.add(laserBeam);
     }
-    
+
     function updateLaserBeam(active) {
       ensureLaserBeam();
       if (!active) {
@@ -616,20 +616,20 @@
         return;
       }
       laserBeam.visible = true;
-    
+
       const origin = camera.position.clone();
       const dir = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
       const length = sphereRadius * 2; // long beam
-    
+
       // center of the cylinder is halfway along the beam
       const mid = origin.clone().add(dir.clone().multiplyScalar(length / 2));
       laserBeam.position.copy(mid);
-    
+
       // orient cylinder so its Y axis points along 'dir'
       const up = new THREE.Vector3(0,1,0);
       const q = new THREE.Quaternion().setFromUnitVectors(up, dir);
       laserBeam.quaternion.copy(q);
-    
+
       // stretch height along Y
       laserBeam.scale.set(1, length, 1);
     }
@@ -647,6 +647,7 @@
     const steerLerpFactor = 0.015;
     const maxRoll = 1.0;
 
+    const ROTATION_LAG = 0.08; // smaller = smoother / slower
     const ROTATION_LAG = 0.00000001; // smaller = smoother / slower
 
     const MAX_ENEMIES = 2;
@@ -661,7 +662,7 @@
     const loader = new THREE.STLLoader();
 
     const loadModels = () => {
-    
+
       const enemyShipPromise = new Promise((resolve, reject) => {
         loader.load('./res/spaceship.stl', (geometry) => {
           geometry.computeBoundingBox();
@@ -670,13 +671,13 @@
           bb.getCenter(center);
           geometry.translate(-center.x, -center.y, -center.z);
           geometry.rotateX(THREE.MathUtils.degToRad(-37));
-    
+
           spaceshipGeometry = geometry;
           spaceshipMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff });
           resolve();
         }, undefined, reject);
       });
-    
+
       const playerShipPromise = new Promise((resolve, reject) => {
         loader.load('./res/player.stl', (geometry) => {
           geometry.computeBoundingBox();
@@ -684,15 +685,15 @@
           const center = new THREE.Vector3();
           bb.getCenter(center);
           geometry.translate(-center.x, -center.y, -center.z);
-    
+
           geometry.rotateX(-Math.PI / 2);
           geometry.rotateY(Math.PI);
-    
+
           playerGeometry = geometry;
           resolve();
         }, undefined, reject);
       });
-    
+
       const missilePromise = new Promise((resolve, reject) => {
         loader.load('./res/missile.stl', (geometry) => {
           geometry.computeBoundingBox();
@@ -700,12 +701,12 @@
           const center = new THREE.Vector3();
           bb.getCenter(center);
           geometry.translate(-center.x, -center.y, -center.z);
-    
+
           missileGeometry = geometry;
           resolve();
         }, undefined, reject);
       });
-    
+
       return Promise.all([
         enemyShipPromise,
         playerShipPromise,
@@ -721,13 +722,13 @@
       pitch: 0,
       roll: 0
     };
-    
+
     function createPlayerShip() {
       if (!playerGeometry) {
         console.error('playerGeometry not loaded');
         return;
       }
-    
+
       const mesh = new THREE.Mesh(
         playerGeometry.clone(),
         new THREE.MeshStandardMaterial({
@@ -736,7 +737,7 @@
           roughness: 0.35
         })
       );
-    
+
       mesh.scale.set(0.6, 0.6, 0.6);
       mesh.position.copy(player.position);
       scene.add(mesh);
@@ -919,7 +920,7 @@
 
     window.addEventListener('keydown',(e)=>{
       if(isPaused) return;
-    
+
       // FIRE
       if(e.code === 'Space'){ 
         if (weaponMode === 'laser') {
@@ -932,13 +933,13 @@
         return;
       }
 
-      
+
       // MISSILE
       if(e.code === 'KeyM'){ 
         launchMissile();
         return;
       }
-    
+
       // WEAPON MODE SWITCH
       if (e.code === 'Digit1') {
         setWeaponMode('normal');
@@ -952,7 +953,7 @@
         setWeaponMode('laser');
         return;
       }
-    
+
       // C: cycle selected enemy (keep your existing behaviour)
       if(e.code === 'KeyC'){
         if (enemies.length > 0) {
@@ -961,13 +962,13 @@
         }
         return;
       }
-    
+
       // RESET
       if(e.key === 'r' || e.key === 'R'){ 
         reset();
         return;
       }
-    
+
       // movement / roll keys
       pressKey(e.code);
     });
@@ -1045,19 +1046,19 @@
       const desiredRoll =
         (keys['KeyA'] ?  maxRoll * 0.6 : 0) +
         (keys['KeyD'] ? -maxRoll * 0.6 : 0);
-    
+
       roll = THREE.MathUtils.lerp(roll, desiredRoll, dt * 8);
-    
+
       // compose rotation
       const q = composeCameraQuaternion(yaw, pitch, roll);
       camera.quaternion.copy(q);
-    
+
       // ===== SHIP MOVEMENT =====
       const moveSpeed = 6.0;
       const forward = new THREE.Vector3(0,0,-1).applyQuaternion(q).normalize();
       const right   = new THREE.Vector3(1,0,0).applyQuaternion(q).normalize();
       const up      = new THREE.Vector3(0,1,0).applyQuaternion(q).normalize();
-    
+
       const move = new THREE.Vector3();
       if (keys['KeyG']) move.add(forward);
       if (keys['KeyH']) move.sub(forward);
@@ -1065,22 +1066,22 @@
       if (keys['KeyF']) move.sub(right);
       if (keys['KeyT'] || keys['KeyY']) move.add(up);
       if (keys['KeyN']) move.sub(up);
-    
+
       if (move.lengthSq() > 0) {
         move.normalize().multiplyScalar(moveSpeed * dt * 60);
         player.position.add(move);
       }
-    
+
       // ===== UPDATE SHIP TRANSFORM =====
       if (playerShip) {
         playerShip.position.copy(player.position);
         playerShip.quaternion.copy(q);
       }
-    
+
       // ===== CAMERA FOLLOW (3RD PERSON) =====
       const camOffset = new THREE.Vector3(0, 42, 145); // ↑ up, ← behind
       camOffset.applyQuaternion(q);
-    
+
       camera.position.copy(
         player.position.clone().add(camOffset)
       );
@@ -1095,34 +1096,34 @@
     const bulletSpeed = 75;
     const missileSpeed = 4.5;
     let accuracy = 5;
-    
+
     function spawnBulletAtSide(sideSign, damage, speed) {
       // sideSign: -1 = left, +1 = right
       const bulletGeom = new THREE.SphereGeometry(1.5,8,8);
       const bulletMat = new THREE.MeshBasicMaterial({color:0xffff00});
       const bullet = new THREE.Mesh(bulletGeom, bulletMat);
-    
+
       const forward = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
       const right   = new THREE.Vector3(1,0,0).applyQuaternion(camera.quaternion).normalize();
-    
+
       // big screen-width style offset is fine
       const lateralOffset = 50;   // your value
       const depthOffset   = 5;    // spawn a bit in front of camera
-    
+
       const camPos = playerShip.position.clone();
-    
+
       // muzzle position for this side
       const spawnPos = camPos.clone()
         .add(right.clone().multiplyScalar(sideSign * lateralOffset))
         .add(forward.clone().multiplyScalar(depthOffset));
-    
+
       // virtual aim point far ahead, exactly along crosshair direction
       const aimDistance = sphereRadius * 1.5;   // or 2000, 3000 etc.
       const aimPoint = camPos.clone().add(forward.clone().multiplyScalar(aimDistance));
-    
+
       // direction from muzzle → aim point (so both converge to crosshair)
       const dir = aimPoint.clone().sub(spawnPos).normalize();
-    
+
       bullet.position.copy(spawnPos);
       bullets.push({
         mesh: bullet,
@@ -1137,18 +1138,18 @@
     function shoot(){
       if (isPaused) return;
       const now = performance.now();
-    
+
       // BASE: DPS of normal weapon (depends on bulletDamage and fire rate)
       const baseDps = bulletDamage * (1000 / autoShootRateMs);
-    
+
       let thisDamage = bulletDamage;       // default for normal
       let thisSpeed  = bulletSpeed;        // default speed
-    
+
       if (weaponMode === 'heavy') {
         // limit fire rate for heavy cannon
         if (now - heavyLastShotTime < heavyCooldownMs) return;
         heavyLastShotTime = now;
-    
+
         // heavy shot does more damage but fires slower: DPS equal to base
         thisDamage = baseDps * (heavyCooldownMs / 1000); // ~3x damage if cooldown is 3x
         thisSpeed  = bulletSpeed * 0.6;                  // slower projectile for flavour
@@ -1156,11 +1157,11 @@
         // laser is handled as continuous in animate(), no discrete bullets
         return;
       }
-    
+
       // twin guns: left (-1) and right (+1)
       spawnBulletAtSide(-1, thisDamage, thisSpeed);
       spawnBulletAtSide(+1, thisDamage, thisSpeed);
-    
+
       missileExplosion.currentTime = 0;
       missileFollowExp.cloneNode(true).play();
     }
@@ -1214,7 +1215,7 @@
     function enemyShoot(enemy){
       // bail out if enemy gone, dead, or game ended
       if(!enemy || !enemy.mesh || !enemy.alive || gameOver) return;
-    
+
       const bulletGeom = new THREE.SphereGeometry(2,8,8);
       const bulletMat = new THREE.MeshBasicMaterial({color:0x00ffff});
       const bullet = new THREE.Mesh(bulletGeom, bulletMat);
@@ -1222,7 +1223,7 @@
       bullet.position.copy(enemy.mesh.position);
       enemyBullets.push({mesh:bullet,vel:dir.multiplyScalar(bulletSpeed*0.8)});
       scene.add(bullet);
-    
+
       // schedule next shot, but keep the timeout handle on the enemy so it can be cancelled
       const jitter = Math.random()*800 - 400;
       const delay = Math.max(150, enemyFireDelay + jitter);
@@ -1233,269 +1234,6 @@
       enemy._shootTimeout = setTimeout(()=>{
         enemy._shootTimeout = null;
         enemyShoot(enemy);
-      }, delay);
-    }
-    
-
-    
-    // FIXED canonical forward (match your STL ONCE)
-    const MODEL_FORWARD = new THREE.Vector3(0, 0, -1); // after loader rotations
-    
-    function alignShipToVelocity(enemy) {
-      if (!enemy || !enemy.mesh) return;
-      if (enemy.vel.lengthSq() < 1e-6) return;
-    
-      const velDir = enemy.vel.clone().normalize();
-    
-      // desired orientation: model-forward → velocity
-      const targetQuat = new THREE.Quaternion()
-        .setFromUnitVectors(MODEL_FORWARD, velDir);
-    
-      // REAL smoothing (this finally works)
-      enemy.mesh.quaternion.slerp(targetQuat, ROTATION_LAG);
-    }
-
-    
-
-
-    const modelForwardLocal = new THREE.Vector3(0, -1, 1);
-
-    function alignShipToVelocity(enemy, t = 0.35){
-      if(!enemy || !enemy.mesh) return;
-      if(enemy.vel.lengthSq() < 1e-6) return;
-      const velDir = enemy.vel.clone().normalize();
-      const meshWorldPos = new THREE.Vector3();
-      enemy.mesh.getWorldPosition(meshWorldPos);
-      const forwardLocalPoint = modelForwardLocal.clone();
-      const forwardWorldPoint = enemy.mesh.localToWorld(forwardLocalPoint.clone());
-      const forwardWorld = forwardWorldPoint.sub(meshWorldPos).normalize();
-
-      let qdelta = new THREE.Quaternion();
-      if(forwardWorld.dot(velDir) < -0.9999){
-        const tmp = new THREE.Vector3(1,0,0);
-        if(Math.abs(forwardWorld.x) > 0.9) tmp.set(0,1,0);
-        const axis = new THREE.Vector3().crossVectors(forwardWorld, tmp).normalize();
-        qdelta.setFromAxisAngle(axis, Math.PI);
-      } else {
-        qdelta.setFromUnitVectors(forwardWorld, velDir);
-      }
-        if(Math.abs(forwardWorld.x) > 0.9) tmp.set(0,1,0);
-        const axis = new THREE.Vector3().crossVectors(forwardWorld, tmp).normalize();
-        qdelta.setFromAxisAngle(axis, Math.PI);
-      } else {
-        qdelta.setFromUnitVectors(forwardWorld, velDir);
-      }
-      }, delay);
-    }
-
-
-    const modelForwardLocal = new THREE.Vector3(0, -1, 1);
-
-    function alignShipToVelocity(enemy, t = 0.35){
-      if(!enemy || !enemy.mesh) return;
-      if(enemy.vel.lengthSq() < 1e-6) return;
-      const velDir = enemy.vel.clone().normalize();
-      const meshWorldPos = new THREE.Vector3();
-      enemy.mesh.getWorldPosition(meshWorldPos);
-      const forwardLocalPoint = modelForwardLocal.clone();
-      const forwardWorldPoint = enemy.mesh.localToWorld(forwardLocalPoint.clone());
-      const forwardWorld = forwardWorldPoint.sub(meshWorldPos).normalize();
-
-      let qdelta = new THREE.Quaternion();
-      if(forwardWorld.dot(velDir) < -0.9999){
-        const tmp = new THREE.Vector3(1,0,0);
-        if(Math.abs(forwardWorld.x) > 0.9) tmp.set(0,1,0);
-        const axis = new THREE.Vector3().crossVectors(forwardWorld, tmp).normalize();
-        qdelta.setFromAxisAngle(axis, Math.PI);
-      } else {
-        qdelta.setFromUnitVectors(forwardWorld, velDir);
-      }
-        if(Math.abs(forwardWorld.x) > 0.9) tmp.set(0,1,0);
-        const axis = new THREE.Vector3().crossVectors(forwardWorld, tmp).normalize();
-        qdelta.setFromAxisAngle(axis, Math.PI);
-      } else {
-        qdelta.setFromUnitVectors(forwardWorld, velDir);
-      }
-      }, delay);
-    }
-
-
-    const modelForwardLocal = new THREE.Vector3(0, -1, 1);
-
-    function alignShipToVelocity(enemy, t = 0.35){
-      if(!enemy || !enemy.mesh) return;
-      if(enemy.vel.lengthSq() < 1e-6) return;
-      const velDir = enemy.vel.clone().normalize();
-      const meshWorldPos = new THREE.Vector3();
-      enemy.mesh.getWorldPosition(meshWorldPos);
-      const forwardLocalPoint = modelForwardLocal.clone();
-      const forwardWorldPoint = enemy.mesh.localToWorld(forwardLocalPoint.clone());
-      const forwardWorld = forwardWorldPoint.sub(meshWorldPos).normalize();
-
-      let qdelta = new THREE.Quaternion();
-      if(forwardWorld.dot(velDir) < -0.9999){
-        const tmp = new THREE.Vector3(1,0,0);
-        if(Math.abs(forwardWorld.x) > 0.9) tmp.set(0,1,0);
-        const axis = new THREE.Vector3().crossVectors(forwardWorld, tmp).normalize();
-        qdelta.setFromAxisAngle(axis, Math.PI);
-      } else {
-        qdelta.setFromUnitVectors(forwardWorld, velDir);
-      }
-        if(Math.abs(forwardWorld.x) > 0.9) tmp.set(0,1,0);
-        const axis = new THREE.Vector3().crossVectors(forwardWorld, tmp).normalize();
-        qdelta.setFromAxisAngle(axis, Math.PI);
-      } else {
-        qdelta.setFromUnitVectors(forwardWorld, velDir);
-      }
-      }, delay);
-    }
-
-
-    const modelForwardLocal = new THREE.Vector3(0, -1, 1);
-
-    function alignShipToVelocity(enemy, t = 0.35){
-      if(!enemy || !enemy.mesh) return;
-      if(enemy.vel.lengthSq() < 1e-6) return;
-      const velDir = enemy.vel.clone().normalize();
-      const meshWorldPos = new THREE.Vector3();
-      enemy.mesh.getWorldPosition(meshWorldPos);
-      const forwardLocalPoint = modelForwardLocal.clone();
-      const forwardWorldPoint = enemy.mesh.localToWorld(forwardLocalPoint.clone());
-      const forwardWorld = forwardWorldPoint.sub(meshWorldPos).normalize();
-
-      let qdelta = new THREE.Quaternion();
-      if(forwardWorld.dot(velDir) < -0.9999){
-        const tmp = new THREE.Vector3(1,0,0);
-        if(Math.abs(forwardWorld.x) > 0.9) tmp.set(0,1,0);
-        const axis = new THREE.Vector3().crossVectors(forwardWorld, tmp).normalize();
-        qdelta.setFromAxisAngle(axis, Math.PI);
-      } else {
-        qdelta.setFromUnitVectors(forwardWorld, velDir);
-      }
-        if(Math.abs(forwardWorld.x) > 0.9) tmp.set(0,1,0);
-        const axis = new THREE.Vector3().crossVectors(forwardWorld, tmp).normalize();
-        qdelta.setFromAxisAngle(axis, Math.PI);
-      } else {
-        qdelta.setFromUnitVectors(forwardWorld, velDir);
-      }
-      }, delay);
-    }
-
-
-    const modelForwardLocal = new THREE.Vector3(0, -1, 1);
-
-    function alignShipToVelocity(enemy, t = 0.35){
-      if(!enemy || !enemy.mesh) return;
-      if(enemy.vel.lengthSq() < 1e-6) return;
-      const velDir = enemy.vel.clone().normalize();
-      const meshWorldPos = new THREE.Vector3();
-      enemy.mesh.getWorldPosition(meshWorldPos);
-      const forwardLocalPoint = modelForwardLocal.clone();
-      const forwardWorldPoint = enemy.mesh.localToWorld(forwardLocalPoint.clone());
-      const forwardWorld = forwardWorldPoint.sub(meshWorldPos).normalize();
-
-      let qdelta = new THREE.Quaternion();
-      if(forwardWorld.dot(velDir) < -0.9999){
-        const tmp = new THREE.Vector3(1,0,0);
-        if(Math.abs(forwardWorld.x) > 0.9) tmp.set(0,1,0);
-        const axis = new THREE.Vector3().crossVectors(forwardWorld, tmp).normalize();
-        qdelta.setFromAxisAngle(axis, Math.PI);
-      } else {
-        qdelta.setFromUnitVectors(forwardWorld, velDir);
-      }
-        if(Math.abs(forwardWorld.x) > 0.9) tmp.set(0,1,0);
-        const axis = new THREE.Vector3().crossVectors(forwardWorld, tmp).normalize();
-        qdelta.setFromAxisAngle(axis, Math.PI);
-      } else {
-        qdelta.setFromUnitVectors(forwardWorld, velDir);
-      }
-      }, delay);
-    }
-
-
-    const modelForwardLocal = new THREE.Vector3(0, -1, 1);
-
-    function alignShipToVelocity(enemy, t = 0.35){
-      if(!enemy || !enemy.mesh) return;
-      if(enemy.vel.lengthSq() < 1e-6) return;
-      const velDir = enemy.vel.clone().normalize();
-      const meshWorldPos = new THREE.Vector3();
-      enemy.mesh.getWorldPosition(meshWorldPos);
-      const forwardLocalPoint = modelForwardLocal.clone();
-      const forwardWorldPoint = enemy.mesh.localToWorld(forwardLocalPoint.clone());
-      const forwardWorld = forwardWorldPoint.sub(meshWorldPos).normalize();
-
-      let qdelta = new THREE.Quaternion();
-      if(forwardWorld.dot(velDir) < -0.9999){
-        const tmp = new THREE.Vector3(1,0,0);
-        if(Math.abs(forwardWorld.x) > 0.9) tmp.set(0,1,0);
-        const axis = new THREE.Vector3().crossVectors(forwardWorld, tmp).normalize();
-        qdelta.setFromAxisAngle(axis, Math.PI);
-      } else {
-        qdelta.setFromUnitVectors(forwardWorld, velDir);
-      }
-        if(Math.abs(forwardWorld.x) > 0.9) tmp.set(0,1,0);
-        const axis = new THREE.Vector3().crossVectors(forwardWorld, tmp).normalize();
-        qdelta.setFromAxisAngle(axis, Math.PI);
-      } else {
-        qdelta.setFromUnitVectors(forwardWorld, velDir);
-      }
-      }, delay);
-    }
-
-
-    const modelForwardLocal = new THREE.Vector3(0, -1, 1);
-
-    function alignShipToVelocity(enemy, t = 0.35){
-      if(!enemy || !enemy.mesh) return;
-      if(enemy.vel.lengthSq() < 1e-6) return;
-      const velDir = enemy.vel.clone().normalize();
-      const meshWorldPos = new THREE.Vector3();
-      enemy.mesh.getWorldPosition(meshWorldPos);
-      const forwardLocalPoint = modelForwardLocal.clone();
-      const forwardWorldPoint = enemy.mesh.localToWorld(forwardLocalPoint.clone());
-      const forwardWorld = forwardWorldPoint.sub(meshWorldPos).normalize();
-
-      let qdelta = new THREE.Quaternion();
-      if(forwardWorld.dot(velDir) < -0.9999){
-        const tmp = new THREE.Vector3(1,0,0);
-        if(Math.abs(forwardWorld.x) > 0.9) tmp.set(0,1,0);
-        const axis = new THREE.Vector3().crossVectors(forwardWorld, tmp).normalize();
-        qdelta.setFromAxisAngle(axis, Math.PI);
-      } else {
-        qdelta.setFromUnitVectors(forwardWorld, velDir);
-      }
-        if(Math.abs(forwardWorld.x) > 0.9) tmp.set(0,1,0);
-        const axis = new THREE.Vector3().crossVectors(forwardWorld, tmp).normalize();
-        qdelta.setFromAxisAngle(axis, Math.PI);
-      } else {
-        qdelta.setFromUnitVectors(forwardWorld, velDir);
-      }
-      }, delay);
-    }
-
-
-    const modelForwardLocal = new THREE.Vector3(0, -1, 1);
-
-    function alignShipToVelocity(enemy, t = 0.35){
-      if(!enemy || !enemy.mesh) return;
-      if(enemy.vel.lengthSq() < 1e-6) return;
-      const velDir = enemy.vel.clone().normalize();
-      const meshWorldPos = new THREE.Vector3();
-      enemy.mesh.getWorldPosition(meshWorldPos);
-      const forwardLocalPoint = modelForwardLocal.clone();
-      const forwardWorldPoint = enemy.mesh.localToWorld(forwardLocalPoint.clone());
-      const forwardWorld = forwardWorldPoint.sub(meshWorldPos).normalize();
-
-      let qdelta = new THREE.Quaternion();
-      if(forwardWorld.dot(velDir) < -0.9999){
-        const tmp = new THREE.Vector3(1,0,0);
-        if(Math.abs(forwardWorld.x) > 0.9) tmp.set(0,1,0);
-        const axis = new THREE.Vector3().crossVectors(forwardWorld, tmp).normalize();
-        qdelta.setFromAxisAngle(axis, Math.PI);
-      } else {
-        qdelta.setFromUnitVectors(forwardWorld, velDir);
-      }
       }, delay);
     }
 
@@ -1534,23 +1272,36 @@
       const currentQ = enemy.mesh.quaternion.clone();
       const baseTargetQ = qdelta.multiply(currentQ);
       const targetQ = rollQuat.multiply(baseTargetQ);
-      
+
+      // build target orientation from velocity
+      const m = new THREE.Matrix4();
+      m.lookAt(
+        new THREE.Vector3(0, 0, 0),
+        enemy.vel.clone().normalize(),
+        new THREE.Vector3(0, 1, 0)
+      );
+
+      const targetQuat = new THREE.Quaternion().setFromRotationMatrix(m);
+
+      // 🔥 smooth yaw + pitch lag
+      enemy.mesh.quaternion.slerp(targetQuat, ROTATION_LAG);
+
       enemy.prevVelDir.lerp(velDir, 0.15).normalize();
     }
 
     function stepEnemy(enemy, dt, isPrimary){
       if (!enemy || !enemy.mesh) return;
-    
+
       // Normal wandering: occasionally pick a new desiredVel, then lerp toward it.
       if (performance.now() > (enemy.nextSteerChange || 0)) {
         enemy.desiredVel = randomUnit().multiplyScalar(enemySpeed);
         enemy.nextSteerChange = performance.now() + steerMin + Math.random()*(steerMax - steerMin);
       }
-    
+
       // Smoothly steer toward desiredVel (frame-rate aware)
       const smoothFactor = Math.min(1, steerLerpFactor * (dt * 60));
       enemy.vel.lerp(enemy.desiredVel, smoothFactor);
-    
+
       // Ensure we maintain a stable speed (without instant snapping)
       if (enemy.vel.lengthSq() < 1e-6) {
         enemy.vel.copy(enemy.desiredVel);
@@ -1559,10 +1310,10 @@
       if (enemy.vel.lengthSq() > 1e-8) {
         enemy.vel.normalize().multiplyScalar(enemySpeed);
       }
-    
+
       // Move
       enemy.pos.add(enemy.vel.clone().multiplyScalar(dt * 60));
-    
+
       // Gentle sphere boundary handling
       const dist = enemy.pos.length();
       if (dist >= sphereRadius) {
@@ -1576,7 +1327,7 @@
         enemy.vel.copy(reflected);
         enemy.desiredVel.copy(reflected);
       }
-    
+
       // Apply to mesh and orient
       enemy.mesh.position.copy(enemy.pos);
       alignShipToVelocity(enemy, 0.25);
@@ -1666,65 +1417,65 @@
       defeatedEl.textContent = defeatedCount;
       const playerName = (document.getElementById('playerName') || {}).value || 'Player';
     }
-    
+
     // replace destroyEnemy()
     function destroyEnemy(enemy){
       if (!enemy) return;
       const explosionPos = (enemy.mesh && enemy.mesh.position) ? enemy.mesh.position.clone() : new THREE.Vector3();
       spawnExplosion(explosionPos);
-    
+
       // remove mesh (if present)
       if (enemy.mesh) {
         scene.remove(enemy.mesh);
         // free reference so future checks fail quickly
         enemy.mesh = null;
       }
-    
+
       // prevent any future shooting from this enemy
       enemy.alive = false;
       if (enemy._shootTimeout) {
         clearTimeout(enemy._shootTimeout);
         enemy._shootTimeout = null;
       }
-    
+
       const idx = enemies.indexOf(enemy);
       if (idx !== -1) enemies.splice(idx, 1);
-    
+
       if (selectedEnemyIndex >= enemies.length) selectedEnemyIndex = 0;
-    
+
       // clear any existing enemy bullets (your previous code already did this)
       for (let i = enemyBullets.length - 1; i >= 0; i--){
         scene.remove(enemyBullets[i].mesh);
         enemyBullets.splice(i,1);
       }
-    
-      missileAmmo += 2;
-    
 
-    
+      missileAmmo += 2;
+
+
+
       updateMissileUI();
       updateHP();
-    
+
       defeatedCount++;
       updateDefeatedUI();
-    
+
       winDiv.style.display = 'block';
       setTimeout(()=> { if(winDiv) winDiv.style.display = 'none'; }, 1800);
-    
+
       playerMaxShield += Math.random()*2;
 
       shieldRegenRatePerSec += Math.random();
       bulletDamage += Math.random();
       missileDamage += Math.random();
       missileCooldownMs -= Math.random()*missileCooldownMs*0.1;
-    
+
       enemyMaxHP += Math.random()*30;
       enemyMaxShield += 3;
       enemyDamage += 10;
       enemyFireDelay = Math.max(100, enemyFireDelay - 100);
 
       console.log(`[SCALE] defeated=${defeatedCount} playerMaxShield=${playerMaxShield.toFixed(2)} bulletDmg=${bulletDamage.toFixed(2)} enemyHP=${enemyMaxHP.toFixed(1)}  accuracy=${accuracy}`);
-    
+
       ensureEnemies();
     }
 
@@ -1738,15 +1489,15 @@
 
 
     // ---------- WEAPON SYSTEM ----------
-    
+
     let weaponMode = 'normal';     // 'normal' | 'heavy' | 'laser'
     let heavyLastShotTime = -Infinity;
     const heavyCooldownMs = autoShootRateMs * 3; // slower fire, 3x cooldown
-    
+
     let laserActive = false;       // true while laser is firing (holding Space)
-    
+
     const weaponLabel = document.getElementById('weaponLabel');
-    
+
     function setWeaponMode(mode) {
       weaponMode = mode;
       if (weaponLabel) {
@@ -1874,7 +1625,7 @@
       updateShockwaves(dt);
       updateSparks(dt);
 
-      
+
       for(let i=bullets.length-1;i>=0;i--){
         const b = bullets[i];
         b.mesh.position.add(b.vel.clone().multiplyScalar(dt*60));
@@ -1956,13 +1707,13 @@
         const baseDps = bulletDamage * (1000 / autoShootRateMs); // same base as others
         const laserDps = baseDps;                                 // same DPS as heavy
         const damageThisFrame = laserDps * dt;
-      
+
         const dir = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
-      
+
         let bestEnemy = null;
         let bestT = Infinity;
         const hitRadius = 35;
-      
+
         enemies.forEach(enemy => {
           if (!enemy || !enemy.mesh) return;
           const toEnemy = enemy.mesh.position.clone().sub(camPos);
@@ -1975,11 +1726,11 @@
             bestEnemy = enemy;
           }
         });
-      
+
         if (bestEnemy) {
           damageEnemy(bestEnemy, damageThisFrame);
         }
-      
+
         updateLaserBeam(true);
       } else {
         updateLaserBeam(false);

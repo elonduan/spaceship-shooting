@@ -646,9 +646,9 @@
     const steerMax = 3000;
     const steerLerpFactor = 0.015;
     const maxRoll = 1.0;
+    const shipQuat = new THREE.Quaternion();
 
-    const ROTATION_LAG = 0.08; // smaller = smoother / slower
-    const ROTATION_LAG = 0.00000001; // smaller = smoother / slower
+    const ROTATION_LAG = 0.02; // smaller = smoother / slower
 
     const MAX_ENEMIES = 2;
     const enemies = [];
@@ -1051,7 +1051,15 @@
 
       // compose rotation
       const q = composeCameraQuaternion(yaw, pitch, roll);
+      // Camera snaps instantly (player aim must feel tight)
       camera.quaternion.copy(q);
+      
+      // Ship lags behind camera rotation
+      if (playerShip) {
+        shipQuat.slerp(q, 1 - Math.exp(-ROTATION_LAG * dt));
+        playerShip.quaternion.copy(shipQuat);
+      }
+
 
       // ===== SHIP MOVEMENT =====
       const moveSpeed = 6.0;
@@ -1075,7 +1083,6 @@
       // ===== UPDATE SHIP TRANSFORM =====
       if (playerShip) {
         playerShip.position.copy(player.position);
-        playerShip.quaternion.copy(q);
       }
 
       // ===== CAMERA FOLLOW (3RD PERSON) =====

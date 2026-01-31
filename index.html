@@ -647,6 +647,8 @@
     const steerLerpFactor = 0.015;
     const maxRoll = 1.0;
 
+    const ROTATION_LAG = 0.08; // smaller = smoother / slower
+
     const MAX_ENEMIES = 2;
     const enemies = [];
     let selectedEnemyIndex = 0;
@@ -1270,8 +1272,24 @@
       const baseTargetQ = qdelta.multiply(currentQ);
       const targetQ = rollQuat.multiply(baseTargetQ);
 
-      if(t >= 1) enemy.mesh.quaternion.copy(targetQ);
-      else enemy.mesh.quaternion.slerp(targetQ, t);
+      const targetQuaternion = new THREE.Quaternion();
+      const targetMatrix = new THREE.Matrix4();
+      
+      // forward direction (velocity-based or target-based)
+      const forward = enemy.velocity.clone().normalize();
+      
+      // build orientation
+      targetMatrix.lookAt(
+        new THREE.Vector3(0, 0, 0),
+        forward,
+        new THREE.Vector3(0, 1, 0)
+      );
+      
+      targetQuaternion.setFromRotationMatrix(targetMatrix);
+      
+      // 🔥 SMOOTH ROTATION
+      enemy.mesh.quaternion.slerp(targetQuaternion, ROTATION_LAG);
+
 
       enemy.prevVelDir.lerp(velDir, 0.15).normalize();
     }

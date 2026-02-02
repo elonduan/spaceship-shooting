@@ -751,8 +751,8 @@
     // HP etc.
     let playerMaxHP = 9000;
     let playerHP = 9000;
-    let enemyMaxHP = 10;
-    let enemyHP = 10;
+    let enemyMaxHP = 20;
+    let enemyHP = 20;
 
     let playerMaxShield = 2;
     let playerShield = 2;
@@ -765,7 +765,7 @@
     let lastEnemyDamageTime = -Infinity;
 
     let bulletDamage = 1;
-    let missileDamage = 5;
+    let missileDamage = 15;
     let enemyDamage = 1.0;
     let enemyFireDelay = 520;
 
@@ -1539,7 +1539,7 @@
 
 
         m.life -= dt * 1000;
-        if (m.mesh.position.length() > sphereRadius * 2 || m.life <= 0) {
+        if (m.mesh.position.length() > sphereRadius * 4 || m.life <= 0) {
           scene.remove(m.mesh);
           missiles.splice(i, 1);
           continue;

@@ -648,6 +648,11 @@
     const maxRoll = 1.0;
     const shipQuat = new THREE.Quaternion();
 
+    let yawVel = 0;
+    let pitchVel = 0;
+    let rollVel = 0;
+
+
     const ROTATION_LAG = 4; // smaller = smoother / slower
 
     const MAX_ENEMIES = 2;
@@ -1073,10 +1078,21 @@
 
 
       // ===== SHIP MOVEMENT =====
-      const moveSpeed = 6.0;
-      const forward = new THREE.Vector3(0,0,-1).applyQuaternion(q).normalize();
-      const right   = new THREE.Vector3(1,0,0).applyQuaternion(q).normalize();
-      const up      = new THREE.Vector3(0,1,0).applyQuaternion(q).normalize();
+      
+      // local axes
+      const right   = new THREE.Vector3(1, 0, 0).applyQuaternion(shipQuat);
+      const up      = new THREE.Vector3(0, 1, 0).applyQuaternion(shipQuat);
+      const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(shipQuat);
+      
+      // incremental rotations
+      const qPitch = new THREE.Quaternion().setFromAxisAngle(right, pitchVel * dt);
+      const qYaw   = new THREE.Quaternion().setFromAxisAngle(up,    yawVel   * dt);
+      const qRoll  = new THREE.Quaternion().setFromAxisAngle(forward, rollVel * dt);
+      
+      // apply in body space
+      shipQuat.multiply(qYaw).multiply(qPitch).multiply(qRoll);
+      shipQuat.normalize();
+
 
       const move = new THREE.Vector3();
       if (keys['KeyG']) move.add(forward);
@@ -1731,6 +1747,8 @@
       } else {
         updateLaserBeam(false);
       }
+      camera.quaternion.copy(shipQuat);
+      playerShip.quaternion.copy(shipQuat);
 
       renderer.render(scene, camera);
       updateMissileUI();

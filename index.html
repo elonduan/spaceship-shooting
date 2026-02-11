@@ -648,11 +648,6 @@
     const maxRoll = 1.0;
     const shipQuat = new THREE.Quaternion();
 
-    let yawVel = 0;
-    let pitchVel = 0;
-    let rollVel = 0;
-
-
     const ROTATION_LAG = 4; // smaller = smoother / slower
 
     const MAX_ENEMIES = 2;
@@ -674,7 +669,7 @@
           const bb = geometry.boundingBox;
           const center = new THREE.Vector3();
           bb.getCenter(center);
-          
+
           geometry.translate(-center.x, -center.y, -center.z);
           geometry.rotateX(THREE.MathUtils.degToRad(90));
 
@@ -996,8 +991,6 @@
     let yaw = 0, pitch = 0, roll = 0;
     let pointerLocked = false;
     const maxPitch = Math.PI/2 - 0.01; // clamp to avoid flipping
-    
-
 
     // request pointer lock on click
     canvas.addEventListener('click', () => {
@@ -1013,12 +1006,15 @@
     // mouse movement -> yaw/pitch
     document.addEventListener('mousemove', (e) => {
       if (!pointerLocked || isPaused) return;
-    
-      yawVel   -= e.movementX * 0.002;
-      pitchVel -= e.movementY * 0.002;
+      const sens = accel;
+      yaw   -= e.movementX * sens/3;
+      pitch -= e.movementY * sens/3;
+      // clamp pitch to avoid singularity
+      pitch = Math.max(-maxPitch, Math.min(maxPitch, pitch));
+      // normalize yaw to keep numbers stable
+      const twoPI = Math.PI * 2;
+      yaw = ((yaw % twoPI) + twoPI) % twoPI;
     });
-
-
 
     // if we pause, release pointer lock so user can access UI
     function ensurePointerUnlockedOnPause() {
@@ -1032,28 +1028,18 @@
     // -------------------------
     // We'll create quaternions each frame and write camera.quaternion once.
     // This avoids mixing incremental rotates with direct writes.
-    // Replace your existing composeCameraQuaternion with this:
     function composeCameraQuaternion(yaw, pitch, roll) {
-      // yaw about world up (unchanged)
+      // yaw about world up
       const qYaw = new THREE.Quaternion().setFromAxisAngle(WORLD_UP, yaw);
-    
-      // compute the camera-local right axis AFTER yaw
-      const right = new THREE.Vector3(1, 0, 0).applyQuaternion(qYaw).normalize();
-    
-      // pitch around that local right axis
-      const qPitch = new THREE.Quaternion().setFromAxisAngle(right, pitch);
-    
-      // combine yaw then pitch
+      // pitch about camera-local X (but applying after yaw is equivalent to using X axis before roll)
+      const qPitch = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0), pitch);
       const q = qYaw.clone().multiply(qPitch);
-    
-      // roll about the camera forward (after yaw+pitch)
-      const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(q).normalize();
+      // roll about current forward
+      const forward = new THREE.Vector3(0,0,-1).applyQuaternion(q).normalize();
       const qRoll = new THREE.Quaternion().setFromAxisAngle(forward, roll);
-    
       q.multiply(qRoll);
       return q;
     }
-
 
     // -------------------------
     // updateCamera - rotation & translation
@@ -1069,7 +1055,7 @@
       const q = composeCameraQuaternion(yaw, pitch, roll);
       // Camera snaps instantly (player aim must feel tight)
       camera.quaternion.copy(q);
-      
+
       // Ship lags behind camera rotation
       if (playerShip) {
         shipQuat.slerp(q, 1 - Math.exp(-ROTATION_LAG * dt));
@@ -1078,21 +1064,10 @@
 
 
       // ===== SHIP MOVEMENT =====
-      
-      // local axes
-      const right   = new THREE.Vector3(1, 0, 0).applyQuaternion(shipQuat);
-      const up      = new THREE.Vector3(0, 1, 0).applyQuaternion(shipQuat);
-      const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(shipQuat);
-      
-      // incremental rotations
-      const qPitch = new THREE.Quaternion().setFromAxisAngle(right, pitchVel * dt);
-      const qYaw   = new THREE.Quaternion().setFromAxisAngle(up,    yawVel   * dt);
-      const qRoll  = new THREE.Quaternion().setFromAxisAngle(forward, rollVel * dt);
-      
-      // apply in body space
-      shipQuat.multiply(qYaw).multiply(qPitch).multiply(qRoll);
-      shipQuat.normalize();
-
+      const moveSpeed = 6.0;
+      const forward = new THREE.Vector3(0,0,-1).applyQuaternion(q).normalize();
+      const right   = new THREE.Vector3(1,0,0).applyQuaternion(q).normalize();
+      const up      = new THREE.Vector3(0,1,0).applyQuaternion(q).normalize();
 
       const move = new THREE.Vector3();
       if (keys['KeyG']) move.add(forward);
@@ -1276,23 +1251,23 @@
     function alignShipToVelocity(enemy, dt, turnSpeed = 3.5, deadZone = 0.002) {
       if (!enemy || !enemy.mesh) return;
       if (enemy.vel.lengthSq() < 1e-6) return;
-    
+
       const velDir = enemy.vel.clone().normalize();
-    
+
       const forward = new THREE.Vector3(0, 0, -1)
         .applyQuaternion(enemy.mesh.quaternion)
         .normalize();
-    
+
       const dot = THREE.MathUtils.clamp(forward.dot(velDir), -1, 1);
       const angle = Math.acos(dot);
-    
+
       // ---- DEAD ZONE (kills wiggle) ----
       if (angle < deadZone) return;
-    
+
       const targetQuat = new THREE.Quaternion()
         .setFromUnitVectors(forward, velDir)
         .multiply(enemy.mesh.quaternion);
-    
+
       enemy.mesh.quaternion.slerp(
         targetQuat,
         1 - Math.exp(-turnSpeed * dt)
@@ -1474,14 +1449,14 @@
       winDiv.style.display = 'block';
       setTimeout(()=> { if(winDiv) winDiv.style.display = 'none'; }, 1800);
 
-      playerMaxShield += Math.random()*2;
+      playerMaxShield += Math.random()*20;
 
       shieldRegenRatePerSec += Math.random();
       bulletDamage += Math.random();
-      missileDamage += Math.random();
+      missileDamage += Math.random()*4;
       missileCooldownMs -= Math.random()*missileCooldownMs*0.1;
 
-      enemyMaxHP += Math.random()*30;
+      enemyMaxHP += Math.random()*10;
       enemyMaxShield += 10;
       enemyDamage += 10;
       enemyFireDelay = Math.max(100, enemyFireDelay - 100);
@@ -1747,8 +1722,6 @@
       } else {
         updateLaserBeam(false);
       }
-      camera.quaternion.copy(shipQuat);
-      playerShip.quaternion.copy(shipQuat);
 
       renderer.render(scene, camera);
       updateMissileUI();

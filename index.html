@@ -1006,15 +1006,18 @@
     // mouse movement -> yaw/pitch
     document.addEventListener('mousemove', (e) => {
       if (!pointerLocked || isPaused) return;
+    
       const sens = accel;
-      yaw   -= e.movementX * sens/3;
-      pitch -= e.movementY * sens/3;
-      // clamp pitch to avoid singularity
-      pitch = Math.max(-maxPitch, Math.min(maxPitch, pitch));
-      // normalize yaw to keep numbers stable
+      yaw   -= e.movementX * sens / 3;
+      pitch -= e.movementY * sens / 3;
+    
       const twoPI = Math.PI * 2;
-      yaw = ((yaw % twoPI) + twoPI) % twoPI;
+    
+      // wrap both angles
+      yaw   = ((yaw   % twoPI) + twoPI) % twoPI;
+      pitch = ((pitch % twoPI) + twoPI) % twoPI;
     });
+
 
     // if we pause, release pointer lock so user can access UI
     function ensurePointerUnlockedOnPause() {

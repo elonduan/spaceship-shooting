@@ -991,6 +991,13 @@
     let yaw = 0, pitch = 0, roll = 0;
     let pointerLocked = false;
     const maxPitch = Math.PI/2 - 0.01; // clamp to avoid flipping
+    
+    const shipQuat = new THREE.Quaternion();
+
+    let yawVel = 0;
+    let pitchVel = 0;
+    let rollVel = 0;
+
 
     // request pointer lock on click
     canvas.addEventListener('click', () => {
@@ -1007,16 +1014,10 @@
     document.addEventListener('mousemove', (e) => {
       if (!pointerLocked || isPaused) return;
     
-      const sens = accel;
-      yaw   -= e.movementX * sens / 3;
-      pitch -= e.movementY * sens / 3;
-    
-      const twoPI = Math.PI * 2;
-    
-      // wrap both angles
-      yaw   = ((yaw   % twoPI) + twoPI) % twoPI;
-      pitch = ((pitch % twoPI) + twoPI) % twoPI;
+      yawVel   -= e.movementX * 0.002;
+      pitchVel -= e.movementY * 0.002;
     });
+
 
 
     // if we pause, release pointer lock so user can access UI

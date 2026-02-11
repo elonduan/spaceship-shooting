@@ -1031,18 +1031,28 @@
     // -------------------------
     // We'll create quaternions each frame and write camera.quaternion once.
     // This avoids mixing incremental rotates with direct writes.
+    // Replace your existing composeCameraQuaternion with this:
     function composeCameraQuaternion(yaw, pitch, roll) {
-      // yaw about world up
+      // yaw about world up (unchanged)
       const qYaw = new THREE.Quaternion().setFromAxisAngle(WORLD_UP, yaw);
-      // pitch about camera-local X (but applying after yaw is equivalent to using X axis before roll)
-      const qPitch = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0), pitch);
+    
+      // compute the camera-local right axis AFTER yaw
+      const right = new THREE.Vector3(1, 0, 0).applyQuaternion(qYaw).normalize();
+    
+      // pitch around that local right axis
+      const qPitch = new THREE.Quaternion().setFromAxisAngle(right, pitch);
+    
+      // combine yaw then pitch
       const q = qYaw.clone().multiply(qPitch);
-      // roll about current forward
-      const forward = new THREE.Vector3(0,0,-1).applyQuaternion(q).normalize();
+    
+      // roll about the camera forward (after yaw+pitch)
+      const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(q).normalize();
       const qRoll = new THREE.Quaternion().setFromAxisAngle(forward, roll);
+    
       q.multiply(qRoll);
       return q;
     }
+
 
     // -------------------------
     // updateCamera - rotation & translation

@@ -1084,6 +1084,21 @@
     // -------------------------
     // updateCamera - rotation & translation
     function updateCamera(dt) {
+      // --- Apply rotational inertia ---
+      yaw   += yawVel * dt * 60;
+      pitch += pitchVel * dt * 60;
+      
+      // Damping (smooth slowdown)
+      yawVel   *= Math.exp(-ROT_DAMP * dt);
+      pitchVel *= Math.exp(-ROT_DAMP * dt);
+      
+      // Clamp pitch
+      pitch = Math.max(-maxPitch, Math.min(maxPitch, pitch));
+      
+      // Keep yaw stable
+      const twoPI = Math.PI * 2;
+      yaw = ((yaw % twoPI) + twoPI) % twoPI;
+
       // roll (cosmetic)
       const desiredRoll =
         (keys['KeyG'] ?  maxRoll * 0.6 : 0) +
@@ -1627,20 +1642,6 @@
 
       if (isPaused) return;
       // --- Apply rotational inertia ---
-      yaw   += yawVel * dt * 60;
-      pitch += pitchVel * dt * 60;
-      
-      // Damping (smooth slowdown)
-      yawVel   *= Math.exp(-ROT_DAMP * dt);
-      pitchVel *= Math.exp(-ROT_DAMP * dt);
-      
-      // Clamp pitch
-      pitch = Math.max(-maxPitch, Math.min(maxPitch, pitch));
-      
-      // Keep yaw stable
-      const twoPI = Math.PI * 2;
-      yaw = ((yaw % twoPI) + twoPI) % twoPI;
-
 
       const now = t || performance.now();
       const dt = Math.min((now - last)/1000, 0.1);

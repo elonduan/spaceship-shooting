@@ -1046,8 +1046,8 @@
     function updateCamera(dt) {
       // roll (cosmetic)
       const desiredRoll =
-        (keys['KeyA'] ?  maxRoll * 0.6 : 0) +
-        (keys['KeyD'] ? -maxRoll * 0.6 : 0);
+        (keys['KeyG'] ?  maxRoll * 0.6 : 0) +
+        (keys['KeyH'] ? -maxRoll * 0.6 : 0);
 
       roll = THREE.MathUtils.lerp(roll, desiredRoll, dt * 8);
 

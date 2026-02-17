@@ -998,6 +998,29 @@
         try { canvas.requestPointerLock(); } catch(e) {}
       }
     });
+    // LEFT MOUSE BUTTON SHOOT
+    window.addEventListener('mousedown', (e) => {
+      if (isPaused) return;
+    
+      // 0 = left mouse button
+      if (e.button === 0) {
+    
+        if (weaponMode === 'laser') {
+          laserActive = true;   // continuous beam
+        } else {
+          shoot();              // normal / heavy
+        }
+      }
+    });
+    
+    window.addEventListener('mouseup', (e) => {
+      if (isPaused) return;
+    
+      if (e.button === 0 && weaponMode === 'laser') {
+        laserActive = false;    // stop beam when released
+      }
+    });
+
 
     document.addEventListener('pointerlockchange', () => {
       pointerLocked = (document.pointerLockElement === canvas);
@@ -1781,10 +1804,10 @@
     document.getElementById('resetBtn').addEventListener('click', reset);
     document.getElementById('shootBtn').addEventListener('click', shoot);
     document.getElementById('missileBtn').addEventListener('click', launchMissile);
-    document.getElementById('rollLeft').addEventListener('mousedown',()=>pressKey('KeyA'));
-    document.getElementById('rollLeft').addEventListener('mouseup',()=>releaseKey('KeyA'));
-    document.getElementById('rollRight').addEventListener('mousedown',()=>pressKey('KeyD'));
-    document.getElementById('rollRight').addEventListener('mouseup',()=>releaseKey('KeyD'));
+    document.getElementById('rollLeft').addEventListener('mousedown',()=>pressKey('KeyG'));
+    document.getElementById('rollLeft').addEventListener('mouseup',()=>releaseKey('KeyG'));
+    document.getElementById('rollRight').addEventListener('mousedown',()=>pressKey('KeyH'));
+    document.getElementById('rollRight').addEventListener('mouseup',()=>releaseKey('KeyH'));
 
     window.addEventListener('resize',()=>{
       camera.aspect = window.innerWidth/window.innerHeight;

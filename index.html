@@ -1006,7 +1006,8 @@
     
     const ROT_ACCEL = 0.003;   // how fast turning accelerates
     const ROT_DAMP  = 20.0;      // higher = snappier stop
-
+    const MAX_TURN_SPEED = 2.8; // radians per second
+    
     let pointerLocked = false;
     const maxPitch = Math.PI/2 - 0.01; // clamp to avoid flipping
 
@@ -1081,7 +1082,6 @@
       return q;
     }
 
-    // -------------------------
     // updateCamera - rotation & translation
     function updateCamera(dt) {
       // --- Apply rotational inertia ---
@@ -1091,6 +1091,10 @@
       // Damping (smooth slowdown)
       yawVel   *= Math.exp(-ROT_DAMP * dt);
       pitchVel *= Math.exp(-ROT_DAMP * dt);
+      // --- Clamp rotational speed ---
+      yawVel = THREE.MathUtils.clamp(yawVel, -MAX_TURN_SPEED, MAX_TURN_SPEED);
+      pitchVel = THREE.MathUtils.clamp(pitchVel, -MAX_TURN_SPEED, MAX_TURN_SPEED);
+
       
       // Clamp pitch
       pitch = Math.max(-maxPitch, Math.min(maxPitch, pitch));
@@ -1641,7 +1645,6 @@
       requestAnimationFrame(animate);
 
       if (isPaused) return;
-      // --- Apply rotational inertia ---
 
       const now = t || performance.now();
       const dt = Math.min((now - last)/1000, 0.1);

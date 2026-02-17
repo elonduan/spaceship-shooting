@@ -659,6 +659,7 @@
     let playerGeometry = null;      // player
     let spaceshipMaterial = null;
     let missileGeometry = null;
+    let mouseHeld = false;
 
     const loader = new THREE.STLLoader();
 
@@ -769,6 +770,7 @@
     let missileDamage = 15;
     let enemyDamage = 1.0;
     let enemyFireDelay = 520;
+    
 
     const winDiv = document.getElementById('win');
     const loseDiv = document.getElementById('lose');
@@ -976,11 +978,24 @@
       // Always release key state
       releaseKey(e.code);
     });
-
     canvas.addEventListener('mousedown', (e) => {
       if (isPaused) return;
-      shoot();
+      if (e.button !== 0) return; // left mouse only
+    
+      mouseHeld = true;
+    
+      if (weaponMode === 'laser') {
+        laserActive = true;
+      }
     });
+    
+    canvas.addEventListener('mouseup', (e) => {
+      if (e.button !== 0) return;
+    
+      mouseHeld = false;
+      laserActive = false;
+    });
+
 
 
     // -------------------------
@@ -1653,6 +1668,8 @@
       updateShockwaves(dt);
       updateSparks(dt);
 
+      
+
 
       for(let i=bullets.length-1;i>=0;i--){
         const b = bullets[i];
@@ -1730,6 +1747,21 @@
       } else {
         arrow.style.display = "none";
       }
+      // Automatic firing while holding mouse
+      if (mouseHeld && !isPaused && !gameOver) {
+        if (weaponMode === 'laser') {
+          laserActive = true;
+        } else {
+          const now = performance.now();
+          if (!shoot.lastTime) shoot.lastTime = 0;
+      
+          if (now - shoot.lastTime > autoShootRateMs) {
+            shoot();
+            shoot.lastTime = now;
+          }
+        }
+      }
+
       // ----- LASER DPS (continuous) -----
       if (weaponMode === 'laser' && laserActive && !gameOver) {
         const baseDps = bulletDamage * (1000 / autoShootRateMs); // same base as others

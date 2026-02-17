@@ -996,12 +996,17 @@
       laserActive = false;
     });
 
-
-
     // -------------------------
     // Mouse look + pointer lock
     // -------------------------
     let yaw = 0, pitch = 0, roll = 0;
+    
+    let yawVel = 0;
+    let pitchVel = 0;
+    
+    const ROT_ACCEL = 0.0025;   // how fast turning accelerates
+    const ROT_DAMP  = 6.0;      // higher = snappier stop
+
     let pointerLocked = false;
     const maxPitch = Math.PI/2 - 0.01; // clamp to avoid flipping
 
@@ -1042,15 +1047,14 @@
     // mouse movement -> yaw/pitch
     document.addEventListener('mousemove', (e) => {
       if (!pointerLocked || isPaused) return;
+    
       const sens = accel;
-      yaw   -= e.movementX * sens/3;
-      pitch -= e.movementY * sens/3;
-      // clamp pitch to avoid singularity
-      pitch = Math.max(-maxPitch, Math.min(maxPitch, pitch));
-      // normalize yaw to keep numbers stable
-      const twoPI = Math.PI * 2;
-      yaw = ((yaw % twoPI) + twoPI) % twoPI;
+    
+      // Add acceleration instead of rotating instantly
+      yawVel   -= e.movementX * sens * ROT_ACCEL;
+      pitchVel -= e.movementY * sens * ROT_ACCEL;
     });
+
 
     // if we pause, release pointer lock so user can access UI
     function ensurePointerUnlockedOnPause() {
@@ -1622,6 +1626,21 @@
       requestAnimationFrame(animate);
 
       if (isPaused) return;
+      // --- Apply rotational inertia ---
+      yaw   += yawVel * dt * 60;
+      pitch += pitchVel * dt * 60;
+      
+      // Damping (smooth slowdown)
+      yawVel   *= Math.exp(-ROT_DAMP * dt);
+      pitchVel *= Math.exp(-ROT_DAMP * dt);
+      
+      // Clamp pitch
+      pitch = Math.max(-maxPitch, Math.min(maxPitch, pitch));
+      
+      // Keep yaw stable
+      const twoPI = Math.PI * 2;
+      yaw = ((yaw % twoPI) + twoPI) % twoPI;
+
 
       const now = t || performance.now();
       const dt = Math.min((now - last)/1000, 0.1);

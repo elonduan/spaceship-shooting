@@ -967,12 +967,16 @@
 
     window.addEventListener('keyup',(e)=>{
       if(isPaused) return;
+    
+      // Stop laser beam if active
       if (e.code === 'Space' && weaponMode === 'laser') {
-        laserActive = false; // stop continuous beam
-        return;
+        laserActive = false;
       }
-      if(e.code !== 'Space' && e.code !== 'KeyM') releaseKey(e.code);
+    
+      // Always release key state
+      releaseKey(e.code);
     });
+
     canvas.addEventListener('mousedown', (e) => {
       if (isPaused) return;
       shoot();

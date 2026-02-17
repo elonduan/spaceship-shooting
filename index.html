@@ -1,3 +1,4 @@
+
 <!doctype html>
 <html lang="en">
 <head>
@@ -923,7 +924,17 @@
     window.addEventListener('keydown',(e)=>{
       if(isPaused) return;
 
-
+      // FIRE
+      if(e.code === 'Space'){ 
+        if (weaponMode === 'laser') {
+          // start continuous laser
+          laserActive = true;
+        } else {
+          // normal / heavy = discrete shots
+          shoot();
+        }
+        return;
+      }
 
 
       // MISSILE

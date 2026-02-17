@@ -1070,12 +1070,12 @@
       const up      = new THREE.Vector3(0,1,0).applyQuaternion(q).normalize();
 
       const move = new THREE.Vector3();
-      if (keys['KeyG']) move.add(forward);
-      if (keys['KeyH']) move.sub(forward);
-      if (keys['KeyJ']) move.add(right);
-      if (keys['KeyF']) move.sub(right);
-      if (keys['KeyT'] || keys['KeyY']) move.add(up);
-      if (keys['KeyN']) move.sub(up);
+      if (keys['MetaLeft'] || keys['MetaRight']) move.add(forward);
+      if (keys['Space']) move.sub(forward);
+      if (keys['KeyD']) move.add(right);
+      if (keys['KeyA']) move.sub(right);
+      if (keys['KeyW']) move.add(up);
+      if (keys['KeyS']) move.sub(up);
 
       if (move.lengthSq() > 0) {
         move.normalize().multiplyScalar(moveSpeed * dt * 60);

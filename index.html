@@ -924,18 +924,6 @@
     window.addEventListener('keydown',(e)=>{
       if(isPaused) return;
 
-      // FIRE
-      if(e.code === 'Space'){ 
-        if (weaponMode === 'laser') {
-          // start continuous laser
-          laserActive = true;
-        } else {
-          // normal / heavy = discrete shots
-          shoot();
-        }
-        return;
-      }
-
 
       // MISSILE
       if(e.code === 'KeyM'){ 
@@ -985,6 +973,11 @@
       }
       if(e.code !== 'Space' && e.code !== 'KeyM') releaseKey(e.code);
     });
+    canvas.addEventListener('mousedown', (e) => {
+      if (isPaused) return;
+      shoot();
+    });
+
 
     // -------------------------
     // Mouse look + pointer lock
@@ -1087,24 +1080,44 @@
       }
 
 
-      // ===== SHIP MOVEMENT =====
-      const moveSpeed = 6.0;
+      // ===== NEW SHIP MOVEMENT =====
+      const baseSpeed = 6.0;
+      let speed = baseSpeed;
+      
       const forward = new THREE.Vector3(0,0,-1).applyQuaternion(q).normalize();
       const right   = new THREE.Vector3(1,0,0).applyQuaternion(q).normalize();
       const up      = new THREE.Vector3(0,1,0).applyQuaternion(q).normalize();
-
+      
       const move = new THREE.Vector3();
-      if (keys['MetaLeft'] || keys['MetaRight']) move.add(forward);
-      if (keys['Space']) move.sub(forward);
-      if (keys['KeyD']) move.add(right);
-      if (keys['KeyA']) move.sub(right);
+      
+      // W / S → up / down
       if (keys['KeyW']) move.add(up);
       if (keys['KeyS']) move.sub(up);
-
+      
+      // A / D → left / right
+      if (keys['KeyA']) move.sub(right);
+      if (keys['KeyD']) move.add(right);
+      
+      // SHIFT handling
+      const shiftHeld = keys['ShiftLeft'] || keys['ShiftRight'];
+      const spaceHeld = keys['Space'];
+      
+      if (shiftHeld && !spaceHeld) {
+        speed *= 2.5;        // boost forward
+        move.add(forward);
+      }
+      else if (shiftHeld && spaceHeld) {
+        move.sub(forward);   // backward
+      }
+      else if (spaceHeld) {
+        move.add(forward);   // normal forward
+      }
+      
       if (move.lengthSq() > 0) {
-        move.normalize().multiplyScalar(moveSpeed * dt * 60);
+        move.normalize().multiplyScalar(speed * dt * 60);
         player.position.add(move);
       }
+
 
       // ===== UPDATE SHIP TRANSFORM =====
       if (playerShip) {

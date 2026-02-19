@@ -1313,7 +1313,7 @@
       const bulletMat = new THREE.MeshBasicMaterial({color:0x00ffff});
       const bullet = new THREE.Mesh(bulletGeom, bulletMat);
       // ---- Predict player future position ----
-      const predictionTime = 1.0; // seconds ahead (tweakable)
+      const predictionTime = 0.3; // seconds ahead (tweakable)
       
       // Slight imperfection so AI isn't robotic
       const randomness = 0.15; // lower = more accurate

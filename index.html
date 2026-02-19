@@ -1083,6 +1083,7 @@
 
     // updateCamera - rotation & translation
     function updateCamera(dt) {
+      const prevPlayerPos = player.position.clone();
       // --- Apply rotational inertia ---
       yaw   += yawVel * dt * 60;
       pitch += pitchVel * dt * 60;
@@ -1158,6 +1159,11 @@
         move.normalize().multiplyScalar(speed * dt * 60);
         player.position.add(move);
       }
+      // compute velocity (units per second)
+      player.velocity.copy(
+        player.position.clone().sub(prevPlayerPos).divideScalar(dt || 0.0001)
+      );
+
 
 
       // ===== UPDATE SHIP TRANSFORM =====
@@ -1306,7 +1312,29 @@
       const bulletGeom = new THREE.SphereGeometry(2,8,8);
       const bulletMat = new THREE.MeshBasicMaterial({color:0x00ffff});
       const bullet = new THREE.Mesh(bulletGeom, bulletMat);
-      const dir = camera.position.clone().sub(enemy.mesh.position).normalize();
+      // ---- Predict player future position ----
+      const predictionTime = 1.0; // seconds ahead (tweakable)
+      
+      // Slight imperfection so AI isn't robotic
+      const randomness = 0.15; // lower = more accurate
+      
+      const predictedPos = player.position.clone()
+        .add(player.velocity.clone().multiplyScalar(predictionTime));
+      
+      // Add some noise so it's not perfect
+      predictedPos.add(
+        new THREE.Vector3(
+          (Math.random() - 0.5) * randomness * 50,
+          (Math.random() - 0.5) * randomness * 50,
+          (Math.random() - 0.5) * randomness * 50
+        )
+      );
+      
+      // Aim toward predicted future position
+      const dir = predictedPos
+        .sub(enemy.mesh.position)
+        .normalize();
+
       bullet.position.copy(enemy.mesh.position);
       enemyBullets.push({mesh:bullet,vel:dir.multiplyScalar(bulletSpeed*0.8)});
       scene.add(bullet);

@@ -1139,31 +1139,25 @@
       if (keys['KeyA']) move.sub(right);
       if (keys['KeyD']) move.add(right);
       
-      let moveSpeed = baseSpeed;
-      let direction = 0;
+      // SHIFT handling
+      const shiftHeld = keys['ShiftLeft'] || keys['ShiftRight'];
+      const spaceHeld = keys['Space'];
       
-      // SHIFT + SPACE = boosted forward
-      if (keys["ShiftLeft"] && keys["Space"]) {
-        moveSpeed = baseSpeed * 2.5;
-        direction = 1;
+      if (shiftHeld && !spaceHeld) {
+        speed *= 2.5;        // boost forward
+        move.add(forward);
       }
-      // SHIFT only = backward
-      else if (keys["ShiftLeft"]) {
-        direction = -1;
+      else if (shiftHeld && spaceHeld) {
+        move.sub(forward);   // backward
       }
-      // SPACE only = normal forward
-      else if (keys["Space"]) {
-        direction = 1;
+      else if (spaceHeld) {
+        move.add(forward);   // normal forward
       }
       
-      // Apply movement
-      if (direction !== 0) {
-        player.position.addScaledVector(
-          forwardVector, 
-          direction * moveSpeed * dt
-        );
+      if (move.lengthSq() > 0) {
+        move.normalize().multiplyScalar(speed * dt * 60);
+        player.position.add(move);
       }
-
 
 
       // ===== UPDATE SHIP TRANSFORM =====

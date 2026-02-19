@@ -754,6 +754,7 @@
     let playerHP = 9000;
     let enemyMaxHP = 20;
     let enemyHP = 20;
+    let predictionTime = 0;   // starts at 0 (no leading)
 
     let playerMaxShield = 2;
     let playerShield = 2;
@@ -1313,27 +1314,13 @@
       const bulletMat = new THREE.MeshBasicMaterial({color:0x00ffff});
       const bullet = new THREE.Mesh(bulletGeom, bulletMat);
       // ---- Predict player future position ----
-      const predictionTime = 0.3; // seconds ahead (tweakable)
-      
-      // Slight imperfection so AI isn't robotic
-      const randomness = 0.15; // lower = more accurate
-      
       const predictedPos = player.position.clone()
         .add(player.velocity.clone().multiplyScalar(predictionTime));
-      
-      // Add some noise so it's not perfect
-      predictedPos.add(
-        new THREE.Vector3(
-          (Math.random() - 0.5) * randomness * 50,
-          (Math.random() - 0.5) * randomness * 50,
-          (Math.random() - 0.5) * randomness * 50
-        )
-      );
-      
-      // Aim toward predicted future position
+    
       const dir = predictedPos
         .sub(enemy.mesh.position)
         .normalize();
+
 
       bullet.position.copy(enemy.mesh.position);
       enemyBullets.push({mesh:bullet,vel:dir.multiplyScalar(bulletSpeed*0.8)});
@@ -1555,17 +1542,12 @@
       winDiv.style.display = 'block';
       setTimeout(()=> { if(winDiv) winDiv.style.display = 'none'; }, 1800);
 
-      playerMaxShield += Math.random()*20;
-
       shieldRegenRatePerSec += Math.random();
-      bulletDamage += Math.random();
-      missileDamage += Math.random()*4;
-      missileCooldownMs -= Math.random()*missileCooldownMs*0.1;
+      enemyMaxHP += 5;
+      enemyMaxShield += 5;
+      shieldRegenRatePerSec += 0.15;   // enemies regen faster over time
+      predictionTime += 0.025;         // smarter aiming each level
 
-      enemyMaxHP += Math.random()*10;
-      enemyMaxShield += 10;
-      enemyDamage += 10;
-      enemyFireDelay = Math.max(100, enemyFireDelay - 100);
 
       console.log(`[SCALE] defeated=${defeatedCount} playerMaxShield=${playerMaxShield.toFixed(2)} bulletDmg=${bulletDamage.toFixed(2)} enemyHP=${enemyMaxHP.toFixed(1)}  accuracy=${accuracy}`);
 

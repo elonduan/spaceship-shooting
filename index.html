@@ -1751,7 +1751,7 @@
         if(b.mesh.position.length()>sphereRadius*2){
           scene.remove(b.mesh); enemyBullets.splice(i,1); continue;
         }
-        if(b.mesh.position.distanceTo(camera.position) < accuracy){
+        if (b.mesh.position.distanceTo(player.position) < 50) {
           scene.remove(b.mesh); enemyBullets.splice(i,1);
           damagePlayer(enemyDamage);
           damage.play();

@@ -752,17 +752,17 @@
     // HP etc.
     let playerMaxHP = 9000;
     let playerHP = 9000;
-    let enemyMaxHP = 20;
+    let enemyMaxHP = 10;
     let enemyHP = 20;
     let predictionTime = 0;   // starts at 0 (no leading)
 
-    let playerMaxShield = 2;
-    let playerShield = 2;
+    let playerMaxShield = 20;
+    let playerShield = 20;
     let enemyMaxShield = 8;
     let enemyShield = 8;
 
-    let shieldRegenDelayMs = 3500;
-    let shieldRegenRatePerSec = 1.6;
+    let shieldRegenDelayMs = 4000;
+    let shieldRegenRatePerSec = 1;
     let lastPlayerDamageTime = -Infinity;
     let lastEnemyDamageTime = -Infinity;
 
@@ -1733,7 +1733,7 @@
         if(b.mesh.position.length()>sphereRadius*2){
           scene.remove(b.mesh); enemyBullets.splice(i,1); continue;
         }
-        if (b.mesh.position.distanceTo(player.position) < 50) {
+        if (b.mesh.position.distanceTo(player.position) < 30) {
           scene.remove(b.mesh); enemyBullets.splice(i,1);
           damagePlayer(enemyDamage);
           damage.play();

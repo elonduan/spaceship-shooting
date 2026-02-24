@@ -750,7 +750,7 @@
 
 
     // HP etc.
-    let playerMaxHP = 4000;
+    let playerMaxHP = 100;
     let playerHP = 4000;
     let enemyMaxHP = 10;
     let enemyHP = 20;
@@ -1212,7 +1212,7 @@
         .add(forward.clone().multiplyScalar(depthOffset));
 
       // virtual aim point far ahead, exactly along crosshair direction
-      const aimDistance = sphereRadius * 1.5;   // or 2000, 3000 etc.
+      const aimDistance = sphereRadius * 2;   // or 2000, 3000 etc.
       const aimPoint = camPos.clone().add(forward.clone().multiplyScalar(aimDistance));
 
       // direction from muzzle → aim point (so both converge to crosshair)

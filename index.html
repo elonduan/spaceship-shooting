@@ -1545,7 +1545,7 @@
       shieldRegenRatePerSec += 0.15 + Math.random()*0.2;
       enemyMaxHP += 5;
       enemyMaxShield += 5;  // enemies regen faster over time
-      predictionTime += 0.4*(predictionTime-0.4)+0.5;         // smarter aiming each level
+      predictionTime = 0.3;         // smarter aiming each level
 
 
       console.log(`[SCALE] defeated=${defeatedCount} playerMaxShield=${playerMaxShield.toFixed(2)} bulletDmg=${bulletDamage.toFixed(2)} enemyHP=${enemyMaxHP.toFixed(1)}  accuracy=${accuracy}`);

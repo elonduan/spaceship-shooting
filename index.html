@@ -762,7 +762,7 @@
     let enemyShield = 8;
 
     let shieldRegenDelayMs = 4000;
-    let shieldRegenRatePerSec = 0.1;
+    let shieldRegenRatePerSec = 1.5;
     let lastPlayerDamageTime = -Infinity;
     let lastEnemyDamageTime = -Infinity;
 
@@ -1542,11 +1542,10 @@
       winDiv.style.display = 'block';
       setTimeout(()=> { if(winDiv) winDiv.style.display = 'none'; }, 1800);
 
-      shieldRegenRatePerSec += Math.random();
+      shieldRegenRatePerSec += 0.15 + Math.random()*0.2;
       enemyMaxHP += 5;
-      enemyMaxShield += 5;
-      shieldRegenRatePerSec += 0.15;   // enemies regen faster over time
-      predictionTime += 0.025;         // smarter aiming each level
+      enemyMaxShield += 5;  // enemies regen faster over time
+      predictionTime += 0.4*(predictionTime-0.4)+0.5;         // smarter aiming each level
 
 
       console.log(`[SCALE] defeated=${defeatedCount} playerMaxShield=${playerMaxShield.toFixed(2)} bulletDmg=${bulletDamage.toFixed(2)} enemyHP=${enemyMaxHP.toFixed(1)}  accuracy=${accuracy}`);

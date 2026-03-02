@@ -1834,41 +1834,48 @@
           }
         }
       }
-
       // ----- LASER DPS (continuous) -----
       if (weaponMode === 'laser' && laserActive && !gameOver) {
-        const baseDps = bulletDamage * (1000 / autoShootRateMs); // same base as others
-        const laserDps = baseDps;                                 // same DPS as heavy
+        const baseDps = bulletDamage * (1000 / autoShootRateMs);
+        const laserDps = baseDps;
         const damageThisFrame = laserDps * dt;
-
-        const dir = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
-
+      
+        const camPos = player.position.clone(); // FIX: define camPos properly
+        const dir = new THREE.Vector3(0,0,-1)
+          .applyQuaternion(camera.quaternion)
+          .normalize();
+      
         let bestEnemy = null;
         let bestT = Infinity;
         const hitRadius = 35;
-
+      
         enemies.forEach(enemy => {
           if (!enemy || !enemy.mesh) return;
+      
           const toEnemy = enemy.mesh.position.clone().sub(camPos);
           const tProj = dir.dot(toEnemy);
-          if (tProj <= 0) return; // behind the player
-          const closestPoint = camPos.clone().add(dir.clone().multiplyScalar(tProj));
+          if (tProj <= 0) return;
+      
+          const closestPoint = camPos.clone().add(
+            dir.clone().multiplyScalar(tProj)
+          );
+      
           const dist = enemy.mesh.position.distanceTo(closestPoint);
+      
           if (dist < hitRadius && tProj < bestT) {
             bestT = tProj;
             bestEnemy = enemy;
           }
         });
-
+      
         if (bestEnemy) {
           damageEnemy(bestEnemy, damageThisFrame);
         }
-
+      
         updateLaserBeam(true);
       } else {
         updateLaserBeam(false);
       }
-
       renderer.render(scene, camera);
       updateMissileUI();
     }

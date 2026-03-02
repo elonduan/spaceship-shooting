@@ -128,7 +128,7 @@
   <div id="overlay">
     <div class="panel">
       &nbsp;
-      <div><strong>Spaceship Duel Competition — Made by Elon - 27rd edition</strong></div>
+      <div><strong>Spaceship Duel Competition — Made by Elon - 28rd edition</strong></div>
       <ul style="margin:8px 0 0 18px;font-size:13px">
         <li>Mouse: pitch & yaw (click to lock)</li>
         <li>A / D buttons: roll (cosmetic)</li>
@@ -184,6 +184,19 @@
       </div>
     </div>
   </div>
+  <video id="bossIntroVideo"
+   src="./res/boss_intro.mp4"
+   style="
+     position:fixed;
+     top:0;
+     left:0;
+     width:100%;
+     height:100%;
+     object-fit:cover;
+     z-index:9999;
+     display:none;
+       "
+  ></video>
 
   <div id="crosshair"></div>
   <div id="missileUI"><span id="missileCountUI"></span></div>
@@ -235,6 +248,18 @@
 
     // create a small helper axis / vectors used below
     const WORLD_UP = new THREE.Vector3(0,1,0);
+
+    const bossIntroVideo = document.getElementById('bossIntroVideo');
+
+    function playBossIntro(spawnBossCallback) {
+      bossIntroVideo.style.display = 'block';
+      bossIntroVideo.play();
+    
+      bossIntroVideo.onended = () => {
+        bossIntroVideo.style.display = 'none';
+        spawnBossCallback(); // spawn boss AFTER video
+      };
+    }
 
     function createStars(){
       const starCount = 3000;
@@ -1625,15 +1650,25 @@
       if (defeatedCount % 7 === 0) {
         // Spawn boss if geometry loaded
         if (bossGeometry) {
-          const boss = createBoss();
-          if (boss) {
-            enemies.push(boss);
-            // optional visual / UI cue:
-            console.log('BOSS SPAWNED! (defeatedCount=' + defeatedCount + ')');
-            winDiv.style.display = 'block';
-            winDiv.textContent = 'Warning — Boss ship arrived!';
-            setTimeout(()=> { if(winDiv) { winDiv.style.display = 'none'; winDiv.textContent = 'You destroyed the spaceship — you win!'; } }, 2200);
-          }
+          playBossIntro(() => {
+            const boss = createBoss();
+            if (boss) {
+              enemies.push(boss);
+          
+              console.log('BOSS SPAWNED! (defeatedCount=' + defeatedCount + ')');
+          
+              winDiv.style.display = 'block';
+              winDiv.textContent = 'Warning — Boss ship arrived!';
+          
+              setTimeout(() => {
+                if (winDiv) {
+                  winDiv.style.display = 'none';
+                  winDiv.textContent = 'You destroyed the spaceship — you win!';
+                }
+              }, 2200);
+            }
+          
+          });
         } else {
           console.warn('boss geometry not loaded; cannot spawn boss.');
         }

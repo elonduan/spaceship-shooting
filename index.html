@@ -128,7 +128,7 @@
   <div id="overlay">
     <div class="panel">
       &nbsp;
-      <div><strong>Spaceship Duel Competition — Made by Elon - 25rd edition</strong></div>
+      <div><strong>Spaceship Duel Competition — Made by Elon - 26rd edition</strong></div>
       <ul style="margin:8px 0 0 18px;font-size:13px">
         <li>Mouse: pitch & yaw (click to lock)</li>
         <li>A / D buttons: roll (cosmetic)</li>
@@ -659,6 +659,8 @@
     let spaceshipMaterial = null;
     let missileGeometry = null;
     let mouseHeld = false;
+    let bossGeometry = null;
+    let bossMaterial = null;
 
     const loader = new THREE.STLLoader();
 
@@ -676,6 +678,22 @@
 
           spaceshipGeometry = geometry;
           spaceshipMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff });
+          resolve();
+        }, undefined, reject);
+      });
+      const bossPromise = new Promise((resolve, reject) => {
+        loader.load('./res/boss.stl', (geometry) => {
+          geometry.computeBoundingBox();
+          const bb = geometry.boundingBox;
+          const center = new THREE.Vector3();
+          bb.getCenter(center);
+      
+          geometry.translate(-center.x, -center.y, -center.z);
+          // rotate/scale if needed; adjust to match your model orientation
+          geometry.rotateX(THREE.MathUtils.degToRad(90));
+      
+          bossGeometry = geometry;
+          bossMaterial = new THREE.MeshStandardMaterial({ color: 0xffaa00 }); // distinct color
           resolve();
         }, undefined, reject);
       });
@@ -713,7 +731,8 @@
       return Promise.all([
         enemyShipPromise,
         playerShipPromise,
-        missilePromise
+        missilePromise,
+        bossPromise
       ]);
     };
 
@@ -1353,7 +1372,11 @@
 
 
       bullet.position.copy(enemy.mesh.position);
-      enemyBullets.push({mesh:bullet,vel:dir.multiplyScalar(bulletSpeed*0.8)});
+      enemyBullets.push({
+        mesh: bullet,
+        vel: dir.multiplyScalar(bulletSpeed * 0.8),
+        damage: enemy.damage || enemyDamage
+      });
       scene.add(bullet);
 
       // schedule next shot, but keep the timeout handle on the enemy so it can be cancelled
@@ -1480,6 +1503,34 @@
         p.mesh.material.opacity = 0.9 * (p.life);
       }
     }
+    function createBoss() {
+      if (!bossGeometry) return null;
+      // pick a spawn position (you can change spawn distance)
+      const pos = randomUnit().multiplyScalar(sphereRadius * 0.5);
+      const mesh = new THREE.Mesh(bossGeometry, bossMaterial.clone());
+      mesh.scale.set(0.9, 0.9, 0.9); // adjust visual size if needed
+      mesh.position.copy(pos);
+    
+      const enemy = {
+        mesh,
+        pos: pos.clone(),
+        vel: new THREE.Vector3(0, 0, 0),           // NO movement
+        desiredVel: new THREE.Vector3(0, 0, 0),
+        nextSteerChange: Infinity,                 // won't steer
+        prevVelDir: new THREE.Vector3(0, 0, -1),
+        hp: Math.max(1, Math.round(enemyMaxHP * 2)), // 2x HP
+        shield: enemyMaxShield,                   // keep same shield (or change if you prefer)
+        alive: true,
+        _shootTimeout: null,
+        isBoss: true,
+        damage: enemyDamage * 3                    // boss does 3x damage per bullet
+      };
+    
+      scene.add(mesh);
+      // start the boss firing loop
+      enemyShoot(enemy);
+      return enemy;
+    }
 
     // replace createEnemy()
     function createEnemy() {
@@ -1568,6 +1619,24 @@
 
       defeatedCount++;
       updateDefeatedUI();
+      
+      // every 7th defeat: spawn a boss
+      if (defeatedCount % 7 === 0) {
+        // Spawn boss if geometry loaded
+        if (bossGeometry) {
+          const boss = createBoss();
+          if (boss) {
+            enemies.push(boss);
+            // optional visual / UI cue:
+            console.log('BOSS SPAWNED! (defeatedCount=' + defeatedCount + ')');
+            winDiv.style.display = 'block';
+            winDiv.textContent = 'Warning — Boss ship arrived!';
+            setTimeout(()=> { if(winDiv) { winDiv.style.display = 'none'; winDiv.textContent = 'You destroyed the spaceship — you win!'; } }, 2200);
+          }
+        } else {
+          console.warn('boss geometry not loaded; cannot spawn boss.');
+        }
+      }
 
       winDiv.style.display = 'block';
       setTimeout(()=> { if(winDiv) winDiv.style.display = 'none'; }, 1800);
@@ -1777,7 +1846,7 @@
         }
         if (b.mesh.position.distanceTo(player.position) < 30) {
           scene.remove(b.mesh); enemyBullets.splice(i,1);
-          damagePlayer(enemyDamage);
+          damagePlayer(b.damage || enemyDamage);
           damage.play();
         }
       }

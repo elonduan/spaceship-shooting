@@ -682,7 +682,7 @@
         }, undefined, reject);
       });
       const bossPromise = new Promise((resolve, reject) => {
-        loader.load('./res/boss.stl', (geometry) => {
+        loader.load('./res/boss.STL', (geometry) => {
           geometry.computeBoundingBox();
           const bb = geometry.boundingBox;
           const center = new THREE.Vector3();

@@ -128,7 +128,7 @@
   <div id="overlay">
     <div class="panel">
       &nbsp;
-      <div><strong>Ball Shooter Competition — Made by Elon - 3</strong></div>
+      <div><strong>Spaceship Duel Competition — Made by Elon - 23rd edition</strong></div>
       <ul style="margin:8px 0 0 18px;font-size:13px">
         <li>Mouse: pitch & yaw (click to lock)</li>
         <li>A / D buttons: roll (cosmetic)</li>
@@ -1737,7 +1737,7 @@
         const nextPos = b.mesh.position.clone().add(move);
       
         // OPTIONAL: spawn multiple trail particles between prevPos and nextPos to avoid gaps
-        const steps = Math.ceil(move.length() / 2); // one particle every ~6 units
+        const steps = Math.ceil(move.length() / 6); // one particle every ~6 units
         for (let s = 0; s < steps; s++) {
           const t = s / Math.max(1, steps - 1);
           const interp = b.mesh.position.clone().lerp(nextPos, t);

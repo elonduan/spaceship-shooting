@@ -1190,7 +1190,7 @@
       const p = new THREE.Mesh(bulletTrailGeom, bulletTrailMat.clone());
       p.position.copy(pos);
       p.material.opacity = 0.9;
-      bulletTrailParticles.push({ mesh: p, life: 0.24 }); // life in seconds
+      bulletTrailParticles.push({ mesh: p, life: 0.1 }); // life in seconds
       scene.add(p);
     }
     
@@ -1204,8 +1204,8 @@
           continue;
         }
         // fade out and shrink slightly
-        t.mesh.material.opacity = t.life / 0.24;
-        const s = 0.6 * (0.6 + 0.4 * (t.life / 0.24));
+        t.mesh.material.opacity = t.life / 0.1;
+        const s = 0.6 * (0.6 + 0.4 * (t.life / 0.1));
         t.mesh.scale.set(s, s, s);
       }
     }

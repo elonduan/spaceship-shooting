@@ -1737,7 +1737,7 @@
         const nextPos = b.mesh.position.clone().add(move);
       
         // OPTIONAL: spawn multiple trail particles between prevPos and nextPos to avoid gaps
-        const steps = Math.ceil(move.length() / 6); // one particle every ~6 units
+        const steps = Math.ceil(move.length() / 2); // one particle every ~6 units
         for (let s = 0; s < steps; s++) {
           const t = s / Math.max(1, steps - 1);
           const interp = b.mesh.position.clone().lerp(nextPos, t);

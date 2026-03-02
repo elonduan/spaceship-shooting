@@ -1180,9 +1180,35 @@
         player.position.clone().add(camOffset)
       );
     }
-
-
-
+    // ---------- bullet trails (particles) ----------
+    const bulletTrailParticles = [];
+    const bulletTrailGeom = new THREE.SphereGeometry(0.6, 6, 6);
+    const bulletTrailMat = new THREE.MeshBasicMaterial({ color: 0xffff66, transparent: true, opacity: 0.9 });
+    
+    // Call this each frame for a bullet to leave a particle
+    function leaveBulletTrail(pos) {
+      const p = new THREE.Mesh(bulletTrailGeom, bulletTrailMat.clone());
+      p.position.copy(pos);
+      p.material.opacity = 0.9;
+      bulletTrailParticles.push({ mesh: p, life: 0.24 }); // life in seconds
+      scene.add(p);
+    }
+    
+    function updateBulletTrails(dt) {
+      for (let i = bulletTrailParticles.length - 1; i >= 0; i--) {
+        const t = bulletTrailParticles[i];
+        t.life -= dt;
+        if (t.life <= 0) {
+          scene.remove(t.mesh);
+          bulletTrailParticles.splice(i, 1);
+          continue;
+        }
+        // fade out and shrink slightly
+        t.mesh.material.opacity = t.life / 0.24;
+        const s = 0.6 * (0.6 + 0.4 * (t.life / 0.24));
+        t.mesh.scale.set(s, s, s);
+      }
+    }
 
     const bullets = [];
     const enemyBullets = [];
@@ -1219,10 +1245,13 @@
       const dir = aimPoint.clone().sub(spawnPos).normalize();
 
       bullet.position.copy(spawnPos);
+      // when you push a bullet into bullets:
       bullets.push({
         mesh: bullet,
         vel: dir.multiplyScalar(speed),
-        damage
+        damage,
+        prevPos: spawnPos.clone(),    // for interpolation or stretch usage
+        trailAccum: 0                 // accumulate time for sparser trail if desired
       });
       scene.add(bullet);
     }
@@ -1698,15 +1727,29 @@
       updateExplosions(dt);
       updateShockwaves(dt);
       updateSparks(dt);
+      updateBulletTrails(dt);
 
-      
-
-
-      for(let i=bullets.length-1;i>=0;i--){
+      for (let i = bullets.length - 1; i >= 0; i--) {
         const b = bullets[i];
-        b.mesh.position.add(b.vel.clone().multiplyScalar(dt*60));
-        if(b.mesh.position.length()>sphereRadius*2){
-          scene.remove(b.mesh); bullets.splice(i,1); continue;
+      
+        // compute next position (same as your existing line)
+        const move = b.vel.clone().multiplyScalar(dt * 60);
+        const nextPos = b.mesh.position.clone().add(move);
+      
+        // OPTIONAL: spawn multiple trail particles between prevPos and nextPos to avoid gaps
+        const steps = Math.ceil(move.length() / 6); // one particle every ~6 units
+        for (let s = 0; s < steps; s++) {
+          const t = s / Math.max(1, steps - 1);
+          const interp = b.mesh.position.clone().lerp(nextPos, t);
+          leaveBulletTrail(interp);
+        }
+      
+        b.mesh.position.copy(nextPos);
+        b.prevPos = b.mesh.position.clone();
+      
+        // collision + bounds (your existing logic)
+        if (b.mesh.position.length() > sphereRadius * 2) {
+          scene.remove(b.mesh); bullets.splice(i, 1); continue;
         }
         let hitEnemy = null;
         for (const enemy of enemies) {
@@ -1716,12 +1759,11 @@
           }
         }
         if (hitEnemy) {
-          scene.remove(b.mesh); bullets.splice(i,1);
+          scene.remove(b.mesh); bullets.splice(i, 1);
           damageEnemy(hitEnemy, b.damage || bulletDamage);
           damage.currentTime = 0;
           damage.play();
         }
-
       }
 
       updateMissiles(dt);

@@ -770,6 +770,7 @@
     let missileDamage = 15;
     let enemyDamage = 1.0;
     let enemyFireDelay = 520;
+    let nextGunSide = -1; // -1 = left, +1 = right
     
 
     const winDiv = document.getElementById('win');
@@ -1260,31 +1261,31 @@
 
     function shoot(){
       if (isPaused) return;
+    
       const now = performance.now();
-
-      // BASE: DPS of normal weapon (depends on bulletDamage and fire rate)
+    
       const baseDps = bulletDamage * (1000 / autoShootRateMs);
-
-      let thisDamage = bulletDamage;       // default for normal
-      let thisSpeed  = bulletSpeed;        // default speed
-
+    
+      let thisDamage = bulletDamage;
+      let thisSpeed  = bulletSpeed;
+    
       if (weaponMode === 'heavy') {
-        // limit fire rate for heavy cannon
         if (now - heavyLastShotTime < heavyCooldownMs) return;
         heavyLastShotTime = now;
-
-        // heavy shot does more damage but fires slower: DPS equal to base
-        thisDamage = baseDps * (heavyCooldownMs / 1000); // ~3x damage if cooldown is 3x
-        thisSpeed  = bulletSpeed * 0.6;                  // slower projectile for flavour
-      } else if (weaponMode === 'laser') {
-        // laser is handled as continuous in animate(), no discrete bullets
+    
+        thisDamage = baseDps * (heavyCooldownMs / 1000);
+        thisSpeed  = bulletSpeed * 0.6;
+      } 
+      else if (weaponMode === 'laser') {
         return;
       }
-
-      // twin guns: left (-1) and right (+1)
-      spawnBulletAtSide(-1, thisDamage, thisSpeed);
-      spawnBulletAtSide(+1, thisDamage, thisSpeed);
-
+    
+      // Fire ONLY one side
+      spawnBulletAtSide(nextGunSide, thisDamage, thisSpeed);
+    
+      // Alternate side
+      nextGunSide *= -1;
+    
       missileExplosion.currentTime = 0;
       missileFollowExp.cloneNode(true).play();
     }
@@ -1588,7 +1589,7 @@
     let trailTimer = 0;
     let autoShooting = false;
     let autoIntervalId = null;
-    const autoShootRateMs = 120;
+    const autoShootRateMs = 60;
 
 
     // ---------- WEAPON SYSTEM ----------

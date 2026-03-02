@@ -691,6 +691,7 @@
           geometry.translate(-center.x, -center.y, -center.z);
           // rotate/scale if needed; adjust to match your model orientation
           geometry.rotateX(THREE.MathUtils.degToRad(90));
+          mesh.scale.set(5, 5, 5);  // 5x bigger
       
           bossGeometry = geometry;
           bossMaterial = new THREE.MeshStandardMaterial({ color: 0xffaa00 }); // distinct color

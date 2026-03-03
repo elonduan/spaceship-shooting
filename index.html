@@ -128,7 +128,7 @@
   <div id="overlay">
     <div class="panel">
       &nbsp;
-      <div><strong>Spaceship Duel Competition — Made by Elon - 28rd edition</strong></div>
+      <div><strong>Spaceship Duel Competition — Made by Elon - 29th edition</strong></div>
       <ul style="margin:8px 0 0 18px;font-size:13px">
         <li>Mouse: pitch & yaw (click to lock)</li>
         <li>A / D buttons: roll (cosmetic)</li>
@@ -1585,9 +1585,19 @@
 
 
     function ensureEnemies() {
+      // If boss exists, only fill up to MAX_ENEMIES total
+      const hasBoss = enemies.some(e => e.isBoss);
+    
       while (enemies.length < MAX_ENEMIES) {
         const e = createEnemy();
         if (e) enemies.push(e);
+      }
+    
+      // Safety: never allow more than MAX_ENEMIES
+      while (enemies.length > MAX_ENEMIES) {
+        const extra = enemies.pop();
+        if (extra._shootTimeout) clearTimeout(extra._shootTimeout);
+        if (extra.mesh) scene.remove(extra.mesh);
       }
     }
 
@@ -1648,27 +1658,39 @@
       
       // every 7th defeat: spawn a boss
       if (defeatedCount % 7 === 0) {
-        // Spawn boss if geometry loaded
         if (bossGeometry) {
+      
           playBossIntro(() => {
+      
+            // 🔥 Clear remaining enemies so we control the exact composition
+            enemies.forEach(e => {
+              if (e._shootTimeout) clearTimeout(e._shootTimeout);
+              if (e.mesh) scene.remove(e.mesh);
+            });
+            enemies.length = 0;
+      
+            // Spawn ONE boss
             const boss = createBoss();
-            if (boss) {
-              enemies.push(boss);
-          
-              console.log('BOSS SPAWNED! (defeatedCount=' + defeatedCount + ')');
-          
-              winDiv.style.display = 'block';
-              winDiv.textContent = 'Warning — Boss ship arrived!';
-          
-              setTimeout(() => {
-                if (winDiv) {
-                  winDiv.style.display = 'none';
-                  winDiv.textContent = 'You destroyed the spaceship — you win!';
-                }
-              }, 2200);
-            }
-          
+            if (boss) enemies.push(boss);
+      
+            // Spawn ONE normal ship
+            const small = createEnemy();
+            if (small) enemies.push(small);
+      
+            selectedEnemyIndex = 0;
+            updateHP();
+      
+            console.log('BOSS + 1 SMALL SPAWNED');
+      
+            winDiv.style.display = 'block';
+            winDiv.textContent = 'Warning — Boss ship arrived!';
+            setTimeout(() => {
+              winDiv.style.display = 'none';
+              winDiv.textContent = 'You destroyed the spaceship — you win!';
+            }, 2200);
+      
           });
+      
         } else {
           console.warn('boss geometry not loaded; cannot spawn boss.');
         }

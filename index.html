@@ -1317,7 +1317,7 @@
         if (now - heavyLastShotTime < heavyCooldownMs) return;
         heavyLastShotTime = now;
     
-        thisDamage = baseDps * (heavyCooldownMs / 1000);
+        thisDamage = 1.5 * baseDps * (heavyCooldownMs / 1000);
         thisSpeed  = bulletSpeed * 0.6;
       } 
       else if (weaponMode === 'laser') {

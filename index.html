@@ -1549,6 +1549,7 @@
         alive: true,
         _shootTimeout: null,
         isBoss: true,
+        hitRadius: 150,
         damage: enemyDamage * 3                    // boss does 3x damage per bullet
       };
     
@@ -1558,7 +1559,6 @@
       return enemy;
     }
 
-    // replace createEnemy()
     function createEnemy() {
       if (!spaceshipGeometry) return null;
       const pos = randomUnit().multiplyScalar(sphereRadius * 0.4);
@@ -1576,6 +1576,7 @@
         hp: enemyMaxHP,
         shield: enemyMaxShield,
         alive: true,          // <-- mark as alive
+        hitRadius: 50,
         _shootTimeout: null   // <-- will store timeout handle
       };
       scene.add(mesh);
@@ -1791,7 +1792,10 @@
 
         let hit = false;
         for (const enemy of enemies) {
-          if (enemy.mesh && m.mesh.position.distanceTo(enemy.mesh.position) < 55) {
+          if (
+            enemy.mesh &&
+            m.mesh.position.distanceTo(enemy.mesh.position) < (enemy.hitRadius || 55)
+          ) {
             scene.remove(m.mesh);
             missiles.splice(i, 1);
             damageEnemy(enemy, missileDamage);
@@ -1881,7 +1885,10 @@
         }
         let hitEnemy = null;
         for (const enemy of enemies) {
-          if (enemy.mesh && b.mesh.position.distanceTo(enemy.mesh.position) < 50) {
+          if (
+            enemy.mesh &&
+            b.mesh.position.distanceTo(enemy.mesh.position) < (enemy.hitRadius || 50)
+          ) {
             hitEnemy = enemy;
             break;
           }

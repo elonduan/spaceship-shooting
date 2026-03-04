@@ -132,13 +132,12 @@
       <ul style="margin:8px 0 0 18px;font-size:13px">
         <li>Mouse: pitch & yaw (click to lock)</li>
         <li>A / D buttons: roll (cosmetic)</li>
-        <li>Shoot button / Space: fire</li>
+        <li>Shoot button / click/ hold: fire</li>
         <li>M: launch missile (4 per game)</li>
         <li>R: reset</li>
-        <li>G: steer ship toward crosshair (hold)</li>
+        <li>WASD: up-left-down-right</li>
         <li>C: change target ship</li>
-        <li>WORLD RECORD IS 40</li>
-        <li>EMAIL TO ME IF YOU BEAT IT</li>
+        <li>BOSS AT 7 DEFEATS</li>
       </ul>
       <label for="sensitivity">Rotation sensitivity</label>
       <input id="sensitivity" type="range" min="0.005" max="0.2" step="0.002" value="0.1">
@@ -1390,10 +1389,27 @@
       // ---- Predict player future position ----
       const predictedPos = player.position.clone()
         .add(player.velocity.clone().multiplyScalar(predictionTime));
-    
-      const dir = predictedPos
+      
+      // Base direction toward predicted position
+      let dir = predictedPos
         .sub(enemy.mesh.position)
         .normalize();
+      
+      // ----- ADD RANDOM SPREAD -----
+      
+      // How inaccurate enemies are (higher = more misses)
+      const spreadAngle = 0.25;  // radians (~14 degrees). Try 0.15–0.4
+      
+      // Create small random yaw/pitch offsets
+      const randomYaw   = (Math.random() - 0.5) * spreadAngle;
+      const randomPitch = (Math.random() - 0.5) * spreadAngle;
+      
+      // Build spread quaternion
+      const spreadQuat = new THREE.Quaternion()
+        .setFromEuler(new THREE.Euler(randomPitch, randomYaw, 0));
+      
+      // Apply spread to direction
+      dir.applyQuaternion(spreadQuat).normalize();
 
 
       bullet.position.copy(enemy.mesh.position);
@@ -1544,7 +1560,7 @@
         desiredVel: new THREE.Vector3(0, 0, 0),
         nextSteerChange: Infinity,                 // won't steer
         prevVelDir: new THREE.Vector3(0, 0, -1),
-        hp: Math.max(1, Math.round(enemyMaxHP * 2)), // 2x HP
+        hp: Math.max(1, Math.round(enemyMaxHP * 5)), // 2x HP
         shield: enemyMaxShield,                   // keep same shield (or change if you prefer)
         alive: true,
         _shootTimeout: null,
@@ -1701,8 +1717,8 @@
       setTimeout(()=> { if(winDiv) winDiv.style.display = 'none'; }, 1800);
 
       shieldRegenRatePerSec += 0.15 + Math.random()*0.2;
-      enemyMaxHP += 5;
-      enemyMaxShield += 5;  // enemies regen faster over time
+      enemyMaxHP += 1.5;
+      enemyMaxShield += 1.5;  // enemies regen faster over time
       predictionTime += Math.random()*0.8 - predictionTime;         // smarter aiming each level
 
 

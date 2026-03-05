@@ -1566,8 +1566,8 @@
         desiredVel: new THREE.Vector3(0, 0, 0),
         nextSteerChange: Infinity,                 // won't steer
         prevVelDir: new THREE.Vector3(0, 0, -1),
-        hp: Math.max(1, Math.round(enemyMaxHP * 5)), // 2x HP
-        shield: enemyMaxShield,                   // keep same shield (or change if you prefer)
+        hp: Math.max(1, Math.round(enemyMaxHP * 2)), // 2x HP
+        shield: enemyMaxShield*10,                   // keep same shield (or change if you prefer)
         alive: true,
         _shootTimeout: null,
         isBoss: true,
@@ -1909,7 +1909,7 @@
         for (const enemy of enemies) {
           if (
             enemy.mesh &&
-            b.mesh.position.distanceTo(enemy.mesh.position) < (enemy.hitRadius || 50)
+            b.mesh.position.distanceTo(enemy.mesh.position) < (enemy.hitRadius)
           ) {
             hitEnemy = enemy;
             break;

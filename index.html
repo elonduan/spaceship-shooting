@@ -669,7 +669,7 @@
       return v.normalize();
     }
 
-    const sphereRadius = 1000;
+    const sphereRadius = 1500;
     const enemySpeed = 3.0;
     const steerMin = 1000;
     const steerMax = 3000;
@@ -1855,7 +1855,7 @@
       for (const enemy of enemies) {
         if (!enemy || !enemy.mesh) continue;
         const ratio = enemy.hp / enemyMaxHP;
-        if (ratio < 0.25) {
+        if (ratio < 0.25 && Math.random() < 0.2) {
           addSmoke(enemy, dt);
         }
         if (ratio < 0.10 && Math.random() < dt * 10) {
@@ -1909,7 +1909,7 @@
         for (const enemy of enemies) {
           if (
             enemy.mesh &&
-            b.mesh.position.distanceTo(enemy.mesh.position) < (enemy.hitRadius)
+            b.mesh.position.distanceTo(enemy.mesh.position) < (enemy.hitRadius||150)
           ) {
             hitEnemy = enemy;
             break;

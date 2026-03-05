@@ -128,7 +128,7 @@
   <div id="overlay">
     <div class="panel">
       &nbsp;
-      <div><strong>Spaceship Duel Competition — Made by Elon - 31th edition</strong></div>
+      <div><strong>Spaceship Duel Competition — Made by Elon - 32th edition</strong></div>
       <ul style="margin:8px 0 0 18px;font-size:13px">
         <li>Mouse: pitch & yaw (click to lock)</li>
         <li>A / D buttons: roll (cosmetic)</li>
@@ -223,12 +223,17 @@
   <script>
     const missileExplosion = new Audio("https://actions.google.com/sounds/v1/weapons/big_explosion_cut_off.ogg");
     const bulletSound = new Audio("./res/bullet.mp3");
-    const backgroundMusic = new Audio("https://actions.google.com/sounds/v1/weapons/auto_bullets_flyby_short.ogg");
+    const backgroundMusic = new Audio("./res/music.mp3");
+    backgroundMusic.loop = true;      // repeat forever
+    backgroundMusic.volume = 0.4;     // adjust volume
     const damage = new Audio("./res/damage.mp3");
   </script>
   <script>
   (function(){
-
+    document.addEventListener("click", () => {
+      backgroundMusic.play();
+    }, { once: true });
+    
     /*********************** Game setup ***********************/
     const container = document.getElementById('canvas-container');
     const scene = new THREE.Scene();
@@ -238,6 +243,7 @@
     container.appendChild(renderer.domElement);
     const camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.1, 5000);
     camera.position.set(0,0,0);
+    
 
     // --- pointer lock canvas reference
     const canvas = renderer.domElement;
@@ -892,6 +898,7 @@
         loseDiv.style.display='block';
         gameOver = true;
         setAutoShooting(false);
+        backgroundMusic.pause();
       }
     }
 
@@ -1328,8 +1335,8 @@
       // Alternate side
       nextGunSide *= -1;
     
-      bullet.currentTime = 0;
-      bullet.cloneNode(true).play();
+      bulletSound.currentTime = 0;
+      bulletSound.cloneNode(true).play();
     }
 
 

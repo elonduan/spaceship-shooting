@@ -222,10 +222,9 @@
   <script src="https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/js/loaders/STLLoader.js"></script>
   <script>
     const missileExplosion = new Audio("https://actions.google.com/sounds/v1/weapons/big_explosion_cut_off.ogg");
-    const missileFollowExp = new Audio("https://actions.google.com/sounds/v1/weapons/auto_bullets_flyby_short.ogg");
+    const bulletSound = new Audio("./res/bullet.mp3");
     const backgroundMusic = new Audio("https://actions.google.com/sounds/v1/weapons/auto_bullets_flyby_short.ogg");
-    const damage = new Audio("https://actions.google.com/sounds/v1/impacts/face_hit_series.ogg");
-    missileFollowExp.volume = 0.5;
+    const damage = new Audio("./res/damage.mp3");
   </script>
   <script>
   (function(){
@@ -1329,8 +1328,8 @@
       // Alternate side
       nextGunSide *= -1;
     
-      missileExplosion.currentTime = 0;
-      missileFollowExp.cloneNode(true).play();
+      bullet.currentTime = 0;
+      bullet.cloneNode(true).play();
     }
 
 
@@ -1912,8 +1911,6 @@
         if (hitEnemy) {
           scene.remove(b.mesh); bullets.splice(i, 1);
           damageEnemy(hitEnemy, b.damage || bulletDamage);
-          damage.currentTime = 0;
-          damage.play();
         }
       }
 
@@ -1928,7 +1925,7 @@
         if (b.mesh.position.distanceTo(player.position) < 30) {
           scene.remove(b.mesh); enemyBullets.splice(i,1);
           damagePlayer(b.damage || enemyDamage);
-          damage.play();
+          damage.cloneNode().play();;
         }
       }
 

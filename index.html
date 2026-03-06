@@ -1833,6 +1833,17 @@
         if (hit) continue;
       }
     }
+    function getEnemyRadius(enemy, fallback = 50) {
+      if (!enemy) return fallback;
+      if (typeof enemy.hitRadius === 'number' && !isNaN(enemy.hitRadius)) return enemy.hitRadius;
+      if (enemy.mesh && enemy.mesh.geometry) {
+        if (!enemy.mesh.geometry.boundingSphere) enemy.mesh.geometry.computeBoundingSphere();
+        const r = (enemy.mesh.geometry.boundingSphere && enemy.mesh.geometry.boundingSphere.radius) || 1;
+        const s = Math.max(enemy.mesh.scale.x, enemy.mesh.scale.y, enemy.mesh.scale.z || 1);
+        return r * s;
+      }
+      return fallback;
+    }
 
     function animate(t){
       ensureEnemies();

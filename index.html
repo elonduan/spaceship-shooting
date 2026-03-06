@@ -1575,7 +1575,7 @@
         alive: true,
         _shootTimeout: null,
         isBoss: true,
-        hitRadius: 150, // use computed value, or fallback to 150
+        hitRadius: 1000, // use computed value, or fallback to 150
         damage: enemyDamage * 3
       };
     
@@ -2016,7 +2016,6 @@
       
         let bestEnemy = null;
         let bestT = Infinity;
-        const hitRadius = getEnemyRadius(enemy, 35);
       
         enemies.forEach(enemy => {
           if (!enemy || !enemy.mesh) return;
@@ -2028,7 +2027,7 @@
           const closestPoint = camPos.clone().add(
             dir.clone().multiplyScalar(tProj)
           );
-      
+          const hitRadius = getEnemyRadius(enemy, 35);
           const dist = enemy.mesh.position.distanceTo(closestPoint);
       
           if (dist < hitRadius && tProj < bestT) {

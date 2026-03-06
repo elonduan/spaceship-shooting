@@ -1552,31 +1552,34 @@
     }
     function createBoss() {
       if (!bossGeometry) return null;
-      // pick a spawn position (you can change spawn distance)
       const pos = randomUnit().multiplyScalar(sphereRadius * 0.5);
       const mesh = new THREE.Mesh(bossGeometry, bossMaterial.clone());
-      mesh.scale.set(0.9, 0.9, 0.9); // adjust visual size if needed
-      mesh.position.copy(pos);
-      mesh.scale.set(5, 5, 5); // 🔥 change this number
+    
+      // visual scale
+      mesh.scale.set(5, 5, 5);
+    
+      // compute a collision radius from geometry + scale (safe: computes boundingSphere if absent)
+      if (!mesh.geometry.boundingSphere) mesh.geometry.computeBoundingSphere();
+      const geomRadius = (mesh.geometry.boundingSphere && mesh.geometry.boundingSphere.radius) || 1;
+      const maxScale = Math.max(mesh.scale.x, mesh.scale.y, mesh.scale.z);
     
       const enemy = {
         mesh,
         pos: pos.clone(),
-        vel: new THREE.Vector3(0, 0, 0),           // NO movement
+        vel: new THREE.Vector3(0, 0, 0),
         desiredVel: new THREE.Vector3(0, 0, 0),
-        nextSteerChange: Infinity,                 // won't steer
+        nextSteerChange: Infinity,
         prevVelDir: new THREE.Vector3(0, 0, -1),
-        hp: Math.max(1, Math.round(enemyMaxHP * 2)), // 2x HP
-        shield: enemyMaxShield*10,                   // keep same shield (or change if you prefer)
+        hp: Math.max(1, Math.round(enemyMaxHP * 2)),
+        shield: enemyMaxShield * 10,
         alive: true,
         _shootTimeout: null,
         isBoss: true,
-        hitRadius: 150,
-        damage: enemyDamage * 3                    // boss does 3x damage per bullet
+        hitRadius: 150, // use computed value, or fallback to 150
+        damage: enemyDamage * 3
       };
     
       scene.add(mesh);
-      // start the boss firing loop
       enemyShoot(enemy);
       return enemy;
     }
@@ -1909,7 +1912,7 @@
         for (const enemy of enemies) {
           if (
             enemy.mesh &&
-            b.mesh.position.distanceTo(enemy.mesh.position) < (enemy.hitRadius||50)
+            b.mesh.position.distanceTo(enemy.mesh.position) < getEnemyRadius(enemy, 55)
           ) {
             hitEnemy = enemy;
             break;
@@ -2002,7 +2005,7 @@
       
         let bestEnemy = null;
         let bestT = Infinity;
-        const hitRadius = 35;
+        const hitRadius = getEnemyRadius(enemy, 35);
       
         enemies.forEach(enemy => {
           if (!enemy || !enemy.mesh) return;

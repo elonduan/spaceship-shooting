@@ -128,7 +128,7 @@
   <div id="overlay">
     <div class="panel">
       &nbsp;
-      <div><strong>Spaceship Duel Competition — Made by Elon - 34th edition</strong></div>
+      <div><strong>Spaceship Duel Competition — Made by Elon - 35th edition</strong></div>
       <ul style="margin:8px 0 0 18px;font-size:13px">
         <li>Mouse: pitch & yaw (click to lock)</li>
         <li>A / D buttons: roll (cosmetic)</li>
@@ -862,11 +862,11 @@
       setShieldAndHP('playerBar', playerShield, playerMaxShield, playerHP, playerMaxHP);
 
       const e0 = enemies[0];
-      if (e0) setShieldAndHP('enemyBar1', e0.shield, enemyMaxShield, e0.hp, enemyMaxHP);
+      if (e0) setShieldAndHP('enemyBar1', e0.shield, e0.maxShield ?? enemyMaxShield, e0.hp, enemyMaxHP);
       else setShieldAndHP('enemyBar1', 0, enemyMaxShield, 0, enemyMaxHP);
 
       const e1 = enemies[1];
-      if (e1) setShieldAndHP('enemyBar2', e1.shield, enemyMaxShield, e1.hp, enemyMaxHP);
+      if (e1) setShieldAndHP('enemyBar2', e1.shield, e1.maxShield ?? enemyMaxShield, e1.hp, enemyMaxHP);
       else setShieldAndHP('enemyBar2', 0, enemyMaxShield, 0, enemyMaxHP);
 
       ['enemyBar1','enemyBar2'].forEach((id, idx) => {
@@ -939,8 +939,9 @@
       if ((now - lastEnemyDamageTime) > shieldRegenDelayMs && !gameOver) {
         let changed = false;
         enemies.forEach(e => {
-          if (e.shield < enemyMaxShield) {
-            e.shield = Math.min(enemyMaxShield, e.shield + shieldRegenRatePerSec * dt);
+          const maxShield = e.maxShield ?? enemyMaxShield;
+          if (e.shield < maxShield) {
+            e.shield = Math.min(maxShield, e.shield + shieldRegenRatePerSec * dt);
             changed = true;
           }
         });
@@ -1624,6 +1625,7 @@
         prevVelDir: vel.clone().normalize(),
         hp: enemyMaxHP,
         shield: enemyMaxShield,
+        maxShield: enemyMaxShield,
         alive: true,          // <-- mark as alive
         hitRadius: 50,
         _shootTimeout: null   // <-- will store timeout handle

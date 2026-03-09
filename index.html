@@ -128,7 +128,7 @@
   <div id="overlay">
     <div class="panel">
       &nbsp;
-      <div><strong>Spaceship Duel Competition — Made by Elon - 33th edition</strong></div>
+      <div><strong>Spaceship Duel Competition — Made by Elon - 34th edition</strong></div>
       <ul style="margin:8px 0 0 18px;font-size:13px">
         <li>Mouse: pitch & yaw (click to lock)</li>
         <li>A / D buttons: roll (cosmetic)</li>
@@ -1290,7 +1290,7 @@
 
     function spawnBulletAtSide(sideSign, damage, speed) {
       // sideSign: -1 = left, +1 = right
-      
+      const bullet = createPlayerBulletMesh();
 
       const forward = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
       const right   = new THREE.Vector3(1,0,0).applyQuaternion(camera.quaternion).normalize();

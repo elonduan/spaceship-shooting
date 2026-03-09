@@ -1234,13 +1234,15 @@
     const bulletTrailParticles = [];
     const bulletTrailGeom = new THREE.SphereGeometry(0.6, 6, 6);
     const bulletTrailMat = new THREE.MeshBasicMaterial({ color: 0xffff66, transparent: true, opacity: 0.9 });
+    const BULLET_TRAIL_LIFE = 0.06;
+    const BULLET_TRAIL_SPACING = 3;
     
     // Call this each frame for a bullet to leave a particle
     function leaveBulletTrail(pos) {
       const p = new THREE.Mesh(bulletTrailGeom, bulletTrailMat.clone());
       p.position.copy(pos);
       p.material.opacity = 0.9;
-      bulletTrailParticles.push({ mesh: p, life: 0.1 }); // life in seconds
+      bulletTrailParticles.push({ mesh: p, life: BULLET_TRAIL_LIFE }); // life in seconds
       scene.add(p);
     }
     
@@ -1254,8 +1256,9 @@
           continue;
         }
         // fade out and shrink slightly
-        t.mesh.material.opacity = t.life / 0.1;
-        const s = 0.6 * (0.6 + 0.4 * (t.life / 0.1));
+        const lifeRatio = t.life / BULLET_TRAIL_LIFE;
+        t.mesh.material.opacity = lifeRatio;
+        const s = 0.6 * (0.6 + 0.4 * lifeRatio);
         t.mesh.scale.set(s, s, s);
       }
     }
@@ -1925,7 +1928,7 @@
         const nextPos = b.mesh.position.clone().add(move);
       
         // OPTIONAL: spawn multiple trail particles between prevPos and nextPos to avoid gaps
-        const steps = Math.ceil(move.length() / 6); // one particle every ~6 units
+        const steps = Math.ceil(move.length() / BULLET_TRAIL_SPACING); // one particle every ~6 units
         for (let s = 0; s < steps; s++) {
           const t = s / Math.max(1, steps - 1);
           const interp = b.mesh.position.clone().lerp(nextPos, t);

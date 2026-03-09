@@ -1296,7 +1296,7 @@
       const right   = new THREE.Vector3(1,0,0).applyQuaternion(camera.quaternion).normalize();
 
       // big screen-width style offset is fine
-      const lateralOffset = 50;   // your value
+      const lateralOffset = 45;   // your value
       const depthOffset   = 5;    // spawn a bit in front of camera
 
       const camPos = playerShip.position.clone();
@@ -1595,7 +1595,7 @@
         alive: true,
         _shootTimeout: null,
         isBoss: true,
-        hitRadius: 200, // use computed value, or fallback to 150
+        hitRadius: 300, // use computed value, or fallback to 150
         damage: enemyDamage * 3
       };
     

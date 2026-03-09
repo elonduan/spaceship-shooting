@@ -1266,12 +1266,31 @@
     const bulletSpeed = 75;
     const missileSpeed = 4.5;
     let accuracy = 5;
+    
+    function createPlayerBulletMesh() {
+      const baseRadius = 1.2;
+      const frontHeight = baseRadius * 2;   // base-radius : height = 1 : 2
+      const backHeight  = baseRadius * 10;  // base-radius : height = 1 : 10
+
+      const frontGeom = new THREE.ConeGeometry(baseRadius, frontHeight, 12);
+      frontGeom.rotateX(Math.PI / 2);
+      frontGeom.translate(0, 0, frontHeight / 2);
+
+      const backGeom = new THREE.ConeGeometry(baseRadius, backHeight, 12);
+      backGeom.rotateX(-Math.PI / 2);
+      backGeom.translate(0, 0, -backHeight / 2);
+
+      const bulletMat = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+      const bullet = new THREE.Group();
+      bullet.add(new THREE.Mesh(frontGeom, bulletMat));
+      bullet.add(new THREE.Mesh(backGeom, bulletMat));
+      return bullet;
+    }
+
 
     function spawnBulletAtSide(sideSign, damage, speed) {
       // sideSign: -1 = left, +1 = right
-      const bulletGeom = new THREE.SphereGeometry(1.5,8,8);
-      const bulletMat = new THREE.MeshBasicMaterial({color:0xffff00});
-      const bullet = new THREE.Mesh(bulletGeom, bulletMat);
+      
 
       const forward = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
       const right   = new THREE.Vector3(1,0,0).applyQuaternion(camera.quaternion).normalize();
@@ -1295,6 +1314,7 @@
       const dir = aimPoint.clone().sub(spawnPos).normalize();
 
       bullet.position.copy(spawnPos);
+      bullet.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), dir);
       // when you push a bullet into bullets:
       bullets.push({
         mesh: bullet,

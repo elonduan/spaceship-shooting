@@ -1268,7 +1268,7 @@
     const enemyBullets = [];
     const missiles = [];
     const bulletSpeed = 75;
-    const missileSpeed = 4.5;
+    const missileSpeed = 9;
     let accuracy = 5;
     
     function createPlayerBulletMesh() {
@@ -1595,13 +1595,13 @@
         nextSteerChange: Infinity,
         prevVelDir: new THREE.Vector3(0, 0, -1),
         hp: 0.01,
-        shield: enemyMaxShield * 20,
-        maxShield: enemyMaxShield * 20,
+        shield: enemyMaxShield * 30,
+        maxShield: enemyMaxShield * 30,
         alive: true,
         _shootTimeout: null,
         isBoss: true,
         hitRadius: 300, // use computed value, or fallback to 150
-        damage: enemyDamage * 3
+        damage: enemyDamage * 10
       };
     
       scene.add(mesh);

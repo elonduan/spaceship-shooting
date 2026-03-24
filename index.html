@@ -128,7 +128,7 @@
   <div id="overlay">
     <div class="panel">
       &nbsp;
-      <div><strong>Spaceship Duel Competition — Made by Elon - 36th edition</strong></div>
+      <div><strong>Spaceship Duel Competition — Made by Elon - 37th edition</strong></div>
       <ul style="margin:8px 0 0 18px;font-size:13px">
         <li>Mouse: pitch & yaw (click to lock)</li>
         <li>A / D buttons: roll (cosmetic)</li>
@@ -776,6 +776,15 @@
     const movementVelocity = new THREE.Vector3();
     const MOVE_RESPONSE = 4; // higher = snappier steering
     const MOVE_DRAG = 1;     // higher = less drift
+    const shipMovementOffset = new THREE.Vector3();
+    const SHIP_OFFSET_STRENGTH = {
+      forward: 0.12,
+      side: 0.08,
+      up: 0.08
+    };
+    const SHIP_OFFSET_LAG = 7.5;
+    const SHIP_OFFSET_RETURN = 5.5;
+    const SHIP_MAX_OFFSET = 10;
     
     function createPlayerShip() {
       if (!playerGeometry) {
@@ -1230,7 +1239,29 @@
 
       // ===== UPDATE SHIP TRANSFORM =====
       if (playerShip) {
-        playerShip.position.copy(player.position);
+        const speed = movementVelocity.length();
+        const desiredMovementOffset = new THREE.Vector3();
+        if (speed > 0.001) {
+          const forwardComp = movementVelocity.dot(forward);
+          const rightComp = movementVelocity.dot(right);
+          const upComp = movementVelocity.dot(up);
+
+          desiredMovementOffset
+            .addScaledVector(forward, -forwardComp * SHIP_OFFSET_STRENGTH.forward)
+            .addScaledVector(right, -rightComp * SHIP_OFFSET_STRENGTH.side)
+            .addScaledVector(up, -upComp * SHIP_OFFSET_STRENGTH.up);
+
+          if (desiredMovementOffset.length() > SHIP_MAX_OFFSET) {
+            desiredMovementOffset.setLength(SHIP_MAX_OFFSET);
+          }
+        }
+
+        const offsetBlendTarget = speed > 0.001 ? SHIP_OFFSET_LAG : SHIP_OFFSET_RETURN;
+        const offsetBlend = 1 - Math.exp(-offsetBlendTarget * dt);
+        shipMovementOffset.lerp(desiredMovementOffset, offsetBlend);
+
+        playerShip.position.copy(player.position).add(shipMovementOffset);
+      }
       }
 
       // ===== CAMERA FOLLOW (3RD PERSON) =====

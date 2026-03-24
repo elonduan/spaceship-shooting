@@ -128,7 +128,7 @@
   <div id="overlay">
     <div class="panel">
       &nbsp;
-      <div><strong>Spaceship Duel Competition — Made by Elon - 35th edition</strong></div>
+      <div><strong>Spaceship Duel Competition — Made by Elon - 36th edition</strong></div>
       <ul style="margin:8px 0 0 18px;font-size:13px">
         <li>Mouse: pitch & yaw (click to lock)</li>
         <li>A / D buttons: roll (cosmetic)</li>
@@ -773,7 +773,10 @@
       pitch: 0,
       roll: 0
     };
-
+    const movementVelocity = new THREE.Vector3();
+    const MOVE_RESPONSE = 8.5; // higher = snappier steering
+    const MOVE_DRAG = 6.5;     // higher = less drift
+    
     function createPlayerShip() {
       if (!playerGeometry) {
         console.error('playerGeometry not loaded');
@@ -1135,7 +1138,6 @@
 
     // updateCamera - rotation & translation
     function updateCamera(dt) {
-      const prevPlayerPos = player.position.clone();
       // --- Apply rotational inertia ---
       yaw   += yawVel * dt * 60;
       pitch += pitchVel * dt * 60;
@@ -1206,15 +1208,23 @@
       else if (spaceHeld) {
         move.add(forward);   // normal forward
       }
-      
+      let desiredVelocity = new THREE.Vector3();
       if (move.lengthSq() > 0) {
-        move.normalize().multiplyScalar(speed * dt * 60);
-        player.position.add(move);
+        desiredVelocity = move.normalize().multiplyScalar(speed * 60);
       }
+      
+      const accelBlend = 1 - Math.exp(-MOVE_RESPONSE * dt);
+      movementVelocity.lerp(desiredVelocity, accelBlend);
+
+      if (move.lengthSq() === 0) {
+        const dragBlend = 1 - Math.exp(-MOVE_DRAG * dt);
+        movementVelocity.multiplyScalar(1 - dragBlend);
+      }
+
+      player.position.add(movementVelocity.clone().multiplyScalar(dt));
+      
       // compute velocity (units per second)
-      player.velocity.copy(
-        player.position.clone().sub(prevPlayerPos).divideScalar(dt || 0.0001)
-      );
+      player.velocity.copy(movementVelocity);
 
 
 
@@ -2121,6 +2131,7 @@
 
       // reset camera orientation state
       yaw = 0; pitch = 0; roll = 0;
+      movementVelocity.set(0, 0, 0);
       camera.quaternion.identity();
       camera.position.set(0,0,0);
     }

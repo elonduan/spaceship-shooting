@@ -60,11 +60,6 @@
       width: 100%;
       box-shadow: inset 0 0 6px rgba(0,0,0,0.15);
     }
-    .hpStack .energy {
-      background: #43d7ff;
-      width: 100%;
-      box-shadow: inset 0 0 6px rgba(0,0,0,0.15);
-    }
 
     #enemyBar1.selected, #enemyBar2.selected {
       box-shadow: 0 0 10px rgba(255,255,0,0.9);
@@ -133,7 +128,7 @@
   <div id="overlay">
     <div class="panel">
       &nbsp;
-      <div><strong>Spaceship Duel Competition — Made by Elon - 39th edition</strong></div>
+      <div><strong>Spaceship Duel Competition — Made by Elon - 33th edition</strong></div>
       <ul style="margin:8px 0 0 18px;font-size:13px">
         <li>Mouse: pitch & yaw (click to lock)</li>
         <li>A / D buttons: roll (cosmetic)</li>
@@ -177,7 +172,6 @@
       <div id="enemyBar1" class="hpStack">
         <div class="bar shield"></div>
         <div class="bar health"></div>
-        <div class="bar energy" id="playerEnergyBar"></div>
       </div>
     </div>
 
@@ -779,19 +773,7 @@
       pitch: 0,
       roll: 0
     };
-    const movementVelocity = new THREE.Vector3();
-    const MOVE_RESPONSE = 4; // higher = snappier steering
-    const MOVE_DRAG = 1;     // higher = less drift
-    const shipMovementOffset = new THREE.Vector3();
-    const SHIP_OFFSET_STRENGTH = {
-      forward: 0.12,
-      side: 0.08,
-      up: 0.08
-    };
-    const SHIP_OFFSET_LAG = 3.5;
-    const SHIP_OFFSET_RETURN = 1.5;
-    const SHIP_MAX_OFFSET = 10;
-    
+
     function createPlayerShip() {
       if (!playerGeometry) {
         console.error('playerGeometry not loaded');
@@ -826,11 +808,6 @@
     let playerShield = 30;
     let enemyMaxShield = 8;
     let enemyShield = 8;
-    
-    let playerMaxEnergy = 100;
-    let playerEnergy = 100;
-    const boostEnergyDrainPerSec = 45;
-    const boostEnergyRechargePerSec = 28;
 
     let shieldRegenDelayMs = 4000;
     let shieldRegenRatePerSec = 1.5;
@@ -883,17 +860,13 @@
 
     function updateHP(){
       setShieldAndHP('playerBar', playerShield, playerMaxShield, playerHP, playerMaxHP);
-      const playerEnergyBar = document.getElementById('playerEnergyBar');
-      if (playerEnergyBar) {
-        const energyPercent = (Math.max(0, Math.min(playerEnergy, playerMaxEnergy)) / playerMaxEnergy) * 100;
-        playerEnergyBar.style.width = energyPercent + '%';
-      }
+
       const e0 = enemies[0];
-      if (e0) setShieldAndHP('enemyBar1', e0.shield, e0.maxShield ?? enemyMaxShield, e0.hp, enemyMaxHP);
+      if (e0) setShieldAndHP('enemyBar1', e0.shield, enemyMaxShield, e0.hp, enemyMaxHP);
       else setShieldAndHP('enemyBar1', 0, enemyMaxShield, 0, enemyMaxHP);
 
       const e1 = enemies[1];
-      if (e1) setShieldAndHP('enemyBar2', e1.shield, e1.maxShield ?? enemyMaxShield, e1.hp, enemyMaxHP);
+      if (e1) setShieldAndHP('enemyBar2', e1.shield, enemyMaxShield, e1.hp, enemyMaxHP);
       else setShieldAndHP('enemyBar2', 0, enemyMaxShield, 0, enemyMaxHP);
 
       ['enemyBar1','enemyBar2'].forEach((id, idx) => {
@@ -966,9 +939,8 @@
       if ((now - lastEnemyDamageTime) > shieldRegenDelayMs && !gameOver) {
         let changed = false;
         enemies.forEach(e => {
-          const maxShield = e.maxShield ?? enemyMaxShield;
-          if (e.shield < maxShield) {
-            e.shield = Math.min(maxShield, e.shield + shieldRegenRatePerSec * dt);
+          if (e.shield < enemyMaxShield) {
+            e.shield = Math.min(enemyMaxShield, e.shield + shieldRegenRatePerSec * dt);
             changed = true;
           }
         });
@@ -1087,6 +1059,7 @@
     const MAX_TURN_SPEED = 2.8; // radians per second
     
     let pointerLocked = false;
+    const maxPitch = Math.PI/2 - 0.01; // clamp to avoid flipping
 
     // request pointer lock on click
     canvas.addEventListener('click', () => {
@@ -1147,23 +1120,21 @@
     // We'll create quaternions each frame and write camera.quaternion once.
     // This avoids mixing incremental rotates with direct writes.
     function composeCameraQuaternion(yaw, pitch, roll) {
-      // Apply in this order: yaw (world up) -> pitch (camera-local right) -> roll (camera-local forward)
+      // yaw about world up
       const qYaw = new THREE.Quaternion().setFromAxisAngle(WORLD_UP, yaw);
-      
-      // For local pitch after yaw, the pitch axis must be the yaw-rotated right axis in world space.
-      const pitchAxis = new THREE.Vector3(1,0,0).applyQuaternion(qYaw).normalize();
-      const qPitch = new THREE.Quaternion().setFromAxisAngle(pitchAxis, pitch);
-      const qYawPitch = qPitch.clone().multiply(qYaw);
-
-      // Roll around the current forward axis, again in world space.
-      const forward = new THREE.Vector3(0,0,-1).applyQuaternion(qYawPitch).normalize();
+      // pitch about camera-local X (but applying after yaw is equivalent to using X axis before roll)
+      const qPitch = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0), pitch);
+      const q = qYaw.clone().multiply(qPitch);
+      // roll about current forward
+      const forward = new THREE.Vector3(0,0,-1).applyQuaternion(q).normalize();
       const qRoll = new THREE.Quaternion().setFromAxisAngle(forward, roll);
-
-      return qRoll.multiply(qYawPitch);
+      q.multiply(qRoll);
+      return q;
     }
 
     // updateCamera - rotation & translation
     function updateCamera(dt) {
+      const prevPlayerPos = player.position.clone();
       // --- Apply rotational inertia ---
       yaw   += yawVel * dt * 60;
       pitch += pitchVel * dt * 60;
@@ -1174,11 +1145,14 @@
       // --- Clamp rotational speed ---
       yawVel = THREE.MathUtils.clamp(yawVel, -MAX_TURN_SPEED, MAX_TURN_SPEED);
       pitchVel = THREE.MathUtils.clamp(pitchVel, -MAX_TURN_SPEED, MAX_TURN_SPEED);
+
       
-      // Keep angular values bounded for numeric stability (no pitch clamp).
+      // Clamp pitch
+      pitch = Math.max(-maxPitch, Math.min(maxPitch, pitch));
+      
+      // Keep yaw stable
       const twoPI = Math.PI * 2;
       yaw = ((yaw % twoPI) + twoPI) % twoPI;
-      pitch = ((pitch % twoPI) + twoPI) % twoPI;
 
       // roll (cosmetic)
       const desiredRoll =
@@ -1220,11 +1194,8 @@
       // SHIFT handling
       const shiftHeld = keys['ShiftLeft'] || keys['ShiftRight'];
       const spaceHeld = keys['Space'];
-      const wantsBoost = shiftHeld && !spaceHeld;
-      const canBoost = playerEnergy > 0.01;
-      const isBoosting = wantsBoost && canBoost;
       
-      if (isBoosting) {
+      if (shiftHeld && !spaceHeld) {
         speed *= 2.5;        // boost forward
         move.add(forward);
       }
@@ -1235,59 +1206,21 @@
         move.add(forward);   // normal forward
       }
       
-      if (isBoosting) {
-        playerEnergy = Math.max(0, playerEnergy - boostEnergyDrainPerSec * dt);
-      } else {
-        playerEnergy = Math.min(playerMaxEnergy, playerEnergy + boostEnergyRechargePerSec * dt);
-      }
-      updateHP();
-
-      let desiredVelocity = new THREE.Vector3();
       if (move.lengthSq() > 0) {
-        desiredVelocity = move.normalize().multiplyScalar(speed * 60);
+        move.normalize().multiplyScalar(speed * dt * 60);
+        player.position.add(move);
       }
-      
-      const accelBlend = 1 - Math.exp(-MOVE_RESPONSE * dt);
-      movementVelocity.lerp(desiredVelocity, accelBlend);
-
-      if (move.lengthSq() === 0) {
-        const dragBlend = 1 - Math.exp(-MOVE_DRAG * dt);
-        movementVelocity.multiplyScalar(1 - dragBlend);
-      }
-
-      player.position.add(movementVelocity.clone().multiplyScalar(dt));
-      
       // compute velocity (units per second)
-      player.velocity.copy(movementVelocity);
+      player.velocity.copy(
+        player.position.clone().sub(prevPlayerPos).divideScalar(dt || 0.0001)
+      );
 
 
 
       // ===== UPDATE SHIP TRANSFORM =====
       if (playerShip) {
-        const speed = movementVelocity.length();
-        const desiredMovementOffset = new THREE.Vector3();
-        if (speed > 0.001) {
-          const forwardComp = movementVelocity.dot(forward);
-          const rightComp = movementVelocity.dot(right);
-          const upComp = movementVelocity.dot(up);
-
-          desiredMovementOffset
-            .addScaledVector(forward, -forwardComp * SHIP_OFFSET_STRENGTH.forward)
-            .addScaledVector(right, -rightComp * SHIP_OFFSET_STRENGTH.side)
-            .addScaledVector(up, -upComp * SHIP_OFFSET_STRENGTH.up);
-
-          if (desiredMovementOffset.length() > SHIP_MAX_OFFSET) {
-            desiredMovementOffset.setLength(SHIP_MAX_OFFSET);
-          }
-        }
-
-        const offsetBlendTarget = speed > 0.001 ? SHIP_OFFSET_LAG : SHIP_OFFSET_RETURN;
-        const offsetBlend = 1 - Math.exp(-offsetBlendTarget * dt);
-        shipMovementOffset.lerp(desiredMovementOffset, offsetBlend);
-
-        playerShip.position.copy(player.position).add(shipMovementOffset);
+        playerShip.position.copy(player.position);
       }
-      
 
       // ===== CAMERA FOLLOW (3RD PERSON) =====
       const camOffset = new THREE.Vector3(0, 42, 145); // ↑ up, ← behind
@@ -1301,15 +1234,13 @@
     const bulletTrailParticles = [];
     const bulletTrailGeom = new THREE.SphereGeometry(0.6, 6, 6);
     const bulletTrailMat = new THREE.MeshBasicMaterial({ color: 0xffff66, transparent: true, opacity: 0.9 });
-    const BULLET_TRAIL_LIFE = 0.06;
-    const BULLET_TRAIL_SPACING = 3;
     
     // Call this each frame for a bullet to leave a particle
     function leaveBulletTrail(pos) {
       const p = new THREE.Mesh(bulletTrailGeom, bulletTrailMat.clone());
       p.position.copy(pos);
       p.material.opacity = 0.9;
-      bulletTrailParticles.push({ mesh: p, life: BULLET_TRAIL_LIFE }); // life in seconds
+      bulletTrailParticles.push({ mesh: p, life: 0.1 }); // life in seconds
       scene.add(p);
     }
     
@@ -1323,9 +1254,8 @@
           continue;
         }
         // fade out and shrink slightly
-        const lifeRatio = t.life / BULLET_TRAIL_LIFE;
-        t.mesh.material.opacity = lifeRatio;
-        const s = 0.6 * (0.6 + 0.4 * lifeRatio);
+        t.mesh.material.opacity = t.life / 0.1;
+        const s = 0.6 * (0.6 + 0.4 * (t.life / 0.1));
         t.mesh.scale.set(s, s, s);
       }
     }
@@ -1334,9 +1264,9 @@
     const enemyBullets = [];
     const missiles = [];
     const bulletSpeed = 75;
-    const missileSpeed = 9;
+    const missileSpeed = 4.5;
     let accuracy = 5;
-    
+
     function createPlayerBulletMesh() {
       const baseRadius = 1.2;
       const frontHeight = baseRadius * 2;   // base-radius : height = 1 : 2
@@ -1357,7 +1287,6 @@
       return bullet;
     }
 
-
     function spawnBulletAtSide(sideSign, damage, speed) {
       // sideSign: -1 = left, +1 = right
       const bullet = createPlayerBulletMesh();
@@ -1366,7 +1295,7 @@
       const right   = new THREE.Vector3(1,0,0).applyQuaternion(camera.quaternion).normalize();
 
       // big screen-width style offset is fine
-      const lateralOffset = 45;   // your value
+      const lateralOffset = 50;   // your value
       const depthOffset   = 5;    // spawn a bit in front of camera
 
       const camPos = playerShip.position.clone();
@@ -1660,14 +1589,13 @@
         desiredVel: new THREE.Vector3(0, 0, 0),
         nextSteerChange: Infinity,
         prevVelDir: new THREE.Vector3(0, 0, -1),
-        hp: 0.001,
-        shield: enemyMaxShield * 40,
-        maxShield: enemyMaxShield * 40,
+        hp: Math.max(1, Math.round(enemyMaxHP * 2)),
+        shield: enemyMaxShield * 10,
         alive: true,
         _shootTimeout: null,
         isBoss: true,
-        hitRadius: 300, // use computed value, or fallback to 150
-        damage: enemyDamage * 10
+        hitRadius: 200, // use computed value, or fallback to 150
+        damage: enemyDamage * 3
       };
     
       scene.add(mesh);
@@ -1691,7 +1619,6 @@
         prevVelDir: vel.clone().normalize(),
         hp: enemyMaxHP,
         shield: enemyMaxShield,
-        maxShield: enemyMaxShield,
         alive: true,          // <-- mark as alive
         hitRadius: 50,
         _shootTimeout: null   // <-- will store timeout handle
@@ -1997,7 +1924,7 @@
         const nextPos = b.mesh.position.clone().add(move);
       
         // OPTIONAL: spawn multiple trail particles between prevPos and nextPos to avoid gaps
-        const steps = Math.ceil(move.length() / BULLET_TRAIL_SPACING); // one particle every ~6 units
+        const steps = Math.ceil(move.length() / 6); // one particle every ~6 units
         for (let s = 0; s < steps; s++) {
           const t = s / Math.max(1, steps - 1);
           const interp = b.mesh.position.clone().lerp(nextPos, t);
@@ -2187,7 +2114,6 @@
 
       // reset camera orientation state
       yaw = 0; pitch = 0; roll = 0;
-      movementVelocity.set(0, 0, 0);
       camera.quaternion.identity();
       camera.position.set(0,0,0);
     }

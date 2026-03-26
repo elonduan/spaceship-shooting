@@ -133,7 +133,7 @@
   <div id="overlay">
     <div class="panel">
       &nbsp;
-      <div><strong>Spaceship Duel Competition — Made by Elon - 38th edition</strong></div>
+      <div><strong>Spaceship Duel Competition — Made by Elon - 39th edition</strong></div>
       <ul style="margin:8px 0 0 18px;font-size:13px">
         <li>Mouse: pitch & yaw (click to lock)</li>
         <li>A / D buttons: roll (cosmetic)</li>
@@ -1087,7 +1087,6 @@
     const MAX_TURN_SPEED = 2.8; // radians per second
     
     let pointerLocked = false;
-    const maxPitch = Math.PI/2 - 0.01; // clamp to avoid flipping
 
     // request pointer lock on click
     canvas.addEventListener('click', () => {
@@ -1148,16 +1147,19 @@
     // We'll create quaternions each frame and write camera.quaternion once.
     // This avoids mixing incremental rotates with direct writes.
     function composeCameraQuaternion(yaw, pitch, roll) {
-      // yaw about world up
+      // Apply in this order: yaw (world up) -> pitch (camera-local right) -> roll (camera-local forward)
       const qYaw = new THREE.Quaternion().setFromAxisAngle(WORLD_UP, yaw);
-      // pitch about camera-local X (but applying after yaw is equivalent to using X axis before roll)
-      const qPitch = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0), pitch);
-      const q = qYaw.clone().multiply(qPitch);
-      // roll about current forward
-      const forward = new THREE.Vector3(0,0,-1).applyQuaternion(q).normalize();
+      
+      // For local pitch after yaw, the pitch axis must be the yaw-rotated right axis in world space.
+      const pitchAxis = new THREE.Vector3(1,0,0).applyQuaternion(qYaw).normalize();
+      const qPitch = new THREE.Quaternion().setFromAxisAngle(pitchAxis, pitch);
+      const qYawPitch = qPitch.clone().multiply(qYaw);
+
+      // Roll around the current forward axis, again in world space.
+      const forward = new THREE.Vector3(0,0,-1).applyQuaternion(qYawPitch).normalize();
       const qRoll = new THREE.Quaternion().setFromAxisAngle(forward, roll);
-      q.multiply(qRoll);
-      return q;
+
+      return qRoll.multiply(qYawPitch);
     }
 
     // updateCamera - rotation & translation
@@ -1172,14 +1174,11 @@
       // --- Clamp rotational speed ---
       yawVel = THREE.MathUtils.clamp(yawVel, -MAX_TURN_SPEED, MAX_TURN_SPEED);
       pitchVel = THREE.MathUtils.clamp(pitchVel, -MAX_TURN_SPEED, MAX_TURN_SPEED);
-
       
-      // Clamp pitch
-      pitch = Math.max(-maxPitch, Math.min(maxPitch, pitch));
-      
-      // Keep yaw stable
+      // Keep angular values bounded for numeric stability (no pitch clamp).
       const twoPI = Math.PI * 2;
       yaw = ((yaw % twoPI) + twoPI) % twoPI;
+      pitch = ((pitch % twoPI) + twoPI) % twoPI;
 
       // roll (cosmetic)
       const desiredRoll =

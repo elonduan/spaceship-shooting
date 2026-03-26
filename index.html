@@ -133,7 +133,7 @@
   <div id="overlay">
     <div class="panel">
       &nbsp;
-      <div><strong>Spaceship Duel Competition — Made by Elon - 40th edition</strong></div>
+      <div><strong>Spaceship Duel Competition — Made by Elon - 41th edition</strong></div>
       <ul style="margin:8px 0 0 18px;font-size:13px">
         <li>Mouse: pitch & yaw (click to lock)</li>
         <li>A / D buttons: roll (cosmetic)</li>
@@ -1146,26 +1146,18 @@
     // -------------------------
     // We'll create quaternions each frame and write camera.quaternion once.
     // This avoids mixing incremental rotates with direct writes.
-    function composeCameraQuaternion(yaw, pitch, roll) {
-      // Build an unconstrained look orientation while avoiding pole reversals:
-      // pitch first (local right from neutral), then yaw around the post-pitch local up.
-      const qPitch = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0), pitch);
-      const yawAxis = new THREE.Vector3(0,1,0).applyQuaternion(qPitch).normalize();
-      const qYaw = new THREE.Quaternion().setFromAxisAngle(yawAxis, yaw);
-      const qYawPitch = qYaw.clone().multiply(qPitch);
-
+    function composeCameraQuaternion(baseLookQuat, roll) {
       // Roll around the current forward axis, in world space.
-      const forward = new THREE.Vector3(0,0,-1).applyQuaternion(qYawPitch).normalize();
+      const forward = new THREE.Vector3(0,0,-1).applyQuaternion(baseLookQuat).normalize();
       const qRoll = new THREE.Quaternion().setFromAxisAngle(forward, roll);
-      
-      return qRoll.multiply(qYawPitch);
+      return qRoll.multiply(baseLookQuat.clone());
     }
 
     // updateCamera - rotation & translation
     function updateCamera(dt) {
-      // --- Apply rotational inertia ---
-      yaw   += yawVel * dt * 60;
-      pitch += pitchVel * dt * 60;
+      // --- Apply rotational inertia as incremental local-axis rotation ---
+      const yawDelta = yawVel * dt * 60;
+      const pitchDelta = pitchVel * dt * 60;
       
       // Damping (smooth slowdown)
       yawVel   *= Math.exp(-ROT_DAMP * dt);
@@ -1174,10 +1166,14 @@
       yawVel = THREE.MathUtils.clamp(yawVel, -MAX_TURN_SPEED, MAX_TURN_SPEED);
       pitchVel = THREE.MathUtils.clamp(pitchVel, -MAX_TURN_SPEED, MAX_TURN_SPEED);
       
-      // Keep angular values bounded for numeric stability (no pitch clamp).
-      const twoPI = Math.PI * 2;
-      yaw = ((yaw % twoPI) + twoPI) % twoPI;
-      pitch = THREE.MathUtils.euclideanModulo(pitch + Math.PI, twoPI) - Math.PI;
+      // Apply yaw/pitch in camera-local axes to avoid pole reversal near ±90° pitch.
+      const yawAxis = new THREE.Vector3(0,1,0).applyQuaternion(lookQuat).normalize();
+      const pitchAxis = new THREE.Vector3(1,0,0).applyQuaternion(lookQuat).normalize();
+      const qYawDelta = new THREE.Quaternion().setFromAxisAngle(yawAxis, yawDelta);
+      const qPitchDelta = new THREE.Quaternion().setFromAxisAngle(pitchAxis, pitchDelta);
+      lookQuat.premultiply(qYawDelta);
+      lookQuat.premultiply(qPitchDelta);
+      lookQuat.normalize();
 
       // roll (cosmetic)
       const desiredRoll =
@@ -1187,7 +1183,7 @@
       roll = THREE.MathUtils.lerp(roll, desiredRoll, dt * 8);
 
       // compose rotation
-      const q = composeCameraQuaternion(yaw, pitch, roll);
+      const q = composeCameraQuaternion(lookQuat, roll);
       // Camera snaps instantly (player aim must feel tight)
       camera.quaternion.copy(q);
 
@@ -2185,7 +2181,10 @@
       updateDefeatedUI();
 
       // reset camera orientation state
-      yaw = 0; pitch = 0; roll = 0;
+      roll = 0;
+      yawVel = 0;
+      pitchVel = 0;
+      lookQuat.identity();
       movementVelocity.set(0, 0, 0);
       camera.quaternion.identity();
       camera.position.set(0,0,0);

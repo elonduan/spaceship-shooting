@@ -1078,6 +1078,8 @@
     // Mouse look + pointer lock
     // -------------------------
     let yaw = 0, pitch = 0, roll = 0;
+    let roll = 0;
+    const lookQuat = new THREE.Quaternion();
     
     let yawVel = 0;
     let pitchVel = 0;

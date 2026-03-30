@@ -2065,7 +2065,9 @@
         }
         if (b.mesh.position.distanceTo(player.position) < 30) {
           const hitPos = b.mesh.position.clone();
-          spawnBulletHitShockwave(hitPos);
+          if (playerShield > 0) {
+            spawnBulletHitShockwave(hitPos);
+          }
           scene.remove(b.mesh); enemyBullets.splice(i,1);
           damagePlayer(b.damage || enemyDamage);
           damage.cloneNode().play();;

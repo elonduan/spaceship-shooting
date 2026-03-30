@@ -587,25 +587,44 @@
       }
     }
 
-    const shockwaveMat = new THREE.MeshBasicMaterial({
-      color: 0xffddaa,
-      transparent: true,
-      opacity: 0.9,
-      side: THREE.DoubleSide
-    });
-    const shockwaveGeo = new THREE.RingGeometry(4, 4.03, 64);
+    const shockwaveGeo = new THREE.CircleGeometry(4, 48);
 
-    function spawnShockwave(position) {
-      const mesh = new THREE.Mesh(shockwaveGeo, shockwaveMat.clone());
+    function spawnShockwave(position, options = {}) {
+      const {
+        color = 0xffddaa,
+        opacity = 0.9,
+        startScale = 1,
+        endScale = 80,
+        life = 0.6
+      } = options;
+      
+
+      const mat = new THREE.MeshBasicMaterial({
+        color,
+        transparent: true,
+        opacity,
+        side: THREE.DoubleSide,
+        depthWrite: false
+      });
+
+      const mesh = new THREE.Mesh(shockwaveGeo, mat);
       mesh.position.copy(position);
-      mesh.rotation.x = -Math.PI / 2;
-      mesh.scale.set(1+Math.random, 1+Math.random, 1+Math.random); // wider ellipse
-      mesh.life = 0.6;
-      mesh.maxLife = mesh.life;
-      mesh.startScale = 1;
-      mesh.endScale = 80;
+      mesh.scale.set(startScale, startScale, startScale);
+      mesh.life = life;
+      mesh.maxLife = life;
+      mesh.startScale = startScale;
+      mesh.endScale = endScale;
       scene.add(mesh);
       shockwaves.push(mesh);
+    }
+    function spawnBulletHitShockwave(position) {
+      spawnShockwave(position, {
+        color: 0x3ca8ff,
+        opacity: 0.45,
+        startScale: 0.2,
+        endScale: 16,
+        life: 0.22
+      });
     }
 
     function updateShockwaves(dt) {
@@ -2018,6 +2037,8 @@
           }
         }
         if (hitEnemy) {
+          const hitPos = b.mesh.position.clone();
+          spawnBulletHitShockwave(hitPos);
           scene.remove(b.mesh); bullets.splice(i, 1);
           damageEnemy(hitEnemy, b.damage || bulletDamage);
         }

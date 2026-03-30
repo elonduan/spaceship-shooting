@@ -133,7 +133,7 @@
   <div id="overlay">
     <div class="panel">
       &nbsp;
-      <div><strong>Spaceship Duel Competition — Made by Elon - 43th edition</strong></div>
+      <div><strong>Spaceship Duel Competition — Made by Elon - 44th edition</strong></div>
       <ul style="margin:8px 0 0 18px;font-size:13px">
         <li>Mouse: pitch & yaw (click to lock)</li>
         <li>A / D buttons: roll (cosmetic)</li>
@@ -561,7 +561,7 @@
         addSmokeAt(pos);
       }
 
-      spawnShockwave(pos);
+      spawnShockwave(pos, { normal: getRandomUnitVector3() });
       screenFlash();
 
       if (typeof missileExplosion !== 'undefined' && missileExplosion) {
@@ -590,6 +590,18 @@
     const shockwaveGeo = new THREE.CircleGeometry(4, 48);
     const shockwaveRingGeo = new THREE.RingGeometry(5.2, 5.4, 64);
     
+    const shockwaveDefaultNormal = new THREE.Vector3(0, 0, 1);
+
+    function getRandomUnitVector3() {
+      const v = new THREE.Vector3(
+        Math.random() * 2 - 1,
+        Math.random() * 2 - 1,
+        Math.random() * 2 - 1
+      );
+      if (v.lengthSq() < 1e-6) return new THREE.Vector3(0, 1, 0);
+      return v.normalize();
+    }
+    
     function spawnShockwave(position, options = {}) {
       const {
         color = 0x3ca8ff,
@@ -597,7 +609,8 @@
         startScale = 1,
         endScale = 80,
         life = 0.6,
-        asRing = true
+        asRing = true,
+        normal = null
       } = options;
       
       const mat = new THREE.MeshBasicMaterial({
@@ -611,6 +624,10 @@
       const geometry = asRing ? shockwaveRingGeo : shockwaveGeo;
       const mesh = new THREE.Mesh(geometry, mat);
       mesh.position.copy(position);
+      const normalVector = normal && normal.lengthSq() > 1e-6
+        ? normal.clone().normalize()
+        : getRandomUnitVector3();
+      mesh.quaternion.setFromUnitVectors(shockwaveDefaultNormal, normalVector);
       mesh.scale.set(startScale, startScale, startScale);
       mesh.life = life;
       mesh.maxLife = life;
@@ -621,14 +638,15 @@
       scene.add(mesh);
       shockwaves.push(mesh);
     }
-    function spawnBulletHitShockwave(position) {
+    function spawnBulletHitShockwave(position, bulletDirection) {
       spawnShockwave(position, {
         color: 0x3ca8ff,
         opacity: 0.52,
         startScale: 0.12,
         endScale: 9,
         life: 0.18,
-        asRing: true
+        asRing: true,
+        normal: bulletDirection
       });
     }
 
@@ -646,9 +664,7 @@
         const fadeOutT = Math.max(0, 1 - t);
         w.material.opacity = w.baseOpacity * fadeInT * Math.pow(fadeOutT, 0.8);
         
-        if (camera) {
-          w.lookAt(camera.position);
-        }
+        
         if (w.life <= 0) {
           scene.remove(w);
           shockwaves.splice(i, 1);
@@ -2049,7 +2065,7 @@
         }
         if (hitEnemy) {
           const hitPos = b.mesh.position.clone();
-          spawnBulletHitShockwave(hitPos);
+          spawnBulletHitShockwave(hitPos, b.vel);
           scene.remove(b.mesh); bullets.splice(i, 1);
           damageEnemy(hitEnemy, b.damage || bulletDamage);
         }
@@ -2066,7 +2082,7 @@
         if (b.mesh.position.distanceTo(player.position) < 30) {
           const hitPos = b.mesh.position.clone();
           if (playerShield > 0) {
-            spawnBulletHitShockwave(hitPos);
+            spawnBulletHitShockwave(hitPos, b.vel);
           }
           scene.remove(b.mesh); enemyBullets.splice(i,1);
           damagePlayer(b.damage || enemyDamage);

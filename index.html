@@ -133,7 +133,7 @@
   <div id="overlay">
     <div class="panel">
       &nbsp;
-      <div><strong>Spaceship Duel Competition — Made by Elon - 42th edition</strong></div>
+      <div><strong>Spaceship Duel Competition — Made by Elon - 41th edition</strong></div>
       <ul style="margin:8px 0 0 18px;font-size:13px">
         <li>Mouse: pitch & yaw (click to lock)</li>
         <li>A / D buttons: roll (cosmetic)</li>
@@ -595,25 +595,15 @@
     });
     const shockwaveGeo = new THREE.RingGeometry(4, 4.03, 64);
 
-    function spawnShockwave(position, opts = {}) {
+    function spawnShockwave(position) {
       const mesh = new THREE.Mesh(shockwaveGeo, shockwaveMat.clone());
       mesh.position.copy(position);
       mesh.rotation.x = -Math.PI / 2;
-      mesh.scale.set(
-        (opts.startScale ?? 1) + Math.random(),
-        (opts.startScale ?? 1) + Math.random(),
-        (opts.startScale ?? 1) + Math.random()
-      );
-      if (opts.color) {
-        mesh.material.color.set(opts.color);
-      }
-      if (typeof opts.opacity === 'number') {
-        mesh.material.opacity = opts.opacity;
-      }
-      mesh.life = opts.life ?? 0.6;
+      mesh.scale.set(1+Math.random, 1+Math.random, 1+Math.random); // wider ellipse
+      mesh.life = 0.6;
       mesh.maxLife = mesh.life;
-      mesh.startScale = opts.startScale ?? 1;
-      mesh.endScale = opts.endScale ?? 80;
+      mesh.startScale = 1;
+      mesh.endScale = 80;
       scene.add(mesh);
       shockwaves.push(mesh);
     }

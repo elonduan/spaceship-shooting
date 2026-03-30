@@ -133,7 +133,7 @@
   <div id="overlay">
     <div class="panel">
       &nbsp;
-      <div><strong>Spaceship Duel Competition — Made by Elon - 41th edition</strong></div>
+      <div><strong>Spaceship Duel Competition — Made by Elon - 42th edition</strong></div>
       <ul style="margin:8px 0 0 18px;font-size:13px">
         <li>Mouse: pitch & yaw (click to lock)</li>
         <li>A / D buttons: roll (cosmetic)</li>
@@ -2057,7 +2057,7 @@
           scene.remove(b.mesh); enemyBullets.splice(i,1); continue;
         }
         if (b.mesh.position.distanceTo(player.position) < 30) {
-          const hitPos = playerShip ? playerShip.position.clone() : player.position.clone();
+          const hitPos = b.mesh.position.clone();
           spawnBulletHitShockwave(hitPos);
           scene.remove(b.mesh); enemyBullets.splice(i,1);
           damagePlayer(b.damage || enemyDamage);

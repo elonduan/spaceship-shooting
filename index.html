@@ -588,7 +588,7 @@
     }
 
     const shockwaveGeo = new THREE.CircleGeometry(4, 48);
-    const shockwaveRingGeo = new THREE.RingGeometry(3.2, 4, 64);
+    const shockwaveRingGeo = new THREE.RingGeometry(5.2, 5.4, 64);
     
     function spawnShockwave(position, options = {}) {
       const {
@@ -623,7 +623,7 @@
     function spawnBulletHitShockwave(position) {
       spawnShockwave(position, {
         color: 0x3ca8ff,
-        opacity: 0.22,
+        opacity: 0.52,
         startScale: 0.12,
         endScale: 9,
         life: 0.18,

@@ -636,8 +636,6 @@
       for (let i = shockwaves.length - 1; i >= 0; i--) {
         const w = shockwaves[i];
         w.life -= dt;
-        const t = 1 - Math.max(0, w.life / w.maxLife);
-        const s = w.startScale + (w.endScale - w.startScale) * t;
         w.age += dt;
         const t = Math.min(1, w.age / w.maxLife);
         const easedT = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;

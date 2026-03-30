@@ -133,7 +133,7 @@
   <div id="overlay">
     <div class="panel">
       &nbsp;
-      <div><strong>Spaceship Duel Competition — Made by Elon - 41th edition</strong></div>
+      <div><strong>Spaceship Duel Competition — Made by Elon - 42th edition</strong></div>
       <ul style="margin:8px 0 0 18px;font-size:13px">
         <li>Mouse: pitch & yaw (click to lock)</li>
         <li>A / D buttons: roll (cosmetic)</li>
@@ -587,7 +587,26 @@
       }
     }
 
-    const shockwaveGeo = new THREE.CircleGeometry(4, 48);
+    const explosionShockwaveGeo = new THREE.RingGeometry(3.6, 4, 64);
+    const hitShockwaveGeo = new THREE.CircleGeometry(4, 48);
+
+    function spawnShockwave(position, options = {}) {
+      const {
+        geometry = explosionShockwaveGeo,
+        color = 0x3ca8ff,
+        opacity = 0.9,
+        startScale = 1,
+        endScale = 80,
+        life = 0.6
+      } = options;
+
+      const mat = new THREE.MeshBasicMaterial({
+        color,
+        transparent: true,
+        opacity,
+        side: THREE.DoubleSide,
+        depthWrite: false
+      });
 
     function spawnShockwave(position, options = {}) {
       const {
@@ -606,23 +625,19 @@
         side: THREE.DoubleSide,
         depthWrite: false
       });
-
-      const mesh = new THREE.Mesh(shockwaveGeo, mat);
+      const mesh = new THREE.Mesh(geometry, mat);
       mesh.position.copy(position);
-      mesh.scale.set(startScale, startScale, startScale);
-      mesh.life = life;
-      mesh.maxLife = life;
-      mesh.startScale = startScale;
-      mesh.endScale = endScale;
       scene.add(mesh);
       shockwaves.push(mesh);
     }
+
     function spawnBulletHitShockwave(position) {
       spawnShockwave(position, {
+        geometry: hitShockwaveGeo,
         color: 0x3ca8ff,
-        opacity: 0.45,
-        startScale: 0.2,
-        endScale: 16,
+        opacity: 0.2,
+        startScale: 0.05,
+        endScale: 4,
         life: 0.22
       });
     }
@@ -2053,6 +2068,8 @@
           scene.remove(b.mesh); enemyBullets.splice(i,1); continue;
         }
         if (b.mesh.position.distanceTo(player.position) < 30) {
+          const hitPos = b.mesh.position.clone();
+          spawnBulletHitShockwave(hitPos);
           scene.remove(b.mesh); enemyBullets.splice(i,1);
           damagePlayer(b.damage || enemyDamage);
           damage.cloneNode().play();;

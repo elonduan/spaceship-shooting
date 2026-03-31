@@ -260,14 +260,22 @@
     const WORLD_UP = new THREE.Vector3(0,1,0);
 
     const bossIntroVideo = document.getElementById('bossIntroVideo');
+    let isBossIntroPlaying = false;
 
     function playBossIntro(spawnBossCallback) {
+      isBossIntroPlaying = true;
       bossIntroVideo.style.display = 'block';
       bossIntroVideo.play();
     
       bossIntroVideo.onended = () => {
+        isBossIntroPlaying = false;
         bossIntroVideo.style.display = 'none';
         spawnBossCallback(); // spawn boss AFTER video
+      };
+      bossIntroVideo.onerror = () => {
+        isBossIntroPlaying = false;
+        bossIntroVideo.style.display = 'none';
+        spawnBossCallback();
       };
     }
 
@@ -1528,6 +1536,14 @@
       // bail out if enemy gone, dead, or game ended
       if(!enemy || !enemy.mesh || !enemy.alive || gameOver) return;
 
+      if (isBossIntroPlaying) {
+        enemy._shootTimeout = setTimeout(() => {
+          enemy._shootTimeout = null;
+          enemyShoot(enemy);
+        }, 150);
+        return;
+      }
+
       const bulletGeom = new THREE.SphereGeometry(2,8,8);
       const bulletMat = new THREE.MeshBasicMaterial({color:0x00ffff});
       const bullet = new THREE.Mesh(bulletGeom, bulletMat);
@@ -1607,9 +1623,10 @@
     }
 
 
-
     function stepEnemy(enemy, dt, isPrimary){
       if (!enemy || !enemy.mesh) return;
+      if (isBossIntroPlaying) return;
+
 
       // Normal wandering: occasionally pick a new desiredVel, then lerp toward it.
       if (performance.now() > (enemy.nextSteerChange || 0)) {
@@ -2088,20 +2105,22 @@
 
       updateMissiles(dt);
 
-      for(let i=enemyBullets.length-1;i>=0;i--){
-        const b = enemyBullets[i];
-        b.mesh.position.add(b.vel.clone().multiplyScalar(dt*60));
-        if(b.mesh.position.length()>sphereRadius*2){
-          scene.remove(b.mesh); enemyBullets.splice(i,1); continue;
-        }
-        if (b.mesh.position.distanceTo(player.position) < 30) {
-          const hitPos = getImpactEdgePosition(player.position, 30, b.vel, b.mesh.position);
-          if (playerShield > 0) {
-            spawnBulletHitShockwave(hitPos, b.vel);
+      if (!isBossIntroPlaying) {
+        for(let i=enemyBullets.length-1;i>=0;i--){
+          const b = enemyBullets[i];
+          b.mesh.position.add(b.vel.clone().multiplyScalar(dt*60));
+          if(b.mesh.position.length()>sphereRadius*2){
+            scene.remove(b.mesh); enemyBullets.splice(i,1); continue;
           }
-          scene.remove(b.mesh); enemyBullets.splice(i,1);
-          damagePlayer(b.damage || enemyDamage);
-          damage.cloneNode().play();;
+          if (b.mesh.position.distanceTo(player.position) < 30) {
+            const hitPos = getImpactEdgePosition(player.position, 30, b.vel, b.mesh.position);
+            if (playerShield > 0) {
+              spawnBulletHitShockwave(hitPos, b.vel);
+            }
+            scene.remove(b.mesh); enemyBullets.splice(i,1);
+            damagePlayer(b.damage || enemyDamage);
+            damage.cloneNode().play();;
+          }
         }
       }
 

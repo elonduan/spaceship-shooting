@@ -159,7 +159,7 @@
         <input id="playerName" type="text" maxlength="20" value="Player">
       </label>
 
-      <div id="win">You destroyed the spaceship — you win! </div>
+      <div id="win">You destroyed another spaceship</div>
       <div id="lose">The spaceship destroyed you! </div>
     </div>
   </div>
@@ -648,6 +648,13 @@
         asRing: true,
         normal: bulletDirection
       });
+    }
+    function getImpactEdgePosition(center, radius, travelVelocity, fallbackPosition) {
+      const incomingDir = travelVelocity && travelVelocity.lengthSq() > 1e-6
+        ? travelVelocity.clone().normalize()
+        : null;
+      if (!incomingDir) return fallbackPosition.clone();
+      return center.clone().add(incomingDir.multiplyScalar(-radius));
     }
 
     function updateShockwaves(dt) {
@@ -2054,17 +2061,25 @@
           scene.remove(b.mesh); bullets.splice(i, 1); continue;
         }
         let hitEnemy = null;
+        let hitEnemyRadius = 0;
         for (const enemy of enemies) {
+          const enemyRadius = getEnemyRadius(enemy, 55);
           if (
             enemy.mesh &&
-            b.mesh.position.distanceTo(enemy.mesh.position) < getEnemyRadius(enemy, 55)
+            b.mesh.position.distanceTo(enemy.mesh.position) < enemyRadius
           ) {
             hitEnemy = enemy;
+            hitEnemyRadius = enemyRadius;
             break;
           }
         }
         if (hitEnemy) {
-          const hitPos = b.mesh.position.clone();
+          const hitPos = getImpactEdgePosition(
+            hitEnemy.mesh.position,
+            hitEnemyRadius || getEnemyRadius(hitEnemy, 55),
+            b.vel,
+            b.mesh.position
+          );
           spawnBulletHitShockwave(hitPos, b.vel);
           scene.remove(b.mesh); bullets.splice(i, 1);
           damageEnemy(hitEnemy, b.damage || bulletDamage);
@@ -2080,7 +2095,7 @@
           scene.remove(b.mesh); enemyBullets.splice(i,1); continue;
         }
         if (b.mesh.position.distanceTo(player.position) < 30) {
-          const hitPos = b.mesh.position.clone();
+          const hitPos = getImpactEdgePosition(player.position, 30, b.vel, b.mesh.position);
           if (playerShield > 0) {
             spawnBulletHitShockwave(hitPos, b.vel);
           }

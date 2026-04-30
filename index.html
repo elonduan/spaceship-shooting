@@ -133,7 +133,7 @@
   <div id="overlay">
     <div class="panel">
       &nbsp;
-      <div><strong>Spaceship Duel Competition — Made by Elon - 45th edition</strong></div>
+      <div><strong>Spaceship Duel Competition — Made by Elon - 44th edition</strong></div>
       <ul style="margin:8px 0 0 18px;font-size:13px">
         <li>Mouse: pitch & yaw (click to lock)</li>
         <li>A / D buttons: roll (cosmetic)</li>
@@ -436,10 +436,10 @@
     const screenFlashEl = document.getElementById('screenFlash');
     function screenFlash() {
       if (!screenFlashEl) return;
-      screenFlashEl.style.opacity = '1';
+      screenFlashEl.style.opacity = '0.9';
       setTimeout(() => {
         screenFlashEl.style.opacity = '0';
-      }, 180);
+      }, 120);
     }
 
     // SMOKE
@@ -540,36 +540,36 @@
     function spawnExplosion(position) {
       const pos = position.clone();
 
-      const count = 180;
+      const count = 40;
       for (let i = 0; i < count; i++) {
         const size = 4 + Math.random() * 8;
         const geo = new THREE.SphereGeometry(size, 8, 8);
         const mat = new THREE.MeshBasicMaterial({
-          color: Math.random() < 0.45 ? 0xffffff : (Math.random() < 0.5 ? 0xfff36b : 0xff7a1f),
+          color: 0xffaa33,
           transparent: true,
-          opacity: 0.96
+          opacity: 1.0
         });
         const m = new THREE.Mesh(geo, mat);
         m.position.copy(pos);
-        m.position.x += (Math.random() - 0.5) * 28;
-        m.position.y += (Math.random() - 0.5) * 28;
-        m.position.z += (Math.random() - 0.5) * 28;
+        m.position.x += (Math.random() - 0.5) * 8;
+        m.position.y += (Math.random() - 0.5) * 8;
+        m.position.z += (Math.random() - 0.5) * 8;
         m.velocity = new THREE.Vector3(
-          (Math.random() - 0.5) * 140,
-          Math.random() * 150,
-          (Math.random() - 0.5) * 140
+          (Math.random() - 0.5) * 90,
+          Math.random() * 90,
+          (Math.random() - 0.5) * 90
         );
-        m.life = 1.2 + Math.random() * 0.6;
+        m.life = 0.9 + Math.random() * 0.4;
         m.maxLife = m.life;
         scene.add(m);
         explosionParticles.push(m);
       }
 
-      for (let i = 0; i < 80; i++) {
+      for (let i = 0; i < 25; i++) {
         addSmokeAt(pos);
       }
 
-      spawnShockwave(pos, { color: 0xffd27a, opacity: 0.98, startScale: 0.5, endScale: 180, life: 0.8, normal: getRandomUnitVector3() });
+      spawnShockwave(pos, { normal: getRandomUnitVector3() });
       screenFlash();
 
       if (typeof missileExplosion !== 'undefined' && missileExplosion) {
@@ -1805,17 +1805,12 @@
       const explosionPos = (enemy.mesh && enemy.mesh.position) ? enemy.mesh.position.clone() : new THREE.Vector3();
       spawnExplosion(explosionPos);
 
-      // keep the ship visible for a brief moment so the explosion covers it,
-      // then remove it from the scene.
-      const meshToRemove = enemy.mesh || null;
-      if (meshToRemove) {
-        setTimeout(() => {
-          scene.remove(meshToRemove);
-        }, 140);
+      // remove mesh (if present)
+      if (enemy.mesh) {
+        scene.remove(enemy.mesh);
+        // free reference so future checks fail quickly
+        enemy.mesh = null;
       }
-
-      // free reference immediately so gameplay treats it as destroyed
-      enemy.mesh = null;
 
       // prevent any future shooting from this enemy
       enemy.alive = false;

@@ -140,7 +140,7 @@
   <div id="overlay" class="pre-game-hidden">
     <div class="panel">
       &nbsp;
-      <div><strong>Spaceship Duel Competition — Made by Elon - 45th edition</strong></div>
+      <div><strong>Spaceship Duel Competition — Made by Elon - 46th edition</strong></div>
       <label for="sensitivity">Rotation sensitivity</label>
       <input id="sensitivity" type="range" min="0.005" max="0.2" step="0.002" value="0.1">
       <button id="resetBtn">Reset</button>
@@ -1517,6 +1517,7 @@
         target: getPrimaryEnemy() || null,
         life: 5000
       });
+      orientMissileToVelocity(missile, initialVel);
       scene.add(missile);
     }
 
@@ -1931,7 +1932,19 @@
     }
     const autoShootBtn = document.getElementById('autoShootBtn');
     if (autoShootBtn) autoShootBtn.addEventListener('click', ()=> setAutoShooting(!autoShooting));
-    
+
+    const missileForwardLocal = new THREE.Vector3(0, 0, -1);
+    const missileModelCorrection = new THREE.Quaternion()
+      .setFromAxisAngle(new THREE.Vector3(0, 1, 0), THREE.MathUtils.degToRad(-45));
+
+    function orientMissileToVelocity(missileMesh, velocity) {
+      if (!missileMesh || !velocity || velocity.lengthSq() < 1e-8) return;
+      const velDir = velocity.clone().normalize();
+      missileMesh.quaternion
+        .setFromUnitVectors(missileForwardLocal, velDir)
+        .multiply(missileModelCorrection);
+    }
+
     function updateMissiles(dt) {
       for (let i = missiles.length - 1; i >= 0; i--) {
         const m = missiles[i];
@@ -1953,7 +1966,7 @@
 
         m.mesh.position.add(m.vel.clone().multiplyScalar(dt * 60));
 
-        const velDir = m.vel.clone().normalize();
+        orientMissileToVelocity(m.mesh, m.vel);
 
 
         m.life -= dt * 1000;

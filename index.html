@@ -893,6 +893,8 @@
 
 
     // Player progression and base stats
+    const CREDIT_STORAGE_KEY = 'spaceshipDuelCredits';
+    const UPGRADE_STORAGE_KEY = 'spaceshipDuelUpgradeCount';
     let playerCredits = 0;
     let upgradeCount = 0;
     let playerMaxHP = 30;
@@ -927,6 +929,18 @@
       return (100 * upgradeCount) + 500;
     }
 
+    function loadProgressFromStorage() {
+      const storedCredits = Number(localStorage.getItem(CREDIT_STORAGE_KEY));
+      const storedUpgrades = Number(localStorage.getItem(UPGRADE_STORAGE_KEY));
+      playerCredits = Number.isFinite(storedCredits) && storedCredits > 0 ? storedCredits : 0;
+      upgradeCount = Number.isFinite(storedUpgrades) && storedUpgrades > 0 ? Math.floor(storedUpgrades) : 0;
+    }
+
+    function saveProgressToStorage() {
+      localStorage.setItem(CREDIT_STORAGE_KEY, String(Math.floor(playerCredits)));
+      localStorage.setItem(UPGRADE_STORAGE_KEY, String(Math.floor(upgradeCount)));
+    }
+
     function refreshCreditSummary() {
       const creditEl = document.getElementById('creditSummary');
       if (creditEl) {
@@ -955,6 +969,7 @@
       playerHP = Math.min(playerMaxHP, playerHP + 3);
       playerShield = Math.min(playerMaxShield, playerShield + 1);
       playerEnergy = Math.min(playerMaxEnergy, playerEnergy + 3);
+      saveProgressToStorage();
       refreshCreditSummary();
       updateHP();
     }
@@ -964,6 +979,7 @@
       upgradeBtn.dataset.boundUpgrade = '1';
       upgradeBtn.addEventListener('click', applyUpgrade);
     }
+    loadProgressFromStorage();
     refreshCreditSummary();
 
     const winDiv = document.getElementById('win');
@@ -1029,6 +1045,7 @@
     updateHP();
     updateMissileUI();
 
+    let deathSequenceStarted = false;
     function damagePlayer(amount){
       lastPlayerDamageTime = performance.now();
       if (playerShield > 0) {
@@ -1043,11 +1060,29 @@
       }
       playerHP = Math.max(0, playerHP);
       updateHP();
-      if (playerHP <= 0) {
+      if (playerHP <= 0 && !deathSequenceStarted) {
+        deathSequenceStarted = true;
+        const deathPos = camera.position.clone();
+        spawnExplosion(deathPos);
+        spawnShockwave(deathPos, {
+          color: 0xff6666,
+          opacity: 0.95,
+          startScale: 0.2,
+          endScale: 55,
+          life: 0.7,
+          asRing: true,
+          normal: new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion).normalize()
+        });
         loseDiv.style.display='block';
         gameOver = true;
         setAutoShooting(false);
         backgroundMusic.pause();
+        saveProgressToStorage();
+        const earnedCredits = Math.floor(playerCredits);
+        setTimeout(() => {
+          alert(`Run complete!\nYou earned ${earnedCredits} credits.\nReturning to home menu.`);
+          window.location.reload();
+        }, 900);
       }
     }
 
@@ -1912,6 +1947,7 @@
         ? (900 + Math.floor(Math.random() * 901))
         : (100 + Math.floor(Math.random() * 801));
       playerCredits += creditsDropped;
+      saveProgressToStorage();
       refreshCreditSummary();
       updateDefeatedUI();
       
@@ -2341,6 +2377,7 @@
       winDiv.style.display='none';
       loseDiv.style.display='none';
       gameOver=false;
+      deathSequenceStarted = false;
       setAutoShooting(false);
 
       bullets.forEach(b=>scene.remove(b.mesh)); bullets.length=0;

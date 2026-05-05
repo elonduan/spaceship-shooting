@@ -176,6 +176,7 @@
       <p id="upgradeStats"></p>
       <div id="upgradeOptions"></div>
       <div class="howToActions">
+        <button id="upgradeResetBtn" style="background:#ff6f6f; color:#2a0000;">Reset Upgrade Stats</button>
         <button id="upgradeCloseBtn" style="background:#444; color:#fff;">Close</button>
       </div>
     </div>
@@ -2495,6 +2496,14 @@
     renderUpgradeModal();
   }
 
+  function resetUpgradeProgress(){
+    if (!confirm('Reset all upgrade stats, upgrade count, and credits to default values?')) return;
+    window.gameProgress = { credits: 0, upgradeCount: 0, stats: { ...defaultStats } };
+    window.saveGameProgress();
+    window.refreshCreditSummary();
+    renderUpgradeModal();
+  }
+
   function renderUpgradeModal(){
     const gp = window.gameProgress;
     document.getElementById('upgradeStats').textContent = `Current stats — HP: ${gp.stats.playerMaxHP}, Shield: ${gp.stats.playerMaxShield}, Energy: ${gp.stats.playerMaxEnergy}, Bullet DMG: ${gp.stats.bulletDamage.toFixed(2)}, Shield Regen: ${gp.stats.shieldRegenRatePerSec.toFixed(2)}/s`;
@@ -2519,6 +2528,7 @@
   const upgradeBtn = document.getElementById("upgradeBtn");
   const upgradeModal = document.getElementById("upgradeModal");
   const upgradeCloseBtn = document.getElementById("upgradeCloseBtn");
+  const upgradeResetBtn = document.getElementById("upgradeResetBtn");
   const homeScreen = document.getElementById("homeScreen");
   let gameLoaded = false;
   let howToPage = 0;
@@ -2593,6 +2603,10 @@ Blue bar: energy(for boost)`
 
   upgradeCloseBtn.addEventListener("click", () => {
     upgradeModal.style.display = "none";
+  });
+
+  upgradeResetBtn.addEventListener("click", () => {
+    resetUpgradeProgress();
   });
 
   startGameBtn.addEventListener("click", () => {

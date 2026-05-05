@@ -18,11 +18,6 @@
     #crosshair:before,#crosshair:after{content:"";position:absolute;background:#fff}
     #crosshair:before{left:9px;top:0;width:2px;height:20px}
     #crosshair:after{left:0;top:9px;width:20px;height:2px}
-    #joystick { position:fixed; bottom:80px; left:80px; width:120px; height:120px; background:rgba(255,255,255,0.1); border-radius:50%; touch-action:none; z-index:20;}
-    #stick { position:absolute; left:50%; top:50%; width:50px; height:50px; margin-left:-25px; margin-top:-25px; background:rgba(255,255,255,0.3); border-radius:50%;}
-    #buttons { position:fixed; bottom:80px; right:80px; display:flex; flex-direction:column; gap:12px; z-index:20;}
-    #buttons button { width:70px; height:70px; border-radius:50%; border:none; background:rgba(255,255,255,0.2); color:#fff; font-size:18px;}
-    #buttons button.active { box-shadow:0 0 18px rgba(255,255,255,0.15); background:rgba(255,255,255,0.28); }
     #hud { position:fixed; top:10px; left:0; right:0; display:flex; justify-content:space-between; padding:0 20px; z-index:15; align-items:center; gap:12px; }
 
     .barContainer {
@@ -133,7 +128,7 @@
   <div id="overlay">
     <div class="panel">
       &nbsp;
-      <div><strong>Spaceship Duel Competition — Made by Elon - 44th edition</strong></div>
+      <div><strong>Spaceship Duel Competition — Made by Elon - 45th edition</strong></div>
       <ul style="margin:8px 0 0 18px;font-size:13px">
         <li>Mouse: pitch & yaw (click to lock)</li>
         <li>A / D buttons: roll (cosmetic)</li>
@@ -207,14 +202,6 @@
   <div id="missileUI"><span id="missileCountUI"></span></div>
   <div id="canvas-container"></div>
   <div id="arrowIndicator"></div>
-  <div id="joystick"><div id="stick"></div></div>
-  <div id="buttons">
-    <button id="shootBtn">Shoot</button>
-    <button id="rollLeft">A</button>
-    <button id="rollRight">D</button>
-    <button id="missileBtn">M</button>
-    <button id="autoShootBtn">Auto</button>
-  </div>
 
   <!-- Pause / Error overlay -->
   <div id="pauseScreen" role="dialog" aria-hidden="true">
@@ -1932,16 +1919,17 @@
         if(autoIntervalId) clearInterval(autoIntervalId);
         autoIntervalId = setInterval(()=>{ if(!gameOver) shoot(); else setAutoShooting(false); }, autoShootRateMs);
         autoShooting = true;
-        btn.classList.add('active');
+        if (btn) btn.classList.add('active');
       } else {
         if(autoIntervalId) clearInterval(autoIntervalId);
         autoIntervalId = null;
         autoShooting = false;
-        btn.classList.remove('active');
+        if (btn) btn.classList.remove('active');
       }
     }
-    document.getElementById('autoShootBtn').addEventListener('click', ()=> setAutoShooting(!autoShooting));
-
+    const autoShootBtn = document.getElementById('autoShootBtn');
+    if (autoShootBtn) autoShootBtn.addEventListener('click', ()=> setAutoShooting(!autoShooting));
+    
     function updateMissiles(dt) {
       for (let i = missiles.length - 1; i >= 0; i--) {
         const m = missiles[i];
@@ -2278,13 +2266,21 @@
     }
 
     document.getElementById('resetBtn').addEventListener('click', reset);
-    document.getElementById('shootBtn').addEventListener('click', shoot);
-    document.getElementById('missileBtn').addEventListener('click', launchMissile);
-    document.getElementById('rollLeft').addEventListener('mousedown',()=>pressKey('KeyG'));
-    document.getElementById('rollLeft').addEventListener('mouseup',()=>releaseKey('KeyG'));
-    document.getElementById('rollRight').addEventListener('mousedown',()=>pressKey('KeyH'));
-    document.getElementById('rollRight').addEventListener('mouseup',()=>releaseKey('KeyH'));
-
+    const shootBtn = document.getElementById('shootBtn');
+    if (shootBtn) shootBtn.addEventListener('click', shoot);
+    const missileBtn = document.getElementById('missileBtn');
+    if (missileBtn) missileBtn.addEventListener('click', launchMissile);
+    const rollLeftBtn = document.getElementById('rollLeft');
+    if (rollLeftBtn) {
+      rollLeftBtn.addEventListener('mousedown',()=>pressKey('KeyG'));
+      rollLeftBtn.addEventListener('mouseup',()=>releaseKey('KeyG'));
+    }
+    const rollRightBtn = document.getElementById('rollRight');
+    if (rollRightBtn) {
+      rollRightBtn.addEventListener('mousedown',()=>pressKey('KeyH'));
+      rollRightBtn.addEventListener('mouseup',()=>releaseKey('KeyH'));
+    }
+    
     window.addEventListener('resize',()=>{
       camera.aspect = window.innerWidth/window.innerHeight;
       camera.updateProjectionMatrix();

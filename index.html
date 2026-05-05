@@ -1551,6 +1551,13 @@
       // bail out if enemy gone, dead, or game ended
       if(!enemy || !enemy.mesh || !enemy.alive || gameOver) return;
 
+      if (isPaused) {
+        enemy._shootTimeout = setTimeout(() => {
+          enemy._shootTimeout = null;
+          enemyShoot(enemy);
+        }, 150);
+        return;
+      }
       if (isBossIntroPlaying) {
         enemy._shootTimeout = setTimeout(() => {
           enemy._shootTimeout = null;
@@ -2336,11 +2343,22 @@
         pauseScreenEl.setAttribute('aria-hidden', 'false');
         pausedAutoShooting = autoShooting;
         if (autoShooting) setAutoShooting(false);
+        enemies.forEach((enemy) => {
+          if (enemy && enemy._shootTimeout) {
+            clearTimeout(enemy._shootTimeout);
+            enemy._shootTimeout = null;
+          }
+        });
         ensurePointerUnlockedOnPause();
       } else {
         pauseScreenEl.style.display = 'none';
         pauseScreenEl.setAttribute('aria-hidden', 'true');
         last = performance.now();
+        enemies.forEach((enemy) => {
+          if (enemy && enemy.alive && !enemy._shootTimeout) {
+            enemyShoot(enemy);
+          }
+        });
         if (pausedAutoShooting) {
           setAutoShooting(true);
           pausedAutoShooting = false;

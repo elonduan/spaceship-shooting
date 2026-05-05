@@ -120,12 +120,24 @@
       z-index: 9998;
       transition: opacity 0.12s ease-out;
     }
+    #homeScreen { position: fixed; inset: 0; z-index: 10000; display:flex; align-items:center; justify-content:center; background: radial-gradient(circle at top, #0a1a35 0%, #000 65%); }
+    #homeCard { text-align:center; padding: 28px 32px; background: rgba(0,0,0,0.55); border:1px solid rgba(255,255,255,0.2); border-radius: 14px; max-width: 460px; }
+    #startGameBtn { margin-top:14px; padding:12px 22px; font-size:16px; border-radius:8px; border:none; cursor:pointer; background:#36c2ff; color:#001321; font-weight:700; }
+    .pre-game-hidden { display: none !important; }
   </style>
 </head>
 <body>
   <div id="screenFlash"></div>
 
-  <div id="overlay">
+  <div id="homeScreen">
+    <div id="homeCard">
+      <h1 style="margin:0 0 8px 0; color:#fff;">Spaceship Duel</h1>
+      <p style="margin:0; color:#c7d7ff;">Press Start Game to load the round.</p>
+      <button id="startGameBtn">Start Game</button>
+    </div>
+  </div>
+
+  <div id="overlay" class="pre-game-hidden">
     <div class="panel">
       &nbsp;
       <div><strong>Spaceship Duel Competition — Made by Elon - 45th edition</strong></div>
@@ -159,7 +171,7 @@
     </div>
   </div>
 
-  <div class="hud-row" id="hud">
+  <div class="hud-row pre-game-hidden" id="hud">
     <div class="barContainer">
       <div id="playerBar" class="hpStack">
         <div class="bar shield" id="playerShieldBar"></div>
@@ -184,7 +196,7 @@
       </div>
     </div>
   </div>
-  <video id="bossIntroVideo"
+  <video id="bossIntroVideo" class="pre-game-hidden"
    src="./res/boss_intro.mp4"
    style="
      position:fixed;
@@ -198,13 +210,13 @@
        "
   ></video>
 
-  <div id="crosshair"></div>
-  <div id="missileUI"><span id="missileCountUI"></span></div>
-  <div id="canvas-container"></div>
-  <div id="arrowIndicator"></div>
-
+  <div id="crosshair" class="pre-game-hidden"></div>
+  <div id="missileUI" class="pre-game-hidden"><span id="missileCountUI"></span></div>
+  <div id="canvas-container" class="pre-game-hidden"></div>
+  <div id="arrowIndicator" class="pre-game-hidden"></div>
+  
   <!-- Pause / Error overlay -->
-  <div id="pauseScreen" role="dialog" aria-hidden="true">
+  <div id="pauseScreen" class="pre-game-hidden" role="dialog" aria-hidden="true">
     <div class="errorText">ERROR: 404 Page not fond </div>
     <p>Click here to learn more</p>
     <button id="resumeBtn">Resume (P)</button>
@@ -222,7 +234,7 @@
     const damage = new Audio("./res/damage.mp3");
   </script>
   <script>
-  (function(){
+  function initGame(){
     document.addEventListener("click", () => {
       backgroundMusic.play();
     }, { once: true });
@@ -2318,7 +2330,19 @@
       });
     }
 
-  })();
+  }
+
+  const startGameBtn = document.getElementById("startGameBtn");
+  const homeScreen = document.getElementById("homeScreen");
+  let gameLoaded = false;
+
+  startGameBtn.addEventListener("click", () => {
+    if (gameLoaded) return;
+    gameLoaded = true;
+    homeScreen.style.display = "none";
+    document.querySelectorAll(".pre-game-hidden").forEach((el) => el.classList.remove("pre-game-hidden"));
+    initGame();
+  });
   </script>
 </body>
 </html>

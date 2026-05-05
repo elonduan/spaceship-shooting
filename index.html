@@ -124,6 +124,7 @@
     #homeCard { text-align:center; padding: 28px 32px; background: rgba(0,0,0,0.55); border:1px solid rgba(255,255,255,0.2); border-radius: 14px; max-width: 460px; }
     #startGameBtn { margin-top:14px; padding:12px 22px; font-size:16px; border-radius:8px; border:none; cursor:pointer; background:#36c2ff; color:#001321; font-weight:700; }
     #howToPlayBtn { margin-top:10px; padding:12px 22px; font-size:16px; border-radius:8px; border:none; cursor:pointer; background:#ffffff; color:#001321; font-weight:700; }
+    #upgradeBtn { margin-top:10px; padding:12px 22px; font-size:16px; border-radius:8px; border:none; cursor:pointer; background:#7bff7b; color:#002400; font-weight:700; }
     #howToModal { position: fixed; inset: 0; background: rgba(0,0,0,0.82); z-index: 10001; display: none; align-items: center; justify-content: center; }
     #howToCard { text-align:left; padding: 24px 28px; background: rgba(0,0,0,0.9); border:1px solid rgba(255,255,255,0.25); border-radius: 14px; max-width: 540px; width: calc(100% - 40px); color:#fff; }
     #howToTitle { margin-top:0; margin-bottom:8px; }
@@ -145,6 +146,8 @@
       <p style="margin:0; color:#c7d7ff;">Press Start Game to load the round.</p>
       <button id="startGameBtn">Start Game</button>
       <button id="howToPlayBtn">How to Play</button>
+      <button id="upgradeBtn">Upgrade Ship</button>
+      <p id="creditSummary" style="margin:10px 0 0 0; color:#9ad3ff; font-size:14px;">Credits: 0 | Upgrades: 0</p>
     </div>
   </div>
 
@@ -889,22 +892,24 @@
 
 
 
-    // HP etc.
-    let playerMaxHP = 100;
-    let playerHP = 100;
+    // Player progression and base stats
+    let playerCredits = 0;
+    let upgradeCount = 0;
+    let playerMaxHP = 30;
+    let playerHP = 30;
     let enemyMaxHP = 10;
     let enemyHP = 20;
     let predictionTime = 0;   // starts at 0 (no leading)
 
-    let playerMaxShield = 30;
-    let playerShield = 30;
+    let playerMaxShield = 9;
+    let playerShield = 9;
     let enemyMaxShield = 8;
     let enemyShield = 8;
     
-    let playerMaxEnergy = 100;
-    let playerEnergy = 100;
-    const boostEnergyDrainPerSec = 45;
-    const boostEnergyRechargePerSec = 28;
+    let playerMaxEnergy = 75;
+    let playerEnergy = 75;
+    let boostEnergyDrainPerSec = 45;
+    let boostEnergyRechargePerSec = 28;
 
     let shieldRegenDelayMs = 4000;
     let shieldRegenRatePerSec = 1.5;
@@ -917,6 +922,49 @@
     let enemyFireDelay = 520;
     let nextGunSide = -1; // -1 = left, +1 = right
     
+
+    function getUpgradeCost() {
+      return (100 * upgradeCount) + 500;
+    }
+
+    function refreshCreditSummary() {
+      const creditEl = document.getElementById('creditSummary');
+      if (creditEl) {
+        creditEl.textContent = `Credits: ${Math.floor(playerCredits)} | Upgrades: ${upgradeCount} | Next cost: ${getUpgradeCost()}`;
+      }
+    }
+
+    function applyUpgrade() {
+      const cost = getUpgradeCost();
+      if (playerCredits < cost) {
+        alert(`Not enough credits. Need ${cost}, have ${Math.floor(playerCredits)}.`);
+        return;
+      }
+      playerCredits -= cost;
+      upgradeCount += 1;
+
+      playerMaxHP += 3;
+      playerMaxShield += 1;
+      playerMaxEnergy += 3;
+      boostEnergyDrainPerSec = Math.max(1, boostEnergyDrainPerSec - 2);
+      boostEnergyRechargePerSec += 1;
+      shieldRegenDelayMs = Math.max(0, shieldRegenDelayMs - 50);
+      shieldRegenRatePerSec += 0.05;
+      bulletDamage += 0.05;
+
+      playerHP = Math.min(playerMaxHP, playerHP + 3);
+      playerShield = Math.min(playerMaxShield, playerShield + 1);
+      playerEnergy = Math.min(playerMaxEnergy, playerEnergy + 3);
+      refreshCreditSummary();
+      updateHP();
+    }
+
+    const upgradeBtn = document.getElementById('upgradeBtn');
+    if (upgradeBtn && !upgradeBtn.dataset.boundUpgrade) {
+      upgradeBtn.dataset.boundUpgrade = '1';
+      upgradeBtn.addEventListener('click', applyUpgrade);
+    }
+    refreshCreditSummary();
 
     const winDiv = document.getElementById('win');
     const loseDiv = document.getElementById('lose');
@@ -1860,6 +1908,11 @@
       updateHP();
 
       defeatedCount++;
+      const creditsDropped = enemy.isBoss
+        ? (900 + Math.floor(Math.random() * 901))
+        : (100 + Math.floor(Math.random() * 801));
+      playerCredits += creditsDropped;
+      refreshCreditSummary();
       updateDefeatedUI();
       
       // every 7th defeat: spawn a boss
@@ -2268,7 +2321,7 @@
       playerShield = playerMaxShield;
       enemyMaxHP = 10;
       enemyMaxShield = 8;
-      bulletDamage = 1;
+      bulletDamage = 2;
       missileDamage = 5;
       enemyDamage = 1.0;
       enemyFireDelay = 520;
@@ -2467,6 +2520,8 @@ Blue bar: energy(for boost)`
     document.querySelectorAll(".pre-game-hidden").forEach((el) => el.classList.remove("pre-game-hidden"));
     initGame();
   });
+
+
   </script>
 </body>
 </html>

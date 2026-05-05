@@ -125,6 +125,10 @@
     #startGameBtn { margin-top:14px; padding:12px 22px; font-size:16px; border-radius:8px; border:none; cursor:pointer; background:#36c2ff; color:#001321; font-weight:700; }
     #howToPlayBtn { margin-top:10px; padding:12px 22px; font-size:16px; border-radius:8px; border:none; cursor:pointer; background:#ffffff; color:#001321; font-weight:700; }
     #upgradeBtn { margin-top:10px; padding:12px 22px; font-size:16px; border-radius:8px; border:none; cursor:pointer; background:#7bff7b; color:#002400; font-weight:700; }
+    #settingsBtn { margin-top:10px; padding:12px 22px; font-size:16px; border-radius:8px; border:none; cursor:pointer; background:#ffd36f; color:#2d1b00; font-weight:700; }
+    #settingsModal { position: fixed; inset: 0; background: rgba(0,0,0,0.82); z-index: 10003; display: none; align-items: center; justify-content: center; }
+    #settingsCard { text-align:left; padding: 24px 28px; background: rgba(0,0,0,0.9); border:1px solid rgba(255,255,255,0.25); border-radius: 14px; max-width: 540px; width: calc(100% - 40px); color:#fff; }
+    #settingsValues { margin-top: 10px; color: #9ad3ff; font-size: 14px; }
     #upgradeModal { position: fixed; inset: 0; background: rgba(0,0,0,0.82); z-index: 10002; display: none; align-items: center; justify-content: center; }
     #upgradeCard { text-align:left; padding: 24px 28px; background: rgba(0,0,0,0.9); border:1px solid rgba(255,255,255,0.25); border-radius: 14px; max-width: 580px; width: calc(100% - 40px); color:#fff; }
     #upgradeStats { font-size:14px; color:#b7d4ff; margin:8px 0 12px 0; line-height:1.5; }
@@ -152,6 +156,7 @@
       <button id="startGameBtn">Start Game</button>
       <button id="howToPlayBtn">How to Play</button>
       <button id="upgradeBtn">Upgrade Ship</button>
+      <button id="settingsBtn">Settings</button>
       <p id="creditSummary" style="margin:10px 0 0 0; color:#9ad3ff; font-size:14px;">Credits: 0 | Upgrades: 0</p>
     </div>
   </div>
@@ -164,6 +169,20 @@
       <div class="howToActions">
         <button id="howToCloseBtn">Close</button>
         <button id="howToNextBtn">Next</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="settingsModal">
+    <div id="settingsCard">
+      <h2 style="margin:0 0 12px 0;">Settings</h2>
+      <label for="menuSensitivity">Rotation sensitivity</label>
+      <input id="menuSensitivity" type="range" min="0.005" max="0.2" step="0.002" value="0.1">
+      <label for="menuMusicVolume" style="margin-top:12px;">Music volume</label>
+      <input id="menuMusicVolume" type="range" min="0" max="1" step="0.01" value="0.4">
+      <div id="settingsValues"></div>
+      <div class="howToActions">
+        <button id="settingsCloseBtn" style="background:#444; color:#fff;">Close</button>
       </div>
     </div>
   </div>
@@ -270,6 +289,12 @@
     const damage = new Audio("./res/damage.mp3");
   </script>
   <script>
+  const gameSettings = {
+    rotationSensitivity: 0.1,
+    musicVolume: 0.4
+  };
+  backgroundMusic.volume = gameSettings.musicVolume;
+
   function initGame(){
     document.addEventListener("click", () => {
       backgroundMusic.play();
@@ -1110,9 +1135,17 @@
       }
     }
 
-    let accel = parseFloat(document.getElementById('sensitivity').value);
     const sensitivityInput = document.getElementById('sensitivity');
-    sensitivityInput.addEventListener('input', (e) => { accel = parseFloat(e.target.value); });
+    sensitivityInput.value = String(gameSettings.rotationSensitivity);
+    let accel = gameSettings.rotationSensitivity;
+    sensitivityInput.addEventListener('input', (e) => {
+      const value = parseFloat(e.target.value);
+      accel = value;
+      gameSettings.rotationSensitivity = value;
+      const menuSensitivityInput = document.getElementById('menuSensitivity');
+      if (menuSensitivityInput) menuSensitivityInput.value = String(value);
+      updateSettingsSummary();
+    });
     const keys = {};
     function pressKey(code){ keys[code] = true; }
     function releaseKey(code){ keys[code] = false; }
@@ -2526,10 +2559,16 @@
   const howToNextBtn = document.getElementById("howToNextBtn");
   const howToCloseBtn = document.getElementById("howToCloseBtn");
   const upgradeBtn = document.getElementById("upgradeBtn");
+  const settingsBtn = document.getElementById("settingsBtn");
   const upgradeModal = document.getElementById("upgradeModal");
+  const settingsModal = document.getElementById("settingsModal");
+  const settingsCloseBtn = document.getElementById("settingsCloseBtn");
   const upgradeCloseBtn = document.getElementById("upgradeCloseBtn");
   const upgradeResetBtn = document.getElementById("upgradeResetBtn");
   const homeScreen = document.getElementById("homeScreen");
+  const menuSensitivity = document.getElementById("menuSensitivity");
+  const menuMusicVolume = document.getElementById("menuMusicVolume");
+  const settingsValues = document.getElementById("settingsValues");
   let gameLoaded = false;
   let howToPage = 0;
 
@@ -2577,6 +2616,29 @@ Blue bar: energy(for boost)`
     howToNextBtn.textContent = howToPage === howToPages.length - 1 ? "Done" : "Next";
   }
 
+  function updateSettingsSummary() {
+    settingsValues.textContent = `Sensitivity: ${gameSettings.rotationSensitivity.toFixed(3)} | Music: ${Math.round(gameSettings.musicVolume * 100)}%`;
+  }
+
+  menuSensitivity.value = String(gameSettings.rotationSensitivity);
+  menuMusicVolume.value = String(gameSettings.musicVolume);
+  updateSettingsSummary();
+
+  menuSensitivity.addEventListener("input", (e) => {
+    const value = parseFloat(e.target.value);
+    gameSettings.rotationSensitivity = value;
+    const inGameSensitivity = document.getElementById('sensitivity');
+    if (inGameSensitivity) inGameSensitivity.value = String(value);
+    updateSettingsSummary();
+  });
+
+  menuMusicVolume.addEventListener("input", (e) => {
+    const value = parseFloat(e.target.value);
+    gameSettings.musicVolume = value;
+    backgroundMusic.volume = value;
+    updateSettingsSummary();
+  });
+
   howToPlayBtn.addEventListener("click", () => {
     howToPage = 0;
     renderHowToPage();
@@ -2599,6 +2661,14 @@ Blue bar: energy(for boost)`
   upgradeBtn.addEventListener("click", () => {
     renderUpgradeModal();
     upgradeModal.style.display = "flex";
+  });
+
+  settingsBtn.addEventListener("click", () => {
+    settingsModal.style.display = "flex";
+  });
+
+  settingsCloseBtn.addEventListener("click", () => {
+    settingsModal.style.display = "none";
   });
 
   upgradeCloseBtn.addEventListener("click", () => {

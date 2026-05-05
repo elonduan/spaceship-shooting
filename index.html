@@ -125,6 +125,11 @@
     #startGameBtn { margin-top:14px; padding:12px 22px; font-size:16px; border-radius:8px; border:none; cursor:pointer; background:#36c2ff; color:#001321; font-weight:700; }
     #howToPlayBtn { margin-top:10px; padding:12px 22px; font-size:16px; border-radius:8px; border:none; cursor:pointer; background:#ffffff; color:#001321; font-weight:700; }
     #upgradeBtn { margin-top:10px; padding:12px 22px; font-size:16px; border-radius:8px; border:none; cursor:pointer; background:#7bff7b; color:#002400; font-weight:700; }
+    #upgradeModal { position: fixed; inset: 0; background: rgba(0,0,0,0.82); z-index: 10002; display: none; align-items: center; justify-content: center; }
+    #upgradeCard { text-align:left; padding: 24px 28px; background: rgba(0,0,0,0.9); border:1px solid rgba(255,255,255,0.25); border-radius: 14px; max-width: 580px; width: calc(100% - 40px); color:#fff; }
+    #upgradeStats { font-size:14px; color:#b7d4ff; margin:8px 0 12px 0; line-height:1.5; }
+    .upgradeOption { display:flex; justify-content:space-between; align-items:center; gap:10px; background: rgba(255,255,255,0.05); padding:10px; border-radius:8px; margin-bottom:8px; }
+    .upgradeOption button { padding:8px 12px; border:none; border-radius:7px; font-weight:700; cursor:pointer; background:#7bff7b; color:#002400; }
     #howToModal { position: fixed; inset: 0; background: rgba(0,0,0,0.82); z-index: 10001; display: none; align-items: center; justify-content: center; }
     #howToCard { text-align:left; padding: 24px 28px; background: rgba(0,0,0,0.9); border:1px solid rgba(255,255,255,0.25); border-radius: 14px; max-width: 540px; width: calc(100% - 40px); color:#fff; }
     #howToTitle { margin-top:0; margin-bottom:8px; }
@@ -159,6 +164,19 @@
       <div class="howToActions">
         <button id="howToCloseBtn">Close</button>
         <button id="howToNextBtn">Next</button>
+      </div>
+    </div>
+  </div>
+
+
+
+  <div id="upgradeModal">
+    <div id="upgradeCard">
+      <h2 style="margin:0 0 8px 0;">Ship Upgrades</h2>
+      <p id="upgradeStats"></p>
+      <div id="upgradeOptions"></div>
+      <div class="howToActions">
+        <button id="upgradeCloseBtn" style="background:#444; color:#fff;">Close</button>
       </div>
     </div>
   </div>
@@ -893,94 +911,52 @@
 
 
     // Player progression and base stats
-    const CREDIT_STORAGE_KEY = 'spaceshipDuelCredits';
-    const UPGRADE_STORAGE_KEY = 'spaceshipDuelUpgradeCount';
-    let playerCredits = 0;
-    let upgradeCount = 0;
-    let playerMaxHP = 30;
-    let playerHP = 30;
+    let playerCredits = window.gameProgress.credits;
+    let upgradeCount = window.gameProgress.upgradeCount;
+    let playerMaxHP = window.gameProgress.stats.playerMaxHP;
+    let playerHP = playerMaxHP;
     let enemyMaxHP = 10;
     let enemyHP = 20;
     let predictionTime = 0;   // starts at 0 (no leading)
 
-    let playerMaxShield = 9;
-    let playerShield = 9;
+    let playerMaxShield = window.gameProgress.stats.playerMaxShield;
+    let playerShield = playerMaxShield;
     let enemyMaxShield = 8;
     let enemyShield = 8;
     
-    let playerMaxEnergy = 75;
-    let playerEnergy = 75;
-    let boostEnergyDrainPerSec = 45;
-    let boostEnergyRechargePerSec = 28;
+    let playerMaxEnergy = window.gameProgress.stats.playerMaxEnergy;
+    let playerEnergy = playerMaxEnergy;
+    let boostEnergyDrainPerSec = window.gameProgress.stats.boostEnergyDrainPerSec;
+    let boostEnergyRechargePerSec = window.gameProgress.stats.boostEnergyRechargePerSec;
 
-    let shieldRegenDelayMs = 4000;
-    let shieldRegenRatePerSec = 1.5;
+    let shieldRegenDelayMs = window.gameProgress.stats.shieldRegenDelayMs;
+    let shieldRegenRatePerSec = window.gameProgress.stats.shieldRegenRatePerSec;
     let lastPlayerDamageTime = -Infinity;
     let lastEnemyDamageTime = -Infinity;
 
-    let bulletDamage = 2;
+    let bulletDamage = window.gameProgress.stats.bulletDamage;
     let missileDamage = 15;
     let enemyDamage = 1.5;
     let enemyFireDelay = 520;
     let nextGunSide = -1; // -1 = left, +1 = right
     
 
-    function getUpgradeCost() {
-      return (100 * upgradeCount) + 500;
-    }
-
-    function loadProgressFromStorage() {
-      const storedCredits = Number(localStorage.getItem(CREDIT_STORAGE_KEY));
-      const storedUpgrades = Number(localStorage.getItem(UPGRADE_STORAGE_KEY));
-      playerCredits = Number.isFinite(storedCredits) && storedCredits > 0 ? storedCredits : 0;
-      upgradeCount = Number.isFinite(storedUpgrades) && storedUpgrades > 0 ? Math.floor(storedUpgrades) : 0;
-    }
-
     function saveProgressToStorage() {
-      localStorage.setItem(CREDIT_STORAGE_KEY, String(Math.floor(playerCredits)));
-      localStorage.setItem(UPGRADE_STORAGE_KEY, String(Math.floor(upgradeCount)));
+      window.gameProgress.credits = playerCredits;
+      window.gameProgress.upgradeCount = upgradeCount;
+      Object.assign(window.gameProgress.stats, {
+        playerMaxHP,
+        playerMaxShield,
+        playerMaxEnergy,
+        boostEnergyDrainPerSec,
+        boostEnergyRechargePerSec,
+        shieldRegenDelayMs,
+        shieldRegenRatePerSec,
+        bulletDamage
+      });
+      window.saveGameProgress();
+      window.refreshCreditSummary();
     }
-
-    function refreshCreditSummary() {
-      const creditEl = document.getElementById('creditSummary');
-      if (creditEl) {
-        creditEl.textContent = `Credits: ${Math.floor(playerCredits)} | Upgrades: ${upgradeCount} | Next cost: ${getUpgradeCost()}`;
-      }
-    }
-
-    function applyUpgrade() {
-      const cost = getUpgradeCost();
-      if (playerCredits < cost) {
-        alert(`Not enough credits. Need ${cost}, have ${Math.floor(playerCredits)}.`);
-        return;
-      }
-      playerCredits -= cost;
-      upgradeCount += 1;
-
-      playerMaxHP += 3;
-      playerMaxShield += 1;
-      playerMaxEnergy += 3;
-      boostEnergyDrainPerSec = Math.max(1, boostEnergyDrainPerSec - 2);
-      boostEnergyRechargePerSec += 1;
-      shieldRegenDelayMs = Math.max(0, shieldRegenDelayMs - 50);
-      shieldRegenRatePerSec += 0.05;
-      bulletDamage += 0.05;
-
-      playerHP = Math.min(playerMaxHP, playerHP + 3);
-      playerShield = Math.min(playerMaxShield, playerShield + 1);
-      playerEnergy = Math.min(playerMaxEnergy, playerEnergy + 3);
-      saveProgressToStorage();
-      refreshCreditSummary();
-      updateHP();
-    }
-
-    const upgradeBtn = document.getElementById('upgradeBtn');
-    if (upgradeBtn && !upgradeBtn.dataset.boundUpgrade) {
-      upgradeBtn.dataset.boundUpgrade = '1';
-      upgradeBtn.addEventListener('click', applyUpgrade);
-    }
-    loadProgressFromStorage();
-    refreshCreditSummary();
 
     const winDiv = document.getElementById('win');
     const loseDiv = document.getElementById('lose');
@@ -1948,7 +1924,7 @@
         : (100 + Math.floor(Math.random() * 801));
       playerCredits += creditsDropped;
       saveProgressToStorage();
-      refreshCreditSummary();
+      window.refreshCreditSummary();
       updateDefeatedUI();
       
       // every 7th defeat: spawn a boss
@@ -2476,6 +2452,63 @@
 
   }
 
+  const CREDIT_STORAGE_KEY = 'spaceshipDuelCredits';
+  const UPGRADE_STORAGE_KEY = 'spaceshipDuelUpgradeCount';
+  const STATS_STORAGE_KEY = 'spaceshipDuelStats';
+  const defaultStats = { playerMaxHP: 30, playerMaxShield: 9, playerMaxEnergy: 75, boostEnergyDrainPerSec: 45, boostEnergyRechargePerSec: 28, shieldRegenDelayMs: 4000, shieldRegenRatePerSec: 1.5, bulletDamage: 2 };
+
+  window.gameProgress = { credits: 0, upgradeCount: 0, stats: { ...defaultStats } };
+  window.getUpgradeCost = (upgradeCount) => (100 * upgradeCount) + 500;
+  window.loadGameProgress = function(){
+    const storedCredits = Number(localStorage.getItem(CREDIT_STORAGE_KEY));
+    const storedUpgrades = Number(localStorage.getItem(UPGRADE_STORAGE_KEY));
+    const storedStats = JSON.parse(localStorage.getItem(STATS_STORAGE_KEY) || '{}');
+    window.gameProgress.credits = Number.isFinite(storedCredits) && storedCredits > 0 ? storedCredits : 0;
+    window.gameProgress.upgradeCount = Number.isFinite(storedUpgrades) && storedUpgrades > 0 ? Math.floor(storedUpgrades) : 0;
+    window.gameProgress.stats = { ...defaultStats, ...storedStats };
+  };
+  window.saveGameProgress = function(){
+    localStorage.setItem(CREDIT_STORAGE_KEY, String(Math.floor(window.gameProgress.credits)));
+    localStorage.setItem(UPGRADE_STORAGE_KEY, String(Math.floor(window.gameProgress.upgradeCount)));
+    localStorage.setItem(STATS_STORAGE_KEY, JSON.stringify(window.gameProgress.stats));
+  };
+  window.refreshCreditSummary = function(){
+    const c = Math.floor(window.gameProgress.credits);
+    const u = window.gameProgress.upgradeCount;
+    document.getElementById('creditSummary').textContent = `Credits: ${c} | Upgrades: ${u} | Next cost: ${window.getUpgradeCost(u)}`;
+  };
+
+  function applyUpgradeType(type){
+    const gp = window.gameProgress;
+    const cost = window.getUpgradeCost(gp.upgradeCount);
+    if (gp.credits < cost){ alert(`Not enough credits. Need ${cost}, have ${Math.floor(gp.credits)}.`); return; }
+    gp.credits -= cost;
+    gp.upgradeCount += 1;
+    if (type === 'hp') gp.stats.playerMaxHP += 3;
+    if (type === 'shield') gp.stats.playerMaxShield += 1;
+    if (type === 'energy') gp.stats.playerMaxEnergy += 4;
+    if (type === 'regen'){ gp.stats.shieldRegenRatePerSec += 0.12; gp.stats.shieldRegenDelayMs = Math.max(0, gp.stats.shieldRegenDelayMs - 120); }
+    if (type === 'boost'){ gp.stats.boostEnergyDrainPerSec = Math.max(1, gp.stats.boostEnergyDrainPerSec - 2); gp.stats.boostEnergyRechargePerSec += 1; }
+    if (type === 'weapon') gp.stats.bulletDamage += 0.08;
+    window.saveGameProgress();
+    window.refreshCreditSummary();
+    renderUpgradeModal();
+  }
+
+  function renderUpgradeModal(){
+    const gp = window.gameProgress;
+    document.getElementById('upgradeStats').textContent = `Current stats — HP: ${gp.stats.playerMaxHP}, Shield: ${gp.stats.playerMaxShield}, Energy: ${gp.stats.playerMaxEnergy}, Bullet DMG: ${gp.stats.bulletDamage.toFixed(2)}, Shield Regen: ${gp.stats.shieldRegenRatePerSec.toFixed(2)}/s`;
+    const options = [
+      ['hp','Player Max HP (+3)'],['shield','Max Shield (+1)'],['energy','Max Energy (+4)'],['regen','Shield Regen (faster)'],['boost','Boost Efficiency'],['weapon','Weapon Damage (+0.08)']
+    ];
+    const cost = window.getUpgradeCost(gp.upgradeCount);
+    document.getElementById('upgradeOptions').innerHTML = options.map(([k,l]) => `<div class="upgradeOption"><span>${l}</span><button data-upgrade="${k}">Buy (${cost})</button></div>`).join('');
+    document.querySelectorAll('[data-upgrade]').forEach(btn => btn.onclick = () => applyUpgradeType(btn.dataset.upgrade));
+  }
+
+  window.loadGameProgress();
+  window.refreshCreditSummary();
+
   const startGameBtn = document.getElementById("startGameBtn");
   const howToPlayBtn = document.getElementById("howToPlayBtn");
   const howToModal = document.getElementById("howToModal");
@@ -2483,6 +2516,9 @@
   const howToContent = document.getElementById("howToContent");
   const howToNextBtn = document.getElementById("howToNextBtn");
   const howToCloseBtn = document.getElementById("howToCloseBtn");
+  const upgradeBtn = document.getElementById("upgradeBtn");
+  const upgradeModal = document.getElementById("upgradeModal");
+  const upgradeCloseBtn = document.getElementById("upgradeCloseBtn");
   const homeScreen = document.getElementById("homeScreen");
   let gameLoaded = false;
   let howToPage = 0;
@@ -2548,6 +2584,15 @@ Blue bar: energy(for boost)`
 
   howToCloseBtn.addEventListener("click", () => {
     howToModal.style.display = "none";
+  });
+
+  upgradeBtn.addEventListener("click", () => {
+    renderUpgradeModal();
+    upgradeModal.style.display = "flex";
+  });
+
+  upgradeCloseBtn.addEventListener("click", () => {
+    upgradeModal.style.display = "none";
   });
 
   startGameBtn.addEventListener("click", () => {

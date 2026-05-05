@@ -79,7 +79,7 @@
       display: none;
     }
     #defeatedCounter { margin-top:8px; font-weight:700; font-size:13px; color:#fff;}
-    #playerName { width:120px; margin-left:6px; padding:3px 6px; border-radius:6px; border:1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.03); color:#fff; }
+    
 
     /* Pause overlay style (error screen) */
     #pauseScreen {
@@ -123,8 +123,13 @@
     #homeScreen { position: fixed; inset: 0; z-index: 10000; display:flex; align-items:center; justify-content:center; background: radial-gradient(circle at top, #0a1a35 0%, #000 65%); }
     #homeCard { text-align:center; padding: 28px 32px; background: rgba(0,0,0,0.55); border:1px solid rgba(255,255,255,0.2); border-radius: 14px; max-width: 460px; }
     #startGameBtn { margin-top:14px; padding:12px 22px; font-size:16px; border-radius:8px; border:none; cursor:pointer; background:#36c2ff; color:#001321; font-weight:700; }
-    #howToPlayBtn { margin-top:10px; padding:12px 22px; font-size:16px; border-radius:8px; border:none; cursor:pointer; background:#ffffff; color:#001321; font-weight:700; }
+    #howToPlayBtn, #settingsBtn { margin-top:10px; padding:12px 22px; font-size:16px; border-radius:8px; border:none; cursor:pointer; background:#ffffff; color:#001321; font-weight:700; }
     #howToModal { position: fixed; inset: 0; background: rgba(0,0,0,0.82); z-index: 10001; display: none; align-items: center; justify-content: center; }
+    #settingsModal { position: fixed; inset: 0; background: rgba(0,0,0,0.82); z-index: 10001; display: none; align-items: center; justify-content: center; }
+    #settingsCard { text-align:left; padding: 24px 28px; background: rgba(0,0,0,0.9); border:1px solid rgba(255,255,255,0.25); border-radius: 14px; max-width: 540px; width: calc(100% - 40px); color:#fff; }
+    #settingsCard h2 { margin-top: 0; }
+    #settingsCard .actions { display:flex; justify-content:flex-end; margin-top:16px; }
+    #settingsCard button { padding:10px 16px; border-radius:8px; border:none; cursor:pointer; font-weight:700; background:#36c2ff; color:#001321; }
     #howToCard { text-align:left; padding: 24px 28px; background: rgba(0,0,0,0.9); border:1px solid rgba(255,255,255,0.25); border-radius: 14px; max-width: 540px; width: calc(100% - 40px); color:#fff; }
     #howToTitle { margin-top:0; margin-bottom:8px; }
     #howToPageTitle { margin: 10px 0 10px 0; color:#9ad3ff; }
@@ -144,9 +149,22 @@
       <h1 style="margin:0 0 8px 0; color:#fff;">Spaceship Duel</h1>
       <p style="margin:0; color:#c7d7ff;">Press Start Game to load the round.</p>
       <button id="startGameBtn">Start Game</button>
+      <button id="settingsBtn">Settings</button>
       <button id="howToPlayBtn">How to Play</button>
     </div>
   </div>
+  
+  <div id="settingsModal">
+    <div id="settingsCard">
+      <h2>Settings</h2>
+      <label for="musicVolume" style="margin-top:10px;">Music volume</label>
+      <input id="musicVolume" type="range" min="0" max="1" step="0.01" value="0.4">
+      <div class="actions">
+        <button id="settingsCloseBtn">Done</button>
+      </div>
+    </div>
+  </div>
+
 
   <div id="howToModal">
     <div id="howToCard">
@@ -163,9 +181,7 @@
   <div id="overlay" class="pre-game-hidden">
     <div class="panel">
       &nbsp;
-      <div><strong>Spaceship Duel Competition — Made by Elon - 47th edition</strong></div>
-      <label for="sensitivity">Rotation sensitivity</label>
-      <input id="sensitivity" type="range" min="0.005" max="0.2" step="0.002" value="0.1">
+      <div><strong>Spaceship Duel Competition — Made by Elon - 48th edition</strong></div>1
       <button id="resetBtn">Reset</button>
       <div style="margin-top:8px">Missiles left: <span id="missileCount">4</span></div>
       <div id="defeatedCounter">Defeated ships: <span id="defeatedCount">0</span></div>
@@ -174,10 +190,6 @@
         <span style="font-size:11px;opacity:0.7"> (1:Normal 2:Heavy 3:Laser)</span>
       </div>
 
-
-      <label style="margin-top:8px">Name:
-        <input id="playerName" type="text" maxlength="20" value="Player">
-      </label>
 
       <div id="win">You destroyed another spaceship</div>
       <div id="lose">The spaceship destroyed you! </div>
@@ -243,8 +255,9 @@
     const missileExplosion = new Audio("https://actions.google.com/sounds/v1/weapons/big_explosion_cut_off.ogg");
     const bulletSound = new Audio("./res/bullet.mp3");
     const backgroundMusic = new Audio("./res/music.mp3");
+    let musicVolume = 0.4;
     backgroundMusic.loop = true;      // repeat forever
-    backgroundMusic.volume = 0.4;     // adjust volume
+    backgroundMusic.volume = musicVolume;     // adjust volume
     const damage = new Audio("./res/damage.mp3");
   </script>
   <script>
@@ -1818,7 +1831,6 @@
 
     async function updateDefeatedUI(){
       defeatedEl.textContent = defeatedCount;
-      const playerName = (document.getElementById('playerName') || {}).value || 'Player';
     }
 
     // replace destroyEnemy()
@@ -2388,6 +2400,10 @@
 
   const startGameBtn = document.getElementById("startGameBtn");
   const howToPlayBtn = document.getElementById("howToPlayBtn");
+  const settingsBtn = document.getElementById("settingsBtn");
+  const settingsModal = document.getElementById("settingsModal");
+  const settingsCloseBtn = document.getElementById("settingsCloseBtn");
+  const musicVolumeInput = document.getElementById("musicVolume");
   const howToModal = document.getElementById("howToModal");
   const howToPageTitle = document.getElementById("howToPageTitle");
   const howToContent = document.getElementById("howToContent");
@@ -2412,7 +2428,7 @@ Shift: Boost
 
 Shift+space: backwards
 
-slider: Rotation sensitivity`
+Settings menu: Rotation sensitivity + Music volume`
     },
     {
       title: "PAGE TWO:",
@@ -2440,6 +2456,18 @@ Blue bar: energy(for boost)`
     howToContent.textContent = page.content;
     howToNextBtn.textContent = howToPage === howToPages.length - 1 ? "Done" : "Next";
   }
+  settingsBtn.addEventListener("click", () => {
+    settingsModal.style.display = "flex";
+  });
+
+  settingsCloseBtn.addEventListener("click", () => {
+    settingsModal.style.display = "none";
+  });
+
+  musicVolumeInput.addEventListener("input", (e) => {
+    musicVolume = parseFloat(e.target.value);
+    backgroundMusic.volume = musicVolume;
+  });
 
   howToPlayBtn.addEventListener("click", () => {
     howToPage = 0;

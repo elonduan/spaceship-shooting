@@ -123,6 +123,16 @@
     #homeScreen { position: fixed; inset: 0; z-index: 10000; display:flex; align-items:center; justify-content:center; background: radial-gradient(circle at top, #0a1a35 0%, #000 65%); }
     #homeCard { text-align:center; padding: 28px 32px; background: rgba(0,0,0,0.55); border:1px solid rgba(255,255,255,0.2); border-radius: 14px; max-width: 460px; }
     #startGameBtn { margin-top:14px; padding:12px 22px; font-size:16px; border-radius:8px; border:none; cursor:pointer; background:#36c2ff; color:#001321; font-weight:700; }
+    #howToPlayBtn { margin-top:10px; padding:12px 22px; font-size:16px; border-radius:8px; border:none; cursor:pointer; background:#ffffff; color:#001321; font-weight:700; }
+    #howToModal { position: fixed; inset: 0; background: rgba(0,0,0,0.82); z-index: 10001; display: none; align-items: center; justify-content: center; }
+    #howToCard { text-align:left; padding: 24px 28px; background: rgba(0,0,0,0.9); border:1px solid rgba(255,255,255,0.25); border-radius: 14px; max-width: 540px; width: calc(100% - 40px); color:#fff; }
+    #howToTitle { margin-top:0; margin-bottom:8px; }
+    #howToPageTitle { margin: 10px 0 10px 0; color:#9ad3ff; }
+    #howToContent { white-space: pre-line; line-height: 1.5; }
+    .howToActions { display:flex; justify-content:space-between; gap:10px; margin-top:16px; }
+    .howToActions button { padding:10px 16px; border-radius:8px; border:none; cursor:pointer; font-weight:700; }
+    #howToCloseBtn { background:#444; color:#fff; }
+    #howToNextBtn { background:#36c2ff; color:#001321; }
     .pre-game-hidden { display: none !important; }
   </style>
 </head>
@@ -134,6 +144,19 @@
       <h1 style="margin:0 0 8px 0; color:#fff;">Spaceship Duel</h1>
       <p style="margin:0; color:#c7d7ff;">Press Start Game to load the round.</p>
       <button id="startGameBtn">Start Game</button>
+      <button id="howToPlayBtn">How to Play</button>
+    </div>
+  </div>
+
+  <div id="howToModal">
+    <div id="howToCard">
+      <h2 id="howToTitle">HOW TO PLAY:</h2>
+      <h3 id="howToPageTitle"></h3>
+      <div id="howToContent"></div>
+      <div class="howToActions">
+        <button id="howToCloseBtn">Close</button>
+        <button id="howToNextBtn">Next</button>
+      </div>
     </div>
   </div>
 
@@ -2336,8 +2359,78 @@
   }
 
   const startGameBtn = document.getElementById("startGameBtn");
+  const howToPlayBtn = document.getElementById("howToPlayBtn");
+  const howToModal = document.getElementById("howToModal");
+  const howToPageTitle = document.getElementById("howToPageTitle");
+  const howToContent = document.getElementById("howToContent");
+  const howToNextBtn = document.getElementById("howToNextBtn");
+  const howToCloseBtn = document.getElementById("howToCloseBtn");
   const homeScreen = document.getElementById("homeScreen");
   let gameLoaded = false;
+  let howToPage = 0;
+
+  const howToPages = [
+    {
+      title: "PAGE ONE:",
+      content: `Controls:
+
+Mouse: switch views
+
+WASD: up, left, down, right
+
+Space: forward
+
+Shift: Boost
+
+Shift+space: backwards
+
+slider: Rotation sensitivity`
+    },
+    {
+      title: "PAGE TWO:",
+      content: `M: missile (cool down needed though)
+
+click: shoot (hold to auto shoot)
+
+1,2,3: weapons
+
+C: change locked ship/target`
+    },
+    {
+      title: "PAGE THREE:",
+      content: `White bar: shield/regeneratable force field
+
+Red bar: hull
+
+Blue bar: energy(for boost)`
+    }
+  ];
+
+  function renderHowToPage() {
+    const page = howToPages[howToPage];
+    howToPageTitle.textContent = page.title;
+    howToContent.textContent = page.content;
+    howToNextBtn.textContent = howToPage === howToPages.length - 1 ? "Done" : "Next";
+  }
+
+  howToPlayBtn.addEventListener("click", () => {
+    howToPage = 0;
+    renderHowToPage();
+    howToModal.style.display = "flex";
+  });
+
+  howToNextBtn.addEventListener("click", () => {
+    if (howToPage < howToPages.length - 1) {
+      howToPage += 1;
+      renderHowToPage();
+      return;
+    }
+    howToModal.style.display = "none";
+  });
+
+  howToCloseBtn.addEventListener("click", () => {
+    howToModal.style.display = "none";
+  });
 
   startGameBtn.addEventListener("click", () => {
     if (gameLoaded) return;

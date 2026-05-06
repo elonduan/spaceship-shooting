@@ -79,7 +79,6 @@
       display: none;
     }
     #defeatedCounter { margin-top:8px; font-weight:700; font-size:13px; color:#fff;}
-    #playerName { width:120px; margin-left:6px; padding:3px 6px; border-radius:6px; border:1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.03); color:#fff; }
 
     /* Pause overlay style (error screen) */
     #pauseScreen {
@@ -127,7 +126,7 @@
     #startGameBtn { margin-top:14px; padding:12px 22px; font-size:16px; border-radius:8px; border:none; cursor:pointer; background:#36c2ff; color:#001321; font-weight:700; }
     #howToPlayBtn { margin-top:10px; padding:12px 22px; font-size:16px; border-radius:8px; border:none; cursor:pointer; background:#ffffff; color:#001321; font-weight:700; }
     #upgradeBtn { margin-top:10px; padding:12px 22px; font-size:16px; border-radius:8px; border:none; cursor:pointer; background:#7bff7b; color:#002400; font-weight:700; }
-    #settingsBtn { margin-top:10px; padding:12px 22px; font-size:16px; border-radius:8px; border:none; cursor:pointer; background:#ffd36f; color:#2d1b00; font-weight:700; }
+    #pauseSettingsBtn { margin-top:10px; padding:12px 22px; font-size:16px; border-radius:8px; border:none; cursor:pointer; background:#ffd36f; color:#2d1b00; font-weight:700; }
     #settingsModal { position: fixed; inset: 0; background: rgba(0,0,0,0.82); z-index: 10003; display: none; align-items: center; justify-content: center; }
     #settingsCard { text-align:left; padding: 24px 28px; background: rgba(0,0,0,0.9); border:1px solid rgba(255,255,255,0.25); border-radius: 14px; max-width: 540px; width: calc(100% - 40px); color:#fff; }
     #settingsValues { margin-top: 10px; color: #9ad3ff; font-size: 14px; }
@@ -159,7 +158,6 @@
       <button id="startGameBtn">Start Game</button>
       <button id="howToPlayBtn">How to Play</button>
       <button id="upgradeBtn">Upgrade Ship</button>
-      <button id="settingsBtn">Settings</button>
       <p id="creditSummary" style="margin:10px 0 0 0; color:#9ad3ff; font-size:14px;">Credits: 0 | Upgrades: 0</p>
     </div>
   </div>
@@ -207,10 +205,8 @@
   <div id="overlay" class="pre-game-hidden">
     <div class="panel">
       &nbsp;
-      <div><strong>Spaceship Duel Competition — Made by Elon - 48th edition</strong></div>
       <label for="sensitivity">Rotation sensitivity</label>
       <input id="sensitivity" type="range" min="0.005" max="0.2" step="0.002" value="0.1">
-      <button id="resetBtn">Reset</button>
       <div style="margin-top:8px">Missiles left: <span id="missileCount">4</span></div>
       <div id="defeatedCounter">Defeated ships: <span id="defeatedCount">0</span></div>
       <div style="margin-top:8px">
@@ -218,10 +214,6 @@
         <span style="font-size:11px;opacity:0.7"> (1:Normal 2:Heavy 3:Laser)</span>
       </div>
 
-
-      <label style="margin-top:8px">Name:
-        <input id="playerName" type="text" maxlength="20" value="Player">
-      </label>
 
       <div id="win">You destroyed another spaceship</div>
       <div id="lose">The spaceship destroyed you! </div>
@@ -277,6 +269,7 @@
     <div class="errorText">Game Paused</div>
     <p>Need a reminder?</p>
     <button id="pauseHowToBtn">How to Play</button>
+    <button id="pauseSettingsBtn">Settings</button>
     <button id="resumeBtn">Resume (P)</button>
   </div>
 
@@ -1914,7 +1907,6 @@
 
     async function updateDefeatedUI(){
       defeatedEl.textContent = defeatedCount;
-      const playerName = (document.getElementById('playerName') || {}).value || 'Player';
     }
 
     // replace destroyEnemy()
@@ -2415,7 +2407,6 @@
       camera.position.set(0,0,0);
     }
 
-    document.getElementById('resetBtn').addEventListener('click', reset);
     const shootBtn = document.getElementById('shootBtn');
     if (shootBtn) shootBtn.addEventListener('click', shoot);
     const missileBtn = document.getElementById('missileBtn');
@@ -2562,7 +2553,7 @@
   const howToNextBtn = document.getElementById("howToNextBtn");
   const howToCloseBtn = document.getElementById("howToCloseBtn");
   const upgradeBtn = document.getElementById("upgradeBtn");
-  const settingsBtn = document.getElementById("settingsBtn");
+  const pauseSettingsBtn = document.getElementById("pauseSettingsBtn");
   const upgradeModal = document.getElementById("upgradeModal");
   const settingsModal = document.getElementById("settingsModal");
   const settingsCloseBtn = document.getElementById("settingsCloseBtn");
@@ -2666,9 +2657,11 @@ Blue bar: energy(for boost)`
     upgradeModal.style.display = "flex";
   });
 
-  settingsBtn.addEventListener("click", () => {
-    settingsModal.style.display = "flex";
-  });
+  if (pauseSettingsBtn) {
+    pauseSettingsBtn.addEventListener("click", () => {
+      settingsModal.style.display = "flex";
+    });
+  }
 
   settingsCloseBtn.addEventListener("click", () => {
     settingsModal.style.display = "none";

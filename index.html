@@ -502,9 +502,9 @@
 
     // ---------- SCREEN SHAKE ----------
     let shakeTrauma = 0;
-    const MAX_SHAKE_TRAUMA = 1;
-    const SHAKE_DECAY_PER_SEC = 2.8;
-    const SHAKE_POSITION_MAX = 6.5;
+    const MAX_SHAKE_TRAUMA = 0.5;
+    const SHAKE_DECAY_PER_SEC = 1.4;
+    const SHAKE_POSITION_MAX = 3.25;
     function addScreenShake(amount) {
       shakeTrauma = Math.min(MAX_SHAKE_TRAUMA, shakeTrauma + amount);
     }
@@ -1056,7 +1056,7 @@
 
     let deathSequenceStarted = false;
     function damagePlayer(amount){
-      addScreenShake(0.75);
+      addScreenShake(0.35);
       lastPlayerDamageTime = performance.now();
       if (playerShield > 0) {
         playerShield -= amount;
@@ -1594,12 +1594,12 @@
     
         thisDamage = 1.5 * baseDps * (heavyCooldownMs / 1000);
         thisSpeed  = bulletSpeed * 0.6;
-        addScreenShake(0.6);
+        addScreenShake(0.3);
       } 
       else if (weaponMode === 'laser') {
         return;
       } else {
-        addScreenShake(0.12);
+        addScreenShake(0.06);
       }
     
       // Fire ONLY one side

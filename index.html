@@ -9,7 +9,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
   <style>
     html,body{height:100%;margin:0;background:#000;color:#ddd;font-family:"Orbitron",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;overflow:hidden}
-    #overlay{position:fixed;left:12pxtop:12px;z-index:10;max-width:420px}
+    #overlay{position:fixed;left:12px;top:12px;z-index:10;max-width:420px}
     .panel{background:rgba(0,0,0,0.45);padding:12px;border-radius:8px;backdrop-filter:blur(4px)}
     #win,#lose{display:none;padding:18px;margin-top:12px;border-radius:8px;font-weight:700}
     #win{background:linear-gradient(90deg,#0f0,#005500);color:#001}
@@ -82,6 +82,7 @@
       display: none;
     }
     #defeatedCounter { margin-top:8px; font-weight:700; font-size:13px; color:#fff;}
+    #missilesLeftDisplay{position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:16;font-size:14px;color:#fff;font-weight:700;text-align:center;text-shadow:0 1px 2px rgba(0,0,0,0.85);pointer-events:none;}
 
     /* Pause overlay style (error screen) */
     #pauseScreen {
@@ -210,9 +211,6 @@
   <div id="overlay" class="pre-game-hidden">
     <div class="panel">
       &nbsp;
-      <label for="sensitivity">Rotation sensitivity</label>
-      <input id="sensitivity" type="range" min="0.005" max="0.2" step="0.002" value="0.1">
-      <div style="margin-top:8px">Missiles left: <span id="missileCount">4</span></div>
       <div id="defeatedCounter">Defeated ships: <span id="defeatedCount">0</span></div>
       <div style="margin-top:8px">
         Weapon: <span id="weaponLabel">Normal</span>
@@ -265,6 +263,7 @@
   ></video>
 
   <div id="crosshair" class="pre-game-hidden"></div>
+  <div id="missilesLeftDisplay" class="pre-game-hidden">Missiles left: <span id="missileCount">4</span></div>
   <div id="missileUI" class="pre-game-hidden"><span id="missileCountUI"></span></div>
   <div id="canvas-container" class="pre-game-hidden"></div>
   <div id="arrowIndicator" class="pre-game-hidden"></div>
@@ -1011,10 +1010,9 @@
       } else {
         const since = now - lastMissileTime;
         if (since >= missileCooldownMs) {
-          ui.textContent = 'Missile ready';
+          ui.textContent = '';
         } else {
-          const rem = Math.max(0, (missileCooldownMs - since) / 1000);
-          ui.textContent = 'Cooldown ' + rem.toFixed(1) + 's';
+          ui.textContent = '';
         }
       }
     }
@@ -1146,17 +1144,7 @@
       }
     }
 
-    const sensitivityInput = document.getElementById('sensitivity');
-    sensitivityInput.value = String(gameSettings.rotationSensitivity);
     let accel = gameSettings.rotationSensitivity;
-    sensitivityInput.addEventListener('input', (e) => {
-      const value = parseFloat(e.target.value);
-      accel = value;
-      gameSettings.rotationSensitivity = value;
-      const menuSensitivityInput = document.getElementById('menuSensitivity');
-      if (menuSensitivityInput) menuSensitivityInput.value = String(value);
-      updateSettingsSummary();
-    });
     const keys = {};
     function pressKey(code){ keys[code] = true; }
     function releaseKey(code){ keys[code] = false; }
@@ -1306,6 +1294,7 @@
     document.addEventListener('mousemove', (e) => {
       if (!pointerLocked || isPaused) return;
     
+      accel = gameSettings.rotationSensitivity;
       const sens = accel;
     
       // Add acceleration instead of rotating instantly
@@ -1641,8 +1630,7 @@
         return;
       }
       if (now - lastMissileTime < missileCooldownMs) {
-        const rem = ((missileCooldownMs - (now - lastMissileTime))/1000).toFixed(1);
-        ui.textContent = 'Cooldown ' + rem + 's';
+        ui.textContent = '';
         ui.style.transform = 'scale(1.05)';
         setTimeout(()=> ui.style.transform = '', 160);
         return;

@@ -500,6 +500,15 @@
       }, 120);
     }
 
+    // ---------- SCREEN SHAKE ----------
+    let shakeTrauma = 0;
+    const MAX_SHAKE_TRAUMA = 1;
+    const SHAKE_DECAY_PER_SEC = 2.8;
+    const SHAKE_POSITION_MAX = 6.5;
+    function addScreenShake(amount) {
+      shakeTrauma = Math.min(MAX_SHAKE_TRAUMA, shakeTrauma + amount);
+    }
+
     // SMOKE
     const smokeGeo = new THREE.SphereGeometry(6, 10, 10);
 
@@ -1047,6 +1056,7 @@
 
     let deathSequenceStarted = false;
     function damagePlayer(amount){
+      addScreenShake(0.75);
       lastPlayerDamageTime = performance.now();
       if (playerShield > 0) {
         playerShield -= amount;
@@ -1458,6 +1468,14 @@
       camera.position.copy(
         player.position.clone().add(camOffset)
       );
+
+      if (shakeTrauma > 0) {
+        const shakeAmount = shakeTrauma * shakeTrauma;
+        camera.position.x += (Math.random() * 2 - 1) * SHAKE_POSITION_MAX * shakeAmount;
+        camera.position.y += (Math.random() * 2 - 1) * SHAKE_POSITION_MAX * shakeAmount;
+        camera.position.z += (Math.random() * 2 - 1) * SHAKE_POSITION_MAX * 0.45 * shakeAmount;
+        shakeTrauma = Math.max(0, shakeTrauma - SHAKE_DECAY_PER_SEC * dt);
+      }
     }
     // ---------- bullet trails (particles) ----------
     const bulletTrailParticles = [];
@@ -1576,9 +1594,12 @@
     
         thisDamage = 1.5 * baseDps * (heavyCooldownMs / 1000);
         thisSpeed  = bulletSpeed * 0.6;
+        addScreenShake(0.6);
       } 
       else if (weaponMode === 'laser') {
         return;
+      } else {
+        addScreenShake(0.12);
       }
     
       // Fire ONLY one side

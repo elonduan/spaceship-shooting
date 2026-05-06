@@ -2097,6 +2097,53 @@
     const autoShootBtn = document.getElementById('autoShootBtn');
     if (autoShootBtn) autoShootBtn.addEventListener('click', ()=> setAutoShooting(!autoShooting));
 
+    
+    const missileSmokeParticles = [];
+    const missileSmokeGeom = new THREE.SphereGeometry(2.4, 8, 8);
+
+    function addMissileSmokeParticle(missile) {
+      if (!missile || !missile.mesh || !missile.vel) return;
+      const backDir = missile.vel.clone();
+      if (backDir.lengthSq() < 1e-8) return;
+      backDir.normalize().multiplyScalar(-6.5);
+      const spawnPos = missile.mesh.position.clone().add(backDir);
+
+      const particle = new THREE.Mesh(
+        missileSmokeGeom,
+        new THREE.MeshBasicMaterial({
+          color: 0x9a9a9a,
+          transparent: true,
+          opacity: 0.6,
+          depthWrite: false
+        })
+      );
+      particle.position.copy(spawnPos);
+      const drift = backDir.clone().setLength(0.5 + Math.random() * 0.7).add(new THREE.Vector3(
+        (Math.random() - 0.5) * 0.25,
+        (Math.random() - 0.5) * 0.25,
+        (Math.random() - 0.5) * 0.25
+      ));
+      missileSmokeParticles.push({ mesh: particle, life: 1.0, drift });
+      scene.add(particle);
+    }
+
+    function updateMissileSmoke(dt) {
+      for (let i = missileSmokeParticles.length - 1; i >= 0; i--) {
+        const p = missileSmokeParticles[i];
+        p.life -= dt * 1.9;
+        if (p.life <= 0) {
+          scene.remove(p.mesh);
+          p.mesh.material.dispose();
+          missileSmokeParticles.splice(i, 1);
+          continue;
+        }
+        p.mesh.position.add(p.drift.clone().multiplyScalar(dt * 60));
+        const s = 0.95 + (1 - p.life) * 1.2;
+        p.mesh.scale.setScalar(s);
+        p.mesh.material.opacity = 0.55 * p.life;
+      }
+    }
+
     const missileForwardLocal = new THREE.Vector3(0, 0, -1);
     const missileModelCorrection = new THREE.Quaternion()
       .setFromAxisAngle(new THREE.Vector3(0, 1, 0), THREE.MathUtils.degToRad(-45));
@@ -2131,7 +2178,7 @@
         m.mesh.position.add(m.vel.clone().multiplyScalar(dt * 60));
 
         orientMissileToVelocity(m.mesh, m.vel);
-
+        addMissileSmokeParticle(m);
 
         m.life -= dt * 1000;
         if (m.mesh.position.length() > sphereRadius * 4 || m.life <= 0) {
@@ -2271,6 +2318,7 @@
       }
 
       updateMissiles(dt);
+      updateMissileSmoke(dt);
 
       if (!isBossIntroPlaying) {
         for(let i=enemyBullets.length-1;i>=0;i--){
@@ -2438,6 +2486,7 @@
       enemyBullets.forEach(b=>scene.remove(b.mesh)); enemyBullets.length=0;
       missiles.forEach(m=>scene.remove(m.mesh)); missiles.length=0;
       trailParticles.forEach(p=>scene.remove(p.mesh)); trailParticles.length=0;
+      missileSmokeParticles.forEach(p=> { scene.remove(p.mesh); p.mesh.material.dispose(); }); missileSmokeParticles.length=0;
       smokeParticles.forEach(p=>scene.remove(p)); smokeParticles.length=0;
       explosionParticles.forEach(p=>scene.remove(p)); explosionParticles.length=0;
       shockwaves.forEach(p=>scene.remove(p)); shockwaves.length=0;

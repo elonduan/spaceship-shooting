@@ -1725,7 +1725,8 @@
       enemyBullets.push({
         mesh: bullet,
         vel: dir.multiplyScalar(bulletSpeed * 0.8),
-        damage: enemy.damage || enemyDamage
+        damage: enemy.damage || enemyDamage,
+        prevPos: bullet.position.clone()
       });
       scene.add(bullet);
 
@@ -2274,7 +2275,18 @@
       if (!isBossIntroPlaying) {
         for(let i=enemyBullets.length-1;i>=0;i--){
           const b = enemyBullets[i];
-          b.mesh.position.add(b.vel.clone().multiplyScalar(dt*60));
+          const move = b.vel.clone().multiplyScalar(dt * 60);
+          const nextPos = b.mesh.position.clone().add(move);
+
+          const steps = Math.ceil(move.length() / BULLET_TRAIL_SPACING);
+          for (let s = 0; s < steps; s++) {
+            const t = s / Math.max(1, steps - 1);
+            const interp = b.mesh.position.clone().lerp(nextPos, t);
+            leaveBulletTrail(interp);
+          }
+
+          b.mesh.position.copy(nextPos);
+          b.prevPos = b.mesh.position.clone();
           if(b.mesh.position.length()>sphereRadius*2){
             scene.remove(b.mesh); enemyBullets.splice(i,1); continue;
           }

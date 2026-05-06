@@ -126,6 +126,7 @@
     #startGameBtn { margin-top:14px; padding:12px 22px; font-size:16px; border-radius:8px; border:none; cursor:pointer; background:#36c2ff; color:#001321; font-weight:700; }
     #howToPlayBtn { margin-top:10px; padding:12px 22px; font-size:16px; border-radius:8px; border:none; cursor:pointer; background:#ffffff; color:#001321; font-weight:700; }
     #upgradeBtn { margin-top:10px; padding:12px 22px; font-size:16px; border-radius:8px; border:none; cursor:pointer; background:#7bff7b; color:#002400; font-weight:700; }
+    #menuSettingsBtn { margin-top:10px; padding:12px 22px; font-size:16px; border-radius:8px; border:none; cursor:pointer; background:#ffd36f; color:#2d1b00; font-weight:700; }
     #pauseSettingsBtn { margin-top:10px; padding:12px 22px; font-size:16px; border-radius:8px; border:none; cursor:pointer; background:#ffd36f; color:#2d1b00; font-weight:700; }
     #settingsModal { position: fixed; inset: 0; background: rgba(0,0,0,0.82); z-index: 10003; display: none; align-items: center; justify-content: center; }
     #settingsCard { text-align:left; padding: 24px 28px; background: rgba(0,0,0,0.9); border:1px solid rgba(255,255,255,0.25); border-radius: 14px; max-width: 540px; width: calc(100% - 40px); color:#fff; }
@@ -158,6 +159,7 @@
       <button id="startGameBtn">Start Game</button>
       <button id="howToPlayBtn">How to Play</button>
       <button id="upgradeBtn">Upgrade Ship</button>
+      <button id="menuSettingsBtn">Settings</button>
       <p id="creditSummary" style="margin:10px 0 0 0; color:#9ad3ff; font-size:14px;">Credits: 0 | Upgrades: 0</p>
     </div>
   </div>
@@ -2483,6 +2485,7 @@
   const CREDIT_STORAGE_KEY = 'spaceshipDuelCredits';
   const UPGRADE_STORAGE_KEY = 'spaceshipDuelUpgradeCount';
   const STATS_STORAGE_KEY = 'spaceshipDuelStats';
+  const FIRST_TIME_TUTORIAL_KEY = 'spaceshipDuelDidFirstTutorial';
   const defaultStats = { playerMaxHP: 30, playerMaxShield: 9, playerMaxEnergy: 75, boostEnergyDrainPerSec: 45, boostEnergyRechargePerSec: 28, shieldRegenDelayMs: 4000, shieldRegenRatePerSec: 1.5, bulletDamage: 2 };
 
   window.gameProgress = { credits: 0, upgradeCount: 0, stats: { ...defaultStats } };
@@ -2553,6 +2556,7 @@
   const howToNextBtn = document.getElementById("howToNextBtn");
   const howToCloseBtn = document.getElementById("howToCloseBtn");
   const upgradeBtn = document.getElementById("upgradeBtn");
+  const menuSettingsBtn = document.getElementById("menuSettingsBtn");
   const pauseSettingsBtn = document.getElementById("pauseSettingsBtn");
   const upgradeModal = document.getElementById("upgradeModal");
   const settingsModal = document.getElementById("settingsModal");
@@ -2565,6 +2569,7 @@
   const settingsValues = document.getElementById("settingsValues");
   let gameLoaded = false;
   let howToPage = 0;
+  let pendingFirstStart = false;
 
   const howToPages = [
     {
@@ -2645,17 +2650,40 @@ Blue bar: energy(for boost)`
       renderHowToPage();
       return;
     }
-    howToModal.style.display = "none";
+    finishHowToFlow();
   });
 
-  howToCloseBtn.addEventListener("click", () => {
+  function beginGameFromMenu() {
+    if (gameLoaded) return;
+    gameLoaded = true;
+    homeScreen.style.display = "none";
+    document.querySelectorAll(".pre-game-hidden").forEach((el) => el.classList.remove("pre-game-hidden"));
+    initGame();
+  }
+
+  function finishHowToFlow() {
     howToModal.style.display = "none";
+    if (pendingFirstStart) {
+      pendingFirstStart = false;
+      localStorage.setItem(FIRST_TIME_TUTORIAL_KEY, "true");
+      beginGameFromMenu();
+    }
+  }
+
+  howToCloseBtn.addEventListener("click", () => {
+    finishHowToFlow();
   });
 
   upgradeBtn.addEventListener("click", () => {
     renderUpgradeModal();
     upgradeModal.style.display = "flex";
   });
+
+  if (menuSettingsBtn) {
+    menuSettingsBtn.addEventListener("click", () => {
+      settingsModal.style.display = "flex";
+    });
+  }
 
   if (pauseSettingsBtn) {
     pauseSettingsBtn.addEventListener("click", () => {
@@ -2677,10 +2705,15 @@ Blue bar: energy(for boost)`
 
   startGameBtn.addEventListener("click", () => {
     if (gameLoaded) return;
-    gameLoaded = true;
-    homeScreen.style.display = "none";
-    document.querySelectorAll(".pre-game-hidden").forEach((el) => el.classList.remove("pre-game-hidden"));
-    initGame();
+    const hasSeenFirstTutorial = localStorage.getItem(FIRST_TIME_TUTORIAL_KEY) === "true";
+    if (!hasSeenFirstTutorial) {
+      pendingFirstStart = true;
+      howToPage = 0;
+      renderHowToPage();
+      howToModal.style.display = "flex";
+      return;
+    }
+    beginGameFromMenu();
   });
 
 

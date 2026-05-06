@@ -1517,6 +1517,8 @@
     const missileSpeed = 9;
     let accuracy = 5;
     
+    const playerBulletGlowTexture = makeRadialTextureStar(96);
+
     function createPlayerBulletMesh() {
       const baseRadius = 1.2;
       const frontHeight = baseRadius * 2;   // base-radius : height = 1 : 2
@@ -1530,10 +1532,22 @@
       backGeom.rotateX(-Math.PI / 2);
       backGeom.translate(0, 0, -backHeight / 2);
 
-      const bulletMat = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+      const bulletMat = new THREE.MeshBasicMaterial({ color: 0xffff66 });
       const bullet = new THREE.Group();
       bullet.add(new THREE.Mesh(frontGeom, bulletMat));
       bullet.add(new THREE.Mesh(backGeom, bulletMat));
+
+      const glow = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: playerBulletGlowTexture,
+        color: 0xffdd66,
+        transparent: true,
+        opacity: 0.85,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
+      }));
+      glow.scale.set(11, 11, 1);
+      bullet.add(glow);
+
       return bullet;
     }
 

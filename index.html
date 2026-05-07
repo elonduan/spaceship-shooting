@@ -853,7 +853,11 @@
 
       const enemyShipPromise = new Promise((resolve, reject) => {
         gltfLoader.load('./res/spaceship.glb', (gltf) => {
-          const ship = gltf.scene;
+          const sourceScene = gltf.scene;
+          const ship = new THREE.Group();
+          ship.name = 'enemyShipTemplate';
+          ship.add(sourceScene);
+
           const box = new THREE.Box3().setFromObject(ship);
           const center = box.getCenter(new THREE.Vector3());
           const size = box.getSize(new THREE.Vector3());
@@ -861,22 +865,52 @@
           const targetSize = 120;
           const normalizeScale = targetSize / maxDimension;
 
-          ship.position.sub(center);
-          ship.scale.multiplyScalar(normalizeScale);
+          sourceScene.position.sub(center);
+          ship.scale.setScalar(normalizeScale);
           ship.rotateX(THREE.MathUtils.degToRad(90));
+
+          const fallbackMaterial = new THREE.MeshStandardMaterial({
+            color: 0x6ea7ff,
+            metalness: 0.15,
+            roughness: 0.6,
+            emissive: 0x1b2f4d,
+            emissiveIntensity: 0.15,
+            side: THREE.DoubleSide
+          });
+
           ship.traverse((child) => {
-            if (child.isMesh) {
-              child.castShadow = false;
-              child.receiveShadow = false;
-              if (!child.material) {
-                child.material = new THREE.MeshStandardMaterial({ color: 0x6ea7ff });
+            if (!child.isMesh) return;
+
+            child.castShadow = false;
+            child.receiveShadow = false;
+            child.frustumCulled = false;
+
+            if (!child.geometry.boundingSphere) child.geometry.computeBoundingSphere();
+            if (!child.geometry.boundingBox) child.geometry.computeBoundingBox();
+
+            const materials = Array.isArray(child.material) ? child.material : [child.material];
+            const normalizedMaterials = materials.map((mat) => {
+              if (!mat) return fallbackMaterial.clone();
+              mat.side = THREE.DoubleSide;
+              mat.transparent = false;
+              mat.opacity = 1;
+              if (mat.color && mat.color.getHex() === 0x000000) {
+                mat.color.setHex(0x6ea7ff);
               }
-            }
+              if ('metalness' in mat && typeof mat.metalness === 'number') mat.metalness = Math.min(mat.metalness, 0.4);
+              if ('roughness' in mat && typeof mat.roughness === 'number') mat.roughness = Math.max(mat.roughness, 0.35);
+              return mat;
+            });
+
+            child.material = Array.isArray(child.material) ? normalizedMaterials : normalizedMaterials[0];
           });
 
           enemyShipTemplate = ship;
           resolve();
-        }, undefined, reject);
+        }, undefined, (err) => {
+          console.error('Failed to load ./res/spaceship.glb', err);
+          reject(err);
+        });
       });
       const bossPromise = new Promise((resolve, reject) => {
         loader.load('./res/boss.stl', (geometry) => {

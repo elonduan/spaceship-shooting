@@ -300,6 +300,7 @@
   <script src="https://cdn.jsdelivr.net/npm/p5@1.5.0/lib/p5.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/js/loaders/STLLoader.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/js/loaders/GLTFLoader.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/js/utils/SkeletonUtils.js"></script>
   <script>
     const missileExplosion = new Audio("https://actions.google.com/sounds/v1/weapons/big_explosion_cut_off.ogg");
     const bulletSound = new Audio("./res/bullet.mp3");
@@ -1953,7 +1954,9 @@
       if (!enemyShipTemplate) return null;
       const pos = randomUnit().multiplyScalar(sphereRadius * 0.4);
       const vel = randomUnit().multiplyScalar(enemySpeed);
-      const mesh = enemyShipTemplate.clone(true);
+      const mesh = (THREE.SkeletonUtils && THREE.SkeletonUtils.clone)
+        ? THREE.SkeletonUtils.clone(enemyShipTemplate)
+        : enemyShipTemplate.clone(true);
       mesh.scale.set(1, 1, 1);
       mesh.position.copy(pos);
       const enemy = {

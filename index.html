@@ -856,12 +856,21 @@
           const ship = gltf.scene;
           const box = new THREE.Box3().setFromObject(ship);
           const center = box.getCenter(new THREE.Vector3());
+          const size = box.getSize(new THREE.Vector3());
+          const maxDimension = Math.max(size.x, size.y, size.z, 0.0001);
+          const targetSize = 120;
+          const normalizeScale = targetSize / maxDimension;
+
           ship.position.sub(center);
+          ship.scale.multiplyScalar(normalizeScale);
           ship.rotateX(THREE.MathUtils.degToRad(90));
           ship.traverse((child) => {
             if (child.isMesh) {
               child.castShadow = false;
               child.receiveShadow = false;
+              if (!child.material) {
+                child.material = new THREE.MeshStandardMaterial({ color: 0x6ea7ff });
+              }
             }
           });
 
@@ -1911,7 +1920,7 @@
       const pos = randomUnit().multiplyScalar(sphereRadius * 0.4);
       const vel = randomUnit().multiplyScalar(enemySpeed);
       const mesh = enemyShipTemplate.clone(true);
-      mesh.scale.set(0.5, 0.5, 0.5);
+      mesh.scale.set(1, 1, 1);
       mesh.position.copy(pos);
       const enemy = {
         mesh,

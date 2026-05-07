@@ -299,6 +299,7 @@
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/p5@1.5.0/lib/p5.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/js/loaders/STLLoader.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/js/loaders/GLTFLoader.js"></script>
   <script>
     const missileExplosion = new Audio("https://actions.google.com/sounds/v1/weapons/big_explosion_cut_off.ogg");
     const bulletSound = new Audio("./res/bullet.mp3");
@@ -838,30 +839,33 @@
     const enemies = [];
     let selectedEnemyIndex = 0;
 
-    let spaceshipGeometry = null;   // enemies
+    let enemyShipTemplate = null;   // enemies
     let playerGeometry = null;      // player
-    let spaceshipMaterial = null;
     let missileGeometry = null;
     let mouseHeld = false;
     let bossGeometry = null;
     let bossMaterial = null;
 
     const loader = new THREE.STLLoader();
+    const gltfLoader = new THREE.GLTFLoader();
 
     const loadModels = () => {
 
       const enemyShipPromise = new Promise((resolve, reject) => {
-        loader.load('./res/spaceship.stl', (geometry) => {
-          geometry.computeBoundingBox();
-          const bb = geometry.boundingBox;
-          const center = new THREE.Vector3();
-          bb.getCenter(center);
+        gltfLoader.load('./res/spaceship.glb', (gltf) => {
+          const ship = gltf.scene;
+          const box = new THREE.Box3().setFromObject(ship);
+          const center = box.getCenter(new THREE.Vector3());
+          ship.position.sub(center);
+          ship.rotateX(THREE.MathUtils.degToRad(90));
+          ship.traverse((child) => {
+            if (child.isMesh) {
+              child.castShadow = false;
+              child.receiveShadow = false;
+            }
+          });
 
-          geometry.translate(-center.x, -center.y, -center.z);
-          geometry.rotateX(THREE.MathUtils.degToRad(90));
-
-          spaceshipGeometry = geometry;
-          spaceshipMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff });
+          enemyShipTemplate = ship;
           resolve();
         }, undefined, reject);
       });
@@ -1903,10 +1907,10 @@
     }
 
     function createEnemy() {
-      if (!spaceshipGeometry) return null;
+      if (!enemyShipTemplate) return null;
       const pos = randomUnit().multiplyScalar(sphereRadius * 0.4);
       const vel = randomUnit().multiplyScalar(enemySpeed);
-      const mesh = new THREE.Mesh(spaceshipGeometry, spaceshipMaterial.clone());
+      const mesh = enemyShipTemplate.clone(true);
       mesh.scale.set(0.5, 0.5, 0.5);
       mesh.position.copy(pos);
       const enemy = {

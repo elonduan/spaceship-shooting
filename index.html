@@ -895,11 +895,18 @@
               mat.side = THREE.DoubleSide;
               mat.transparent = false;
               mat.opacity = 1;
+              mat.alphaTest = 0;
+              mat.blending = THREE.NormalBlending;
+              mat.depthWrite = true;
+              mat.depthTest = true;
+              if ('transmission' in mat && typeof mat.transmission === 'number') mat.transmission = 0;
+              if ('premultipliedAlpha' in mat) mat.premultipliedAlpha = false;
               if (mat.color && mat.color.getHex() === 0x000000) {
                 mat.color.setHex(0x6ea7ff);
               }
               if ('metalness' in mat && typeof mat.metalness === 'number') mat.metalness = Math.min(mat.metalness, 0.4);
               if ('roughness' in mat && typeof mat.roughness === 'number') mat.roughness = Math.max(mat.roughness, 0.35);
+              mat.needsUpdate = true;
               return mat;
             });
 

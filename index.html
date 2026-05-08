@@ -2158,7 +2158,7 @@
 
     const missileForwardLocal = new THREE.Vector3(0, 0, -1);
     const missileModelCorrection = new THREE.Quaternion()
-      .setFromAxisAngle(new THREE.Vector3(0, 1, 0), THREE.MathUtils.degToRad(-45));
+      .setFromAxisAngle(new THREE.Vector3(0, 1, 0), THREE.MathUtils.degToRad(90));
 
     function orientMissileToVelocity(missileMesh, velocity) {
       if (!missileMesh || !velocity || velocity.lengthSq() < 1e-8) return;

@@ -170,7 +170,7 @@
   <div id="screenFlash"></div>
 
   <div id="homeScreen">
-    <video id="homeBackgroundVideo" src="./res/background.mp4" autoplay muted loop playsinline></video>
+    <video id="homeBackgroundVideo" src="./res/background.mp4" autoplay loop playsinline></video>
     <div id="homeCard">
       <h1 style="margin:0 0 8px 0; color:#fff;">Spaceship Duel</h1>
       <p style="margin:0; color:#c7d7ff;">Press Start Game to load the round.</p>
@@ -2724,6 +2724,17 @@ Blue bar: energy(for boost)`
     settingsValues.textContent = `Sensitivity: ${gameSettings.rotationSensitivity.toFixed(3)} | Music: ${Math.round(gameSettings.musicVolume * 100)}%`;
   }
 
+
+  function enableHomeVideoAudio() {
+    const homeBackgroundVideo = document.getElementById("homeBackgroundVideo");
+    if (!homeBackgroundVideo) return;
+    homeBackgroundVideo.muted = false;
+    homeBackgroundVideo.volume = gameSettings.musicVolume;
+    homeBackgroundVideo.play().catch(() => {});
+  }
+
+  document.addEventListener("pointerdown", enableHomeVideoAudio, { once: true });
+  document.addEventListener("keydown", enableHomeVideoAudio, { once: true });
   menuSensitivity.value = String(gameSettings.rotationSensitivity);
   menuMusicVolume.value = String(gameSettings.musicVolume);
   updateSettingsSummary();
@@ -2740,6 +2751,8 @@ Blue bar: energy(for boost)`
     const value = parseFloat(e.target.value);
     gameSettings.musicVolume = value;
     backgroundMusic.volume = value;
+    const homeBackgroundVideo = document.getElementById("homeBackgroundVideo");
+    if (homeBackgroundVideo) homeBackgroundVideo.volume = value;
     updateSettingsSummary();
   });
 

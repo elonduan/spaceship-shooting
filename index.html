@@ -302,7 +302,7 @@
   <script>
     const missileExplosion = new Audio("https://actions.google.com/sounds/v1/weapons/big_explosion_cut_off.ogg");
     const bulletSound = new Audio("./res/bullet.mp3");
-    const backgroundMusic = new Audio("./res/music.mp3");
+    const backgroundMusic = new Audio("./res/game_background.mp3");
     backgroundMusic.loop = true;      // repeat forever
     backgroundMusic.volume = 0.1;     // adjust volume
     const damage = new Audio("./res/damage.mp3");
@@ -315,9 +315,6 @@
   backgroundMusic.volume = gameSettings.musicVolume;
 
   function initGame(){
-    document.addEventListener("click", () => {
-      backgroundMusic.play();
-    }, { once: true });
     
     /*********************** Game setup ***********************/
     const container = document.getElementById('canvas-container');
@@ -2764,7 +2761,13 @@ Blue bar: energy(for boost)`
   function beginGameFromMenu() {
     if (gameLoaded) return;
     gameLoaded = true;
+    const homeBackgroundVideo = document.getElementById("homeBackgroundVideo");
+    if (homeBackgroundVideo) {
+      homeBackgroundVideo.pause();
+      homeBackgroundVideo.currentTime = 0;
+    }
     homeScreen.style.display = "none";
+    backgroundMusic.play().catch(() => {});
     document.querySelectorAll(".pre-game-hidden").forEach((el) => el.classList.remove("pre-game-hidden"));
     initGame();
   }

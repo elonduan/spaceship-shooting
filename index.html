@@ -305,6 +305,9 @@
     const backgroundMusic = new Audio("./res/game_background.mp3");
     backgroundMusic.loop = true;      // repeat forever
     backgroundMusic.volume = 0.1;     // adjust volume
+    const menuMusic = new Audio("./res/music.mp3");
+    menuMusic.loop = true;
+    menuMusic.volume = 0.1;
     const damage = new Audio("./res/damage.mp3");
   </script>
   <script>
@@ -313,6 +316,7 @@
     musicVolume: 0.4
   };
   backgroundMusic.volume = gameSettings.musicVolume;
+  menuMusic.volume = gameSettings.musicVolume;
 
   function initGame(){
     
@@ -2727,10 +2731,13 @@ Blue bar: energy(for boost)`
 
   function enableHomeVideoAudio() {
     const homeBackgroundVideo = document.getElementById("homeBackgroundVideo");
-    if (!homeBackgroundVideo) return;
-    homeBackgroundVideo.muted = false;
-    homeBackgroundVideo.volume = gameSettings.musicVolume;
-    homeBackgroundVideo.play().catch(() => {});
+    if (homeBackgroundVideo) {
+      homeBackgroundVideo.muted = false;
+      homeBackgroundVideo.volume = gameSettings.musicVolume;
+      homeBackgroundVideo.play().catch(() => {});
+    }
+    menuMusic.volume = gameSettings.musicVolume;
+    menuMusic.play().catch(() => {});
   }
 
   document.addEventListener("pointerdown", enableHomeVideoAudio, { once: true });
@@ -2751,6 +2758,7 @@ Blue bar: energy(for boost)`
     const value = parseFloat(e.target.value);
     gameSettings.musicVolume = value;
     backgroundMusic.volume = value;
+    menuMusic.volume = value;
     const homeBackgroundVideo = document.getElementById("homeBackgroundVideo");
     if (homeBackgroundVideo) homeBackgroundVideo.volume = value;
     updateSettingsSummary();
@@ -2780,6 +2788,8 @@ Blue bar: energy(for boost)`
       homeBackgroundVideo.currentTime = 0;
     }
     homeScreen.style.display = "none";
+    menuMusic.pause();
+    menuMusic.currentTime = 0;
     backgroundMusic.play().catch(() => {});
     document.querySelectorAll(".pre-game-hidden").forEach((el) => el.classList.remove("pre-game-hidden"));
     initGame();

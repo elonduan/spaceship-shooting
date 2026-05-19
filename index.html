@@ -46,22 +46,6 @@
       box-sizing: border-box;
     }
 
-
-    .barContainer.playerBarContainer {
-      width: 216px;
-    }
-
-    .hpStack .damageFlash {
-      position: absolute;
-      top: 0;
-      height: 100%;
-      background: rgba(204, 228, 240, 0.7);
-      border-radius: inherit;
-      pointer-events: none;
-      opacity: 1;
-      transition: opacity 180ms ease-out;
-    }
-
     .hpStack .bar {
       height: 8px;
       border-radius: 6px;
@@ -251,7 +235,7 @@
   </div>
 
   <div class="hud-row pre-game-hidden" id="hud">
-    <div class="barContainer playerBarContainer">
+    <div class="barContainer">
       <div id="playerBar" class="hpStack">
         <div class="bar shield" id="playerShieldBar"></div>
         <div class="bar health" id="playerHealthBar"></div>
@@ -1063,32 +1047,6 @@
       if (healthElem) healthElem.style.width = hpPercent + '%';
     }
 
-
-
-    function flashDamageSegment(containerId, barClass, previousValue, currentValue, maxValue) {
-      if (previousValue <= currentValue || maxValue <= 0) return;
-      const barElem = document.querySelector(`#${containerId} .${barClass}`);
-      if (!barElem) return;
-      const startValue = Math.max(0, Math.min(currentValue, maxValue));
-      const endValue = Math.max(0, Math.min(previousValue, maxValue));
-      const segmentWidthPercent = ((endValue - startValue) / maxValue) * 100;
-      if (segmentWidthPercent <= 0) return;
-
-      const segment = document.createElement('div');
-      segment.className = 'damageFlash';
-      segment.style.left = `${(startValue / maxValue) * 100}%`;
-      segment.style.width = `${segmentWidthPercent}%`;
-      barElem.appendChild(segment);
-
-      requestAnimationFrame(() => {
-        segment.style.opacity = '0';
-      });
-
-      setTimeout(() => {
-        if (segment.parentNode) segment.parentNode.removeChild(segment);
-      }, 220);
-    }
-
     function updateHP(){
       setShieldAndHP('playerBar', playerShield, playerMaxShield, playerHP, playerMaxHP);
       const energyFill = document.getElementById('energyArcFill');
@@ -1121,8 +1079,6 @@
     function damagePlayer(amount){
       addScreenShake(0.35);
       lastPlayerDamageTime = performance.now();
-      const prevShield = playerShield;
-      const prevHP = playerHP;
       if (playerShield > 0) {
         playerShield -= amount;
         if (playerShield < 0) {
@@ -1135,8 +1091,6 @@
       }
       playerHP = Math.max(0, playerHP);
       updateHP();
-      flashDamageSegment('playerBar', 'shield', prevShield, playerShield, playerMaxShield);
-      flashDamageSegment('playerBar', 'health', prevHP, playerHP, playerMaxHP);
       if (playerHP <= 0 && !deathSequenceStarted) {
         deathSequenceStarted = true;
         const deathPos = camera.position.clone();
@@ -1166,8 +1120,6 @@
     function damageEnemy(enemy, amount){
       if (!enemy) return;
       lastEnemyDamageTime = performance.now();
-      const prevShield = enemy.shield;
-      const prevHP = enemy.hp;
 
       if (enemy.shield > 0) {
         enemy.shield -= amount;
@@ -1182,12 +1134,6 @@
 
       enemy.hp = Math.max(0, enemy.hp);
       updateHP();
-
-      const enemyBarId = enemy.uiBarId || (enemies[0] === enemy ? 'enemyBar1' : (enemies[1] === enemy ? 'enemyBar2' : null));
-      if (enemyBarId) {
-        flashDamageSegment(enemyBarId, 'shield', prevShield, enemy.shield, enemy.maxShield ?? enemyMaxShield);
-        flashDamageSegment(enemyBarId, 'health', prevHP, enemy.hp, enemyMaxHP);
-      }
 
       if (enemy.hp > 0 && enemy.hp / enemyMaxHP < 0.15) {
         addSparks(enemy, 6);

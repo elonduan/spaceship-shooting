@@ -92,6 +92,7 @@
     }
     #defeatedCounter { margin-top:8px; font-weight:700; font-size:13px; color:#fff;}
     #missilesLeftDisplay{position:fixed;left:50%;top:calc(50% + 26px);transform:translateX(-50%);z-index:16;font-size:14px;color:#fff;font-weight:700;text-align:center;text-shadow:0 1px 2px rgba(0,0,0,0.85);pointer-events:none;}
+    #weaponModeDisplay{position:fixed;left:50%;top:calc(50% + 50px);transform:translateX(-50%);z-index:16;font-size:14px;color:#fff;font-weight:700;text-align:center;text-shadow:0 1px 2px rgba(0,0,0,0.85);pointer-events:none;}
     #energyArcHUD{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:112px;height:112px;z-index:14;pointer-events:none;}
     #energyArcHUD svg{width:100%;height:100%;display:block;}
     #energyArcTrack,#energyArcFill{fill:none;stroke-linecap:round;}
@@ -226,12 +227,6 @@
     <div class="panel">
       &nbsp;
       <div id="defeatedCounter">Defeated ships: <span id="defeatedCount">0</span></div>
-      <div style="margin-top:8px">
-        Weapon: <span id="weaponLabel">Normal</span>
-        <span style="font-size:11px;opacity:0.7"> (1:Normal 2:Heavy 3:Laser)</span>
-      </div>
-
-
       <div id="win">You destroyed another spaceship</div>
       <div id="lose">The spaceship destroyed you! </div>
     </div>
@@ -283,6 +278,7 @@
     </svg>
   </div>
   <div id="missilesLeftDisplay" class="pre-game-hidden">Missiles left: <span id="missileCount">4</span></div>
+  <div id="weaponModeDisplay" class="pre-game-hidden">Weapon: <span id="weaponLabel">Normal</span> <span style="font-size:11px;opacity:0.7">(1:Normal 2:Heavy 3:Laser)</span></div>
   <div id="missileUI" class="pre-game-hidden"><span id="missileCountUI"></span></div>
   <div id="canvas-container" class="pre-game-hidden"></div>
   <div id="arrowIndicator" class="pre-game-hidden"></div>
@@ -2080,7 +2076,17 @@
 
     const weaponLabel = document.getElementById('weaponLabel');
 
+    function isWeaponUnlocked(mode) {
+      if (mode === 'normal') return true;
+      const unlockedWeapons = window.gameProgress?.stats?.unlockedWeapons || {};
+      return Boolean(unlockedWeapons[mode]);
+    }
+
     function setWeaponMode(mode) {
+      if (!isWeaponUnlocked(mode)) {
+        alert(`${mode === 'heavy' ? 'Heavy Shot' : 'Laser'} is locked. Unlock it in Ship Upgrades for 12000 credits.`);
+        return;
+      }
       weaponMode = mode;
       if (weaponLabel) {
         if (mode === 'normal') weaponLabel.textContent = 'Normal';
@@ -2595,7 +2601,8 @@
   const UPGRADE_STORAGE_KEY = 'spaceshipDuelUpgradeCount';
   const STATS_STORAGE_KEY = 'spaceshipDuelStats';
   const FIRST_TIME_TUTORIAL_KEY = 'spaceshipDuelDidFirstTutorial';
-  const defaultStats = { playerMaxHP: 30, playerMaxShield: 9, playerMaxEnergy: 75, boostEnergyDrainPerSec: 45, boostEnergyRechargePerSec: 28, shieldRegenDelayMs: 4000, shieldRegenRatePerSec: 1.5, bulletDamage: 2 };
+  const WEAPON_UNLOCK_COST = 12000;
+  const defaultStats = { playerMaxHP: 30, playerMaxShield: 9, playerMaxEnergy: 75, boostEnergyDrainPerSec: 45, boostEnergyRechargePerSec: 28, shieldRegenDelayMs: 4000, shieldRegenRatePerSec: 1.5, bulletDamage: 2, unlockedWeapons: { heavy: false, laser: false } };
 
   window.gameProgress = { credits: 0, upgradeCount: 0, stats: { ...defaultStats } };
   window.getUpgradeCost = (upgradeCount) => (100 * upgradeCount) + 500;
@@ -2620,6 +2627,19 @@
 
   function applyUpgradeType(type){
     const gp = window.gameProgress;
+    if (type === 'unlockHeavy' || type === 'unlockLaser') {
+      const weaponKey = type === 'unlockHeavy' ? 'heavy' : 'laser';
+      const weaponName = weaponKey === 'heavy' ? 'Heavy Shot' : 'Laser';
+      gp.stats.unlockedWeapons = gp.stats.unlockedWeapons || { heavy: false, laser: false };
+      if (gp.stats.unlockedWeapons[weaponKey]) { alert(`${weaponName} is already unlocked.`); return; }
+      if (gp.credits < WEAPON_UNLOCK_COST){ alert(`Not enough credits. Need ${WEAPON_UNLOCK_COST}, have ${Math.floor(gp.credits)}.`); return; }
+      gp.credits -= WEAPON_UNLOCK_COST;
+      gp.stats.unlockedWeapons[weaponKey] = true;
+      window.saveGameProgress();
+      window.refreshCreditSummary();
+      renderUpgradeModal();
+      return;
+    }
     const cost = window.getUpgradeCost(gp.upgradeCount);
     if (gp.credits < cost){ alert(`Not enough credits. Need ${cost}, have ${Math.floor(gp.credits)}.`); return; }
     gp.credits -= cost;
@@ -2645,12 +2665,20 @@
 
   function renderUpgradeModal(){
     const gp = window.gameProgress;
-    document.getElementById('upgradeStats').textContent = `Current stats — HP: ${gp.stats.playerMaxHP}, Shield: ${gp.stats.playerMaxShield}, Energy: ${gp.stats.playerMaxEnergy}, Bullet DMG: ${gp.stats.bulletDamage.toFixed(2)}, Shield Regen: ${gp.stats.shieldRegenRatePerSec.toFixed(2)}/s`;
+    gp.stats.unlockedWeapons = gp.stats.unlockedWeapons || { heavy: false, laser: false };
+    document.getElementById('upgradeStats').textContent = `Current stats — HP: ${gp.stats.playerMaxHP}, Shield: ${gp.stats.playerMaxShield}, Energy: ${gp.stats.playerMaxEnergy}, Bullet DMG: ${gp.stats.bulletDamage.toFixed(2)}, Shield Regen: ${gp.stats.shieldRegenRatePerSec.toFixed(2)}/s, Heavy: ${gp.stats.unlockedWeapons.heavy ? 'Unlocked' : 'Locked'}, Laser: ${gp.stats.unlockedWeapons.laser ? 'Unlocked' : 'Locked'}`;
     const options = [
       ['hp','Player Max HP (+3)'],['shield','Max Shield (+1)'],['energy','Max Energy (+4)'],['regen','Shield Regen (faster)'],['boost','Boost Efficiency'],['weapon','Weapon Damage (+0.08)']
     ];
     const cost = window.getUpgradeCost(gp.upgradeCount);
-    document.getElementById('upgradeOptions').innerHTML = options.map(([k,l]) => `<div class="upgradeOption"><span>${l}</span><button data-upgrade="${k}">Buy (${cost})</button></div>`).join('');
+    const weaponUnlockOptions = [
+      ['unlockHeavy', `Unlock Heavy Shot (${WEAPON_UNLOCK_COST} credits)`],
+      ['unlockLaser', `Unlock Laser (${WEAPON_UNLOCK_COST} credits)`]
+    ];
+    document.getElementById('upgradeOptions').innerHTML = [
+      ...options.map(([k,l]) => `<div class="upgradeOption"><span>${l}</span><button data-upgrade="${k}">Buy (${cost})</button></div>`),
+      ...weaponUnlockOptions.map(([k,l]) => `<div class="upgradeOption"><span>${l}</span><button data-upgrade="${k}">${gp.stats.unlockedWeapons[k === 'unlockHeavy' ? 'heavy' : 'laser'] ? 'Unlocked' : 'Unlock'}</button></div>`)
+    ].join('');
     document.querySelectorAll('[data-upgrade]').forEach(btn => btn.onclick = () => applyUpgradeType(btn.dataset.upgrade));
   }
 

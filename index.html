@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
   <style>
-    html,body{height:100%;margin:0;background:#000;color:#ddd;font-family:"Orbitron",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;overflow:hidden}
+    html,body{height:100%;margin:0;background:#000;color:#ddd;font-family:"Orbitron",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;overflow:hidden;letter-spacing:0.8px}
     #overlay{position:fixed;left:12px;top:12px;z-index:10;max-width:420px}
     .panel{background:rgba(0,0,0,0.45);padding:12px;border-radius:8px;backdrop-filter:blur(4px)}
     #win,#lose{display:none;padding:18px;margin-top:12px;border-radius:8px;font-weight:700}
@@ -34,7 +34,7 @@
 
     .barContainer {
       width: 180px;
-      height: 44px;
+      height: 30px;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
@@ -47,7 +47,7 @@
     }
 
     .hpStack .bar {
-      height: 16px;
+      height: 8px;
       border-radius: 6px;
       transition: width 120ms linear;
       width: 100%;
@@ -155,6 +155,8 @@
     #upgradeStats { font-size:14px; color:#b7d4ff; margin:8px 0 12px 0; line-height:1.5; }
     .upgradeOption { display:flex; justify-content:space-between; align-items:center; gap:10px; background: rgba(255,255,255,0.05); padding:10px; border-radius:8px; margin-bottom:8px; }
     .upgradeOption button { padding:8px 12px; border:none; border-radius:7px; font-weight:700; cursor:pointer; background:#7bff7b; color:#002400; }
+    .upgradeOption.weaponUpgrade { background: #bfe8ff; font-weight: 700; }
+    .upgradeOption.weaponUpgrade span { color: #02263a; font-weight: 700; }
     #howToModal { position: fixed; inset: 0; background: rgba(0,0,0,0.82); z-index: 10001; display: none; align-items: center; justify-content: center; }
     #howToCard { text-align:left; padding: 24px 28px; background: rgba(0,0,0,0.9); border:1px solid rgba(255,255,255,0.25); border-radius: 14px; max-width: 540px; width: calc(100% - 40px); color:#fff; }
     #howToTitle { margin-top:0; margin-bottom:8px; }
@@ -2676,7 +2678,7 @@
       ['unlockLaser', `Unlock Laser (${WEAPON_UNLOCK_COST} credits)`]
     ];
     document.getElementById('upgradeOptions').innerHTML = [
-      ...options.map(([k,l]) => `<div class="upgradeOption"><span>${l}</span><button data-upgrade="${k}">Buy (${cost})</button></div>`),
+      ...options.map(([k,l]) => `<div class="upgradeOption${k === 'weapon' ? ' weaponUpgrade' : ''}"><span>${l}</span><button data-upgrade="${k}">Buy (${cost})</button></div>`),
       ...weaponUnlockOptions.map(([k,l]) => `<div class="upgradeOption"><span>${l}</span><button data-upgrade="${k}">${gp.stats.unlockedWeapons[k === 'unlockHeavy' ? 'heavy' : 'laser'] ? 'Unlocked' : 'Unlock'}</button></div>`)
     ].join('');
     document.querySelectorAll('[data-upgrade]').forEach(btn => btn.onclick = () => applyUpgradeType(btn.dataset.upgrade));

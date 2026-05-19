@@ -46,25 +46,45 @@
       box-sizing: border-box;
     }
 
+
+    .barContainer.playerBarContainer {
+      width: 216px;
+    }
+
+    .hpStack .damageFlash {
+      position: absolute;
+      top: 0;
+      height: 100%;
+      background: rgba(204, 228, 240, 0.7);
+      border-radius: inherit;
+      pointer-events: none;
+      opacity: 1;
+      transition: opacity 180ms ease-out;
+    }
+
     .hpStack .bar {
       height: 8px;
       border-radius: 6px;
-      transition: width 120ms linear;
       width: 100%;
       background: rgba(255,255,255,0.05);
       overflow: hidden;
       position: relative;
     }
 
-    .hpStack .shield {
-      background: #ffffff;
+    .hpStack .bar .fill {
+      height: 100%;
       width: 100%;
+      border-radius: inherit;
+      transition: width 120ms linear;
+    }
+
+    .hpStack .shield .fill {
+      background: #ffffff;
       box-shadow: inset 0 0 6px rgba(255,255,255,0.05);
     }
 
-    .hpStack .health {
+    .hpStack .health .fill {
       background: #ff2b2b;
-      width: 100%;
       box-shadow: inset 0 0 6px rgba(0,0,0,0.15);
     }
     .hpStack .energy {
@@ -235,26 +255,26 @@
   </div>
 
   <div class="hud-row pre-game-hidden" id="hud">
-    <div class="barContainer">
+    <div class="barContainer playerBarContainer">
       <div id="playerBar" class="hpStack">
-        <div class="bar shield" id="playerShieldBar"></div>
-        <div class="bar health" id="playerHealthBar"></div>
+        <div class="bar shield" id="playerShieldBar"><div class="fill"></div></div>
+        <div class="bar health" id="playerHealthBar"><div class="fill"></div></div>
       </div>
     </div>
 
     <!-- Enemy 1 -->
     <div class="barContainer">
       <div id="enemyBar1" class="hpStack">
-        <div class="bar shield"></div>
-        <div class="bar health"></div>
+        <div class="bar shield"><div class="fill"></div></div>
+        <div class="bar health"><div class="fill"></div></div>
       </div>
     </div>
 
     <!-- Enemy 2 -->
     <div class="barContainer">
       <div id="enemyBar2" class="hpStack">
-        <div class="bar shield"></div>
-        <div class="bar health"></div>
+        <div class="bar shield"><div class="fill"></div></div>
+        <div class="bar health"><div class="fill"></div></div>
       </div>
     </div>
   </div>
@@ -1037,14 +1057,40 @@
     setInterval(updateMissileUI, 100);
 
     function setShieldAndHP(containerId, shield, maxShield, hp, maxHP) {
-      const shieldElem = document.querySelector(`#${containerId} .shield`);
-      const healthElem = document.querySelector(`#${containerId} .health`);
+      const shieldElem = document.querySelector(`#${containerId} .shield .fill`);
+      const healthElem = document.querySelector(`#${containerId} .health .fill`);
       const clampedShield = Math.max(0, Math.min(shield, maxShield));
       const clampedHP = Math.max(0, Math.min(hp, maxHP));
       const shieldPercent = (clampedShield / maxShield) * 100;
       const hpPercent = (clampedHP / maxHP) * 100;
       if (shieldElem) shieldElem.style.width = shieldPercent + '%';
       if (healthElem) healthElem.style.width = hpPercent + '%';
+    }
+
+
+
+    function flashDamageSegment(containerId, barClass, previousValue, currentValue, maxValue) {
+      if (previousValue <= currentValue || maxValue <= 0) return;
+      const barElem = document.querySelector(`#${containerId} .${barClass}`);
+      if (!barElem) return;
+      const startValue = Math.max(0, Math.min(currentValue, maxValue));
+      const endValue = Math.max(0, Math.min(previousValue, maxValue));
+      const segmentWidthPercent = ((endValue - startValue) / maxValue) * 100;
+      if (segmentWidthPercent <= 0) return;
+
+      const segment = document.createElement('div');
+      segment.className = 'damageFlash';
+      segment.style.left = `${(startValue / maxValue) * 100}%`;
+      segment.style.width = `${segmentWidthPercent}%`;
+      barElem.appendChild(segment);
+
+      requestAnimationFrame(() => {
+        segment.style.opacity = '0';
+      });
+
+      setTimeout(() => {
+        if (segment.parentNode) segment.parentNode.removeChild(segment);
+      }, 220);
     }
 
     function updateHP(){
@@ -1079,6 +1125,8 @@
     function damagePlayer(amount){
       addScreenShake(0.35);
       lastPlayerDamageTime = performance.now();
+      const prevShield = playerShield;
+      const prevHP = playerHP;
       if (playerShield > 0) {
         playerShield -= amount;
         if (playerShield < 0) {
@@ -1091,6 +1139,8 @@
       }
       playerHP = Math.max(0, playerHP);
       updateHP();
+      flashDamageSegment('playerBar', 'shield', prevShield, playerShield, playerMaxShield);
+      flashDamageSegment('playerBar', 'health', prevHP, playerHP, playerMaxHP);
       if (playerHP <= 0 && !deathSequenceStarted) {
         deathSequenceStarted = true;
         const deathPos = camera.position.clone();
@@ -1120,6 +1170,8 @@
     function damageEnemy(enemy, amount){
       if (!enemy) return;
       lastEnemyDamageTime = performance.now();
+      const prevShield = enemy.shield;
+      const prevHP = enemy.hp;
 
       if (enemy.shield > 0) {
         enemy.shield -= amount;
@@ -1134,6 +1186,12 @@
 
       enemy.hp = Math.max(0, enemy.hp);
       updateHP();
+
+      const enemyBarId = enemy.uiBarId || (enemies[0] === enemy ? 'enemyBar1' : (enemies[1] === enemy ? 'enemyBar2' : null));
+      if (enemyBarId) {
+        flashDamageSegment(enemyBarId, 'shield', prevShield, enemy.shield, enemy.maxShield ?? enemyMaxShield);
+        flashDamageSegment(enemyBarId, 'health', prevHP, enemy.hp, enemyMaxHP);
+      }
 
       if (enemy.hp > 0 && enemy.hp / enemyMaxHP < 0.15) {
         addSparks(enemy, 6);

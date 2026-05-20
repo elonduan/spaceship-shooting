@@ -51,6 +51,18 @@
       width: 216px;
     }
 
+    .enemyBarContainer {
+      position: fixed;
+      width: 140px;
+      height: 24px;
+      padding: 3px;
+      z-index: 18;
+      pointer-events: none;
+      display: none;
+      transform: translate(-50%, -100%);
+      background: rgba(0,0,0,0.35);
+    }
+
     .hpStack .damageFlash {
       position: absolute;
       top: 0;
@@ -175,8 +187,10 @@
     #upgradeStats { font-size:14px; color:#b7d4ff; margin:8px 0 12px 0; line-height:1.5; }
     .upgradeOption { display:flex; justify-content:space-between; align-items:center; gap:10px; background: rgba(255,255,255,0.05); padding:10px; border-radius:8px; margin-bottom:8px; }
     .upgradeOption button { padding:8px 12px; border:none; border-radius:7px; font-weight:700; cursor:pointer; background:#7bff7b; color:#002400; }
-    .upgradeOption.weaponUpgrade { background: #bfe8ff; font-weight: 700; }
-    .upgradeOption.weaponUpgrade span { color: #02263a; font-weight: 700; }
+    .upgradeOption.weaponUpgrade { background: rgba(0,0,0,0.45); border:1px solid rgba(255,255,255,0.2); font-weight: 700; }
+    .upgradeOption.weaponUpgrade span { color: #fff; font-weight: 700; }
+    .upgradeOption.unlockWeaponUpgrade { background: #bfe8ff; }
+    .upgradeOption.unlockWeaponUpgrade span { color: #02263a; font-weight: 700; }
     #howToModal { position: fixed; inset: 0; background: rgba(0,0,0,0.82); z-index: 10001; display: none; align-items: center; justify-content: center; }
     #howToCard { text-align:left; padding: 24px 28px; background: rgba(0,0,0,0.9); border:1px solid rgba(255,255,255,0.25); border-radius: 14px; max-width: 540px; width: calc(100% - 40px); color:#fff; }
     #howToTitle { margin-top:0; margin-bottom:8px; }
@@ -263,7 +277,7 @@
     </div>
 
     <!-- Enemy 1 -->
-    <div class="barContainer">
+    <div id="enemyBarWrap1" class="barContainer enemyBarContainer">
       <div id="enemyBar1" class="hpStack">
         <div class="bar shield"><div class="fill"></div></div>
         <div class="bar health"><div class="fill"></div></div>
@@ -271,7 +285,7 @@
     </div>
 
     <!-- Enemy 2 -->
-    <div class="barContainer">
+    <div id="enemyBarWrap2" class="barContainer enemyBarContainer">
       <div id="enemyBar2" class="hpStack">
         <div class="bar shield"><div class="fill"></div></div>
         <div class="bar health"><div class="fill"></div></div>
@@ -2296,6 +2310,36 @@
       return fallback;
     }
 
+
+    function positionEnemyBars() {
+      const wrappers = [
+        { enemy: enemies[0], el: document.getElementById('enemyBarWrap1') },
+        { enemy: enemies[1], el: document.getElementById('enemyBarWrap2') }
+      ];
+
+      wrappers.forEach(({ enemy, el }) => {
+        if (!el) return;
+        if (!enemy || !enemy.mesh) {
+          el.style.display = 'none';
+          return;
+        }
+
+        const worldPos = enemy.mesh.position.clone().add(new THREE.Vector3(0, 42, 0));
+        const screenPos = worldPos.project(camera);
+        const x = (screenPos.x * 0.5 + 0.5) * window.innerWidth;
+        const y = (-screenPos.y * 0.5 + 0.5) * window.innerHeight;
+        const inFront = screenPos.z > -1 && screenPos.z < 1;
+
+        if (!inFront || x < -120 || x > window.innerWidth + 120 || y < -50 || y > window.innerHeight + 50) {
+          el.style.display = 'none';
+          return;
+        }
+
+        el.style.display = 'flex';
+        el.style.left = `${x}px`;
+        el.style.top = `${y}px`;
+      });
+    }
     function animate(t){
       ensureEnemies();
       requestAnimationFrame(animate);
@@ -2333,6 +2377,7 @@
       });
 
       updateShieldRegen(dt);
+      positionEnemyBars();
 
       trailTimer += dt;
       while (trailTimer > 0.02) {
@@ -2737,7 +2782,7 @@
     ];
     document.getElementById('upgradeOptions').innerHTML = [
       ...options.map(([k,l]) => `<div class="upgradeOption${k === 'weapon' ? ' weaponUpgrade' : ''}"><span>${l}</span><button data-upgrade="${k}">Buy (${cost})</button></div>`),
-      ...weaponUnlockOptions.map(([k,l]) => `<div class="upgradeOption"><span>${l}</span><button data-upgrade="${k}">${gp.stats.unlockedWeapons[k === 'unlockHeavy' ? 'heavy' : 'laser'] ? 'Unlocked' : 'Unlock'}</button></div>`)
+      ...weaponUnlockOptions.map(([k,l]) => `<div class="upgradeOption unlockWeaponUpgrade"><span>${l}</span><button data-upgrade="${k}">${gp.stats.unlockedWeapons[k === 'unlockHeavy' ? 'heavy' : 'laser'] ? 'Unlocked' : 'Unlock'}</button></div>`)
     ].join('');
     document.querySelectorAll('[data-upgrade]').forEach(btn => btn.onclick = () => applyUpgradeType(btn.dataset.upgrade));
   }

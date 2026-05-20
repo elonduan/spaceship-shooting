@@ -48,13 +48,15 @@
 
 
     .barContainer.playerBarContainer {
-      width: 216px;
+      width: 172px;
+      height: 24px;
+      padding: 3px;
     }
 
     .enemyBarContainer {
       position: fixed;
-      width: 112px;
-      height: 19px;
+      width: 96px;
+      height: 16px;
       padding: 2px;
       z-index: 18;
       pointer-events: none;
@@ -75,7 +77,7 @@
     }
 
     .hpStack .bar {
-      height: 8px;
+      height: 6px;
       border-radius: 6px;
       width: 100%;
       background: rgba(255,255,255,0.05);
@@ -107,6 +109,18 @@
 
     #enemyBar1.selected, #enemyBar2.selected {
       box-shadow: 0 0 10px rgba(255,255,0,0.9);
+    }
+
+    .enemyBarContainer.bossTopBar {
+      top: 12px !important;
+      left: 50% !important;
+      transform: translateX(-50%);
+      width: 220px;
+      height: 24px;
+      padding: 4px;
+      border: 1px solid rgba(255, 84, 84, 0.55);
+      box-shadow: 0 0 10px rgba(255, 60, 60, 0.45);
+      background: rgba(0, 0, 0, 0.62);
     }
 
     #missileUI{position:fixed; left:50%; top: calc(50% + 24px); transform:translateX(-50%); font-size:13px; color:#fff; z-index:20; text-align:center; padding:6px 10px; background:rgba(0,0,0,0.35); border-radius:8px; pointer-events:none;}
@@ -2331,6 +2345,16 @@
         const x = (screenPos.x * 0.5 + 0.5) * window.innerWidth;
         const y = (-screenPos.y * 0.5 + 0.5) * window.innerHeight;
         const inFront = screenPos.z > -1 && screenPos.z < 1;
+
+        if (enemy.isBoss) {
+          el.classList.add('bossTopBar');
+          el.style.display = 'flex';
+          el.style.left = '50%';
+          el.style.top = '12px';
+          return;
+        }
+
+        el.classList.remove('bossTopBar');
 
         if (!inFront || x < -120 || x > window.innerWidth + 120 || y < -50 || y > window.innerHeight + 50) {
           el.style.display = 'none';

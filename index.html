@@ -235,6 +235,11 @@
     #howToCloseBtn { background:#444; color:#fff; }
     #howToNextBtn { background:#36c2ff; color:#001321; }
     .pre-game-hidden { display: none !important; }
+    #menuLoadingWrap { display:none; margin-top: 14px; }
+    #menuLoadingLabel { color:#c7d7ff; font-size:13px; margin-bottom:8px; }
+    #menuLoadingTrack { width:100%; height:12px; border-radius:999px; border:1px solid rgba(255,255,255,0.28); background:rgba(255,255,255,0.08); overflow:hidden; }
+    #menuLoadingFill { width:0%; height:100%; background:linear-gradient(90deg,#36c2ff,#8df3ff); transition:width 0.2s ease; }
+    #menuLoadingPercent { margin-top:8px; color:#9ad3ff; font-size:13px; }
   </style>
 </head>
 <body>
@@ -250,6 +255,11 @@
       <button id="upgradeBtn">Upgrade Ship</button>
       <button id="menuSettingsBtn">Settings</button>
       <p id="creditSummary" style="margin:10px 0 0 0; color:#9ad3ff; font-size:14px;">Credits: 0 | Upgrades: 0</p>
+      <div id="menuLoadingWrap" aria-live="polite">
+        <div id="menuLoadingLabel">Loading game assets...</div>
+        <div id="menuLoadingTrack"><div id="menuLoadingFill"></div></div>
+        <div id="menuLoadingPercent">0%</div>
+      </div>
     </div>
   </div>
 
@@ -385,7 +395,8 @@
   backgroundMusic.volume = gameSettings.musicVolume;
   menuMusic.volume = gameSettings.musicVolume;
 
-  function initGame(){
+  function initGame(options = {}){
+    const { onLoadProgress = null, onReady = null } = options;
     
     /*********************** Game setup ***********************/
     const container = document.getElementById('canvas-container');
@@ -980,12 +991,20 @@
         }, undefined, reject);
       });
 
-      return Promise.all([
-        enemyShipPromise,
-        playerShipPromise,
-        missilePromise,
-        bossPromise
-      ]);
+      const trackedPromises = [enemyShipPromise, playerShipPromise, missilePromise, bossPromise];
+      let loadedCount = 0;
+      const totalToLoad = trackedPromises.length;
+      const markLoaded = () => {
+        loadedCount += 1;
+        if (typeof onLoadProgress === 'function') {
+          onLoadProgress(Math.min(loadedCount / totalToLoad, 1));
+        }
+      };
+
+      return Promise.all(trackedPromises.map((promise) => promise.then((value) => {
+        markLoaded();
+        return value;
+      })));
     };
 
     let playerShip = null;
@@ -2643,11 +2662,15 @@
       updateMissileUI();
     }
 
-    loadModels().then(() => {
+    return loadModels().then(() => {
       ensureEnemies();
       animate();
       createPlayerShip();
-    }).catch(err => console.error(err));
+      if (typeof onReady === 'function') onReady();
+    }).catch(err => {
+      console.error(err);
+      throw err;
+    });
 
     function reset(){
       playerHP = playerMaxHP;
@@ -2877,6 +2900,9 @@
   const upgradeCloseBtn = document.getElementById("upgradeCloseBtn");
   const upgradeResetBtn = document.getElementById("upgradeResetBtn");
   const homeScreen = document.getElementById("homeScreen");
+  const menuLoadingWrap = document.getElementById("menuLoadingWrap");
+  const menuLoadingFill = document.getElementById("menuLoadingFill");
+  const menuLoadingPercent = document.getElementById("menuLoadingPercent");
   const menuSensitivity = document.getElementById("menuSensitivity");
   const menuMusicVolume = document.getElementById("menuMusicVolume");
   const settingsValues = document.getElementById("settingsValues");
@@ -2986,17 +3012,39 @@ Blue bar: energy(for boost)`
   function beginGameFromMenu() {
     if (gameLoaded) return;
     gameLoaded = true;
-    const homeBackgroundVideo = document.getElementById("homeBackgroundVideo");
-    if (homeBackgroundVideo) {
-      homeBackgroundVideo.pause();
-      homeBackgroundVideo.currentTime = 0;
-    }
-    homeScreen.style.display = "none";
-    menuMusic.pause();
-    menuMusic.currentTime = 0;
-    backgroundMusic.play().catch(() => {});
-    document.querySelectorAll(".pre-game-hidden").forEach((el) => el.classList.remove("pre-game-hidden"));
-    initGame();
+    startGameBtn.disabled = true;
+    startGameBtn.textContent = "Loading...";
+    if (menuLoadingWrap) menuLoadingWrap.style.display = "block";
+
+    const updateMenuLoading = (progressValue) => {
+      const pct = Math.round(Math.max(0, Math.min(1, progressValue)) * 100);
+      if (menuLoadingFill) menuLoadingFill.style.width = `${pct}%`;
+      if (menuLoadingPercent) menuLoadingPercent.textContent = `${pct}%`;
+    };
+
+    updateMenuLoading(0);
+
+    initGame({
+      onLoadProgress: updateMenuLoading,
+      onReady: () => {
+        updateMenuLoading(1);
+        const homeBackgroundVideo = document.getElementById("homeBackgroundVideo");
+        if (homeBackgroundVideo) {
+          homeBackgroundVideo.pause();
+          homeBackgroundVideo.currentTime = 0;
+        }
+        homeScreen.style.display = "none";
+        menuMusic.pause();
+        menuMusic.currentTime = 0;
+        backgroundMusic.play().catch(() => {});
+        document.querySelectorAll(".pre-game-hidden").forEach((el) => el.classList.remove("pre-game-hidden"));
+      }
+    }).catch(() => {
+      gameLoaded = false;
+      startGameBtn.disabled = false;
+      startGameBtn.textContent = "Start Game";
+      if (menuLoadingWrap) menuLoadingWrap.style.display = "none";
+    });
   }
 
   function finishHowToFlow() {

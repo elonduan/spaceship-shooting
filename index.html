@@ -115,7 +115,7 @@
       top: 12px !important;
       left: 50% !important;
       transform: translateX(-50%);
-      width: 220px;
+      width: 880px;
       height: 24px;
       padding: 4px;
       border: 1px solid rgba(255, 84, 84, 0.55);
@@ -125,17 +125,37 @@
 
     #missileUI{position:fixed; left:50%; top: calc(50% + 24px); transform:translateX(-50%); font-size:13px; color:#fff; z-index:20; text-align:center; padding:6px 10px; background:rgba(0,0,0,0.35); border-radius:8px; pointer-events:none;}
     #arrowIndicator, #arrowIndicatorSecondary {
+      --arrow-color: yellow;
       position: fixed;
       width: 0;
       height: 0;
       border-left: 12px solid transparent;
       border-right: 12px solid transparent;
-      border-bottom: 20px solid yellow;
+      border-bottom: 20px solid var(--arrow-color);
       z-index: 50;
       transform-origin: center;
       pointer-events: none;
       display: none;
     }
+
+
+    #arrowIndicator.selectedArrow {
+      --arrow-color: #ff2b2b;
+      filter: drop-shadow(0 0 8px rgba(255, 43, 43, 0.85));
+    }
+
+    .enemyBarContainer.arrowAttached {
+      width: 48px;
+      height: 8px;
+      padding: 1px;
+      transform: translate(0, -50%);
+    }
+
+    .enemyBarContainer.arrowAttached .hpStack .bar {
+      height: 2px;
+      border-radius: 2px;
+    }
+
     #defeatedCounter { margin-top:8px; font-weight:700; font-size:13px; color:#fff;}
     #missilesLeftDisplay{position:fixed;left:50%;top:calc(50% + 26px);transform:translateX(-50%);z-index:16;font-size:14px;color:#fff;font-weight:700;text-align:center;text-shadow:0 1px 2px rgba(0,0,0,0.85);pointer-events:none;}
     #weaponModeDisplay{position:fixed;left:50%;top:calc(50% + 50px);transform:translateX(-50%);z-index:16;font-size:14px;color:#fff;font-weight:700;text-align:center;text-shadow:0 1px 2px rgba(0,0,0,0.85);pointer-events:none;}
@@ -2503,10 +2523,10 @@
       updateCamera(dt);
 
       function updateArrowForEnemy(enemy, arrowEl) {
-        if (!arrowEl) return;
+        if (!arrowEl) return { visible: false };
         if (!enemy || !enemy.mesh) {
           arrowEl.style.display = "none";
-          return;
+          return { visible: false };
         }
         const pos = enemy.mesh.position.clone();
         const vector = pos.project(camera);
@@ -2524,7 +2544,7 @@
             x >= 0 && x <= window.innerWidth &&
             y >= 0 && y <= window.innerHeight) {
           arrowEl.style.display = "none";
-          return;
+          return { visible: false };
         }
         arrowEl.style.display = "block";
         const angle = Math.atan2(dirY, dirX);
@@ -2540,12 +2560,30 @@
         arrowEl.style.left = `${x - 12}px`;
         arrowEl.style.top = `${y - 12}px`;
         arrowEl.style.transform = `rotate(${angle}rad)`;
+        return { visible: true, x, y };
       }
 
       const primary = getPrimaryEnemy();
       const secondary = enemies.find((enemy) => enemy && enemy !== primary) || null;
-      updateArrowForEnemy(primary, arrow);
-      updateArrowForEnemy(secondary, arrowSecondary);
+      arrow.classList.toggle('selectedArrow', Boolean(primary));
+      const primaryArrowState = updateArrowForEnemy(primary, arrow);
+      const secondaryArrowState = updateArrowForEnemy(secondary, arrowSecondary);
+
+      [
+        { enemy: primary, state: primaryArrowState, wrapId: 'enemyBarWrap1' },
+        { enemy: secondary, state: secondaryArrowState, wrapId: 'enemyBarWrap2' }
+      ].forEach(({ enemy, state, wrapId }) => {
+        const barWrap = document.getElementById(wrapId);
+        if (!barWrap) return;
+        if (state.visible && enemy && !enemy.isBoss) {
+          barWrap.classList.add('arrowAttached');
+          barWrap.style.display = 'flex';
+          barWrap.style.left = `${state.x + 18}px`;
+          barWrap.style.top = `${state.y}px`;
+        } else {
+          barWrap.classList.remove('arrowAttached');
+        }
+      });
       // Automatic firing while holding mouse
       if (mouseHeld && !isPaused && !gameOver) {
         if (weaponMode === 'laser') {

@@ -53,9 +53,9 @@
 
     .enemyBarContainer {
       position: fixed;
-      width: 140px;
-      height: 24px;
-      padding: 3px;
+      width: 112px;
+      height: 19px;
+      padding: 2px;
       z-index: 18;
       pointer-events: none;
       display: none;
@@ -110,7 +110,7 @@
     }
 
     #missileUI{position:fixed; left:50%; top: calc(50% + 24px); transform:translateX(-50%); font-size:13px; color:#fff; z-index:20; text-align:center; padding:6px 10px; background:rgba(0,0,0,0.35); border-radius:8px; pointer-events:none;}
-    #arrowIndicator {
+    #arrowIndicator, #arrowIndicatorSecondary {
       position: fixed;
       width: 0;
       height: 0;
@@ -318,6 +318,7 @@
   <div id="missileUI" class="pre-game-hidden"><span id="missileCountUI"></span></div>
   <div id="canvas-container" class="pre-game-hidden"></div>
   <div id="arrowIndicator" class="pre-game-hidden"></div>
+  <div id="arrowIndicatorSecondary" class="pre-game-hidden"></div>
   
    <!-- Pause overlay -->
   <div id="pauseScreen" class="pre-game-hidden" role="dialog" aria-hidden="true">
@@ -2132,6 +2133,7 @@
     }
 
     const arrow = document.getElementById('arrowIndicator');
+    const arrowSecondary = document.getElementById('arrowIndicatorSecondary');
     let last = performance.now();
     let gameOver = false;
     let trailTimer = 0;
@@ -2324,7 +2326,7 @@
           return;
         }
 
-        const worldPos = enemy.mesh.position.clone().add(new THREE.Vector3(0, 42, 0));
+        const worldPos = enemy.mesh.position.clone().add(new THREE.Vector3(0, 62, 0));
         const screenPos = worldPos.project(camera);
         const x = (screenPos.x * 0.5 + 0.5) * window.innerWidth;
         const y = (-screenPos.y * 0.5 + 0.5) * window.innerHeight;
@@ -2476,9 +2478,13 @@
 
       updateCamera(dt);
 
-      const primary = getPrimaryEnemy();
-      if (primary && primary.mesh) {
-        const pos = primary.mesh.position.clone();
+      function updateArrowForEnemy(enemy, arrowEl) {
+        if (!arrowEl) return;
+        if (!enemy || !enemy.mesh) {
+          arrowEl.style.display = "none";
+          return;
+        }
+        const pos = enemy.mesh.position.clone();
         const vector = pos.project(camera);
         const halfW = window.innerWidth / 2;
         const halfH = window.innerHeight / 2;
@@ -2493,26 +2499,29 @@
         if (vector.z < 1 &&
             x >= 0 && x <= window.innerWidth &&
             y >= 0 && y <= window.innerHeight) {
-          arrow.style.display = "none";
-        } else {
-          arrow.style.display = "block";
-          const angle = Math.atan2(dirY, dirX);
-          const edgeBuffer = 40;
-          const slope = dirY / dirX;
-          if (Math.abs(dirX) > Math.abs(dirY)) {
-            x = dirX > 0 ? window.innerWidth - edgeBuffer : edgeBuffer;
-            y = halfH + slope * (x - halfW);
-          } else {
-            y = dirY > 0 ? window.innerHeight - edgeBuffer : edgeBuffer;
-            x = halfW + (y - halfH) / slope;
-          }
-          arrow.style.left = `${x - 12}px`;
-          arrow.style.top = `${y - 12}px`;
-          arrow.style.transform = `rotate(${angle}rad)`;
+          arrowEl.style.display = "none";
+          return;
         }
-      } else {
-        arrow.style.display = "none";
+        arrowEl.style.display = "block";
+        const angle = Math.atan2(dirY, dirX);
+        const edgeBuffer = 40;
+        const slope = dirY / dirX;
+        if (Math.abs(dirX) > Math.abs(dirY)) {
+          x = dirX > 0 ? window.innerWidth - edgeBuffer : edgeBuffer;
+          y = halfH + slope * (x - halfW);
+        } else {
+          y = dirY > 0 ? window.innerHeight - edgeBuffer : edgeBuffer;
+          x = halfW + (y - halfH) / slope;
+        }
+        arrowEl.style.left = `${x - 12}px`;
+        arrowEl.style.top = `${y - 12}px`;
+        arrowEl.style.transform = `rotate(${angle}rad)`;
       }
+
+      const primary = getPrimaryEnemy();
+      const secondary = enemies.find((enemy) => enemy && enemy !== primary) || null;
+      updateArrowForEnemy(primary, arrow);
+      updateArrowForEnemy(secondary, arrowSecondary);
       // Automatic firing while holding mouse
       if (mouseHeld && !isPaused && !gameOver) {
         if (weaponMode === 'laser') {

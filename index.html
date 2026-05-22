@@ -1653,6 +1653,10 @@
     const missiles = [];
     const bulletSpeed = 75;
     const missileSpeed = 9;
+    const PLAYER_HIT_RADIUS = 30;
+    const BOSS_ELECTRIC_BALL_INTERVAL_MS = 10000;
+    const BOSS_ELECTRIC_BALL_COUNT = 7;
+    const BOSS_ELECTRIC_BALL_DAMAGE = 50;
     let accuracy = 5;
     
     const playerBulletGlowTexture = makeRadialTextureStar(96);
@@ -1808,6 +1812,75 @@
       orientMissileToVelocity(missile, initialVel);
       scene.add(missile);
     }
+
+    function launchBossElectricBalls(enemy) {
+      if (!enemy || !enemy.mesh) return;
+
+      const ballRadius = PLAYER_HIT_RADIUS * 4;
+      const spawnOrigin = enemy.mesh.position.clone();
+
+      for (let i = 0; i < BOSS_ELECTRIC_BALL_COUNT; i++) {
+        const ball = new THREE.Group();
+
+        const core = new THREE.Mesh(
+          new THREE.SphereGeometry(ballRadius, 16, 16),
+          new THREE.MeshBasicMaterial({
+            color: 0x7ee8ff,
+            transparent: true,
+            opacity: 0.32,
+            depthWrite: false
+          })
+        );
+        ball.add(core);
+
+        const electricShell = new THREE.Mesh(
+          new THREE.IcosahedronGeometry(ballRadius * 1.08, 1),
+          new THREE.MeshBasicMaterial({
+            color: 0xd7fcff,
+            wireframe: true,
+            transparent: true,
+            opacity: 0.55
+          })
+        );
+        ball.add(electricShell);
+
+        const glow = new THREE.Sprite(new THREE.SpriteMaterial({
+          map: playerBulletGlowTexture,
+          color: 0x8bf5ff,
+          transparent: true,
+          opacity: 0.65,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false
+        }));
+        const glowScale = ballRadius * 4.4;
+        glow.scale.set(glowScale, glowScale, 1);
+        ball.add(glow);
+
+        const direction = randomUnit();
+        const speed = bulletSpeed * 0.5;
+
+        ball.position.copy(spawnOrigin);
+        enemyBullets.push({
+          mesh: ball,
+          vel: direction.multiplyScalar(speed),
+          damage: BOSS_ELECTRIC_BALL_DAMAGE,
+          prevPos: ball.position.clone(),
+          isBossElectricBall: true,
+          hitRadius: ballRadius
+        });
+        scene.add(ball);
+      }
+    }
+
+    function tryBossElectricBallBurst(enemy) {
+      if (!enemy || !enemy.isBoss || !enemy.mesh || !enemy.alive || gameOver || isPaused || isBossIntroPlaying) return;
+      if (enemy.shield > (enemy.maxShield * 0.5)) return;
+      const now = performance.now();
+      if ((enemy.lastElectricBallBurstAt || 0) + BOSS_ELECTRIC_BALL_INTERVAL_MS > now) return;
+      enemy.lastElectricBallBurstAt = now;
+      launchBossElectricBalls(enemy);
+    }
+
 
     // replace enemyShoot()
     function enemyShoot(enemy){
@@ -2035,7 +2108,8 @@
         _shootTimeout: null,
         isBoss: true,
         hitRadius: 300, // use computed value, or fallback to 150
-        damage: enemyDamage * 10
+        damage: enemyDamage * 10,
+        lastElectricBallBurstAt: -Infinity
       };
     
       scene.add(mesh);
@@ -2458,6 +2532,7 @@
 
       enemies.forEach((enemy, idx) => {
         stepEnemy(enemy, dt, idx === selectedEnemyIndex);
+        tryBossElectricBallBurst(enemy);
       });
 
       updateShieldRegen(dt);
@@ -2554,8 +2629,9 @@
             if (b.beam && b.beam.material) b.beam.material.dispose();
             scene.remove(b.mesh); enemyBullets.splice(i,1); continue;
           }
-          if (b.mesh.position.distanceTo(player.position) < 30) {
-            const hitPos = getImpactEdgePosition(player.position, 30, b.vel, b.mesh.position);
+          const playerHitRadius = b.hitRadius || PLAYER_HIT_RADIUS;
+          if (b.mesh.position.distanceTo(player.position) < playerHitRadius) {
+            const hitPos = getImpactEdgePosition(player.position, playerHitRadius, b.vel, b.mesh.position);
             if (playerShield > 0) {
               spawnBulletHitShockwave(hitPos, b.vel);
             }

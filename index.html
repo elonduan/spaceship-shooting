@@ -1859,11 +1859,27 @@
 
 
       bullet.position.copy(enemy.mesh.position);
+      const shotOrigin = enemy.mesh.position.clone();
+      let beam = null;
+      let beamGeom = null;
+      if (enemy.isBoss) {
+        beamGeom = new THREE.BufferGeometry().setFromPoints([shotOrigin, shotOrigin]);
+        const beamMat = new THREE.LineBasicMaterial({
+          color: 0x66e7ff,
+          transparent: true,
+          opacity: 0.85
+        });
+        beam = new THREE.Line(beamGeom, beamMat);
+        scene.add(beam);
+      }
       enemyBullets.push({
         mesh: bullet,
         vel: dir.multiplyScalar(bulletSpeed * 0.8),
         damage: enemy.damage || enemyDamage,
-        prevPos: bullet.position.clone()
+        prevPos: bullet.position.clone(),
+        shotOrigin,
+        beam,
+        beamGeom
       });
       scene.add(bullet);
 
@@ -2111,6 +2127,9 @@
 
       // clear any existing enemy bullets (your previous code already did this)
       for (let i = enemyBullets.length - 1; i >= 0; i--){
+        if (enemyBullets[i].beam) scene.remove(enemyBullets[i].beam);
+        if (enemyBullets[i].beamGeom) enemyBullets[i].beamGeom.dispose();
+        if (enemyBullets[i].beam && enemyBullets[i].beam.material) enemyBullets[i].beam.material.dispose();
         scene.remove(enemyBullets[i].mesh);
         enemyBullets.splice(i,1);
       }
@@ -2524,7 +2543,15 @@
 
           b.mesh.position.copy(nextPos);
           b.prevPos = b.mesh.position.clone();
+
+          if (b.beam && b.beamGeom && b.shotOrigin) {
+            const midpoint = b.shotOrigin.clone().lerp(b.mesh.position, 0.5);
+            b.beamGeom.setFromPoints([b.mesh.position, midpoint]);
+          }
           if(b.mesh.position.length()>sphereRadius*2){
+            if (b.beam) scene.remove(b.beam);
+            if (b.beamGeom) b.beamGeom.dispose();
+            if (b.beam && b.beam.material) b.beam.material.dispose();
             scene.remove(b.mesh); enemyBullets.splice(i,1); continue;
           }
           if (b.mesh.position.distanceTo(player.position) < 30) {
@@ -2532,6 +2559,9 @@
             if (playerShield > 0) {
               spawnBulletHitShockwave(hitPos, b.vel);
             }
+            if (b.beam) scene.remove(b.beam);
+            if (b.beamGeom) b.beamGeom.dispose();
+            if (b.beam && b.beam.material) b.beam.material.dispose();
             scene.remove(b.mesh); enemyBullets.splice(i,1);
             damagePlayer(b.damage || enemyDamage);
             damage.cloneNode().play();;
@@ -2701,7 +2731,12 @@
       setAutoShooting(false);
 
       bullets.forEach(b=>scene.remove(b.mesh)); bullets.length=0;
-      enemyBullets.forEach(b=>scene.remove(b.mesh)); enemyBullets.length=0;
+      enemyBullets.forEach(b=>{
+        if (b.beam) scene.remove(b.beam);
+        if (b.beamGeom) b.beamGeom.dispose();
+        if (b.beam && b.beam.material) b.beam.material.dispose();
+        scene.remove(b.mesh);
+      }); enemyBullets.length=0;
       missiles.forEach(m=>scene.remove(m.mesh)); missiles.length=0;
       trailParticles.forEach(p=>scene.remove(p.mesh)); trailParticles.length=0;
       missileSmokeParticles.forEach(p=> { scene.remove(p.mesh); p.mesh.material.dispose(); }); missileSmokeParticles.length=0;

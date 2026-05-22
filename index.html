@@ -1654,8 +1654,8 @@
     const bulletSpeed = 75;
     const missileSpeed = 9;
     const PLAYER_HIT_RADIUS = 30;
-    const BOSS_ELECTRIC_BALL_INTERVAL_MS = 5000;
-    const BOSS_ELECTRIC_BALL_COUNT = 15;
+    const BOSS_ELECTRIC_BALL_INTERVAL_MS = 3000;
+    const BOSS_ELECTRIC_BALL_COUNT = 20;
     const BOSS_ELECTRIC_BALL_DAMAGE = 50;
     let accuracy = 5;
     
@@ -1816,7 +1816,7 @@
     function launchBossElectricBalls(enemy) {
       if (!enemy || !enemy.mesh) return;
 
-      const ballRadius = PLAYER_HIT_RADIUS * 8;
+      const ballRadius = PLAYER_HIT_RADIUS * 18;
       const spawnOrigin = enemy.mesh.position.clone();
 
       for (let i = 0; i < BOSS_ELECTRIC_BALL_COUNT; i++) {

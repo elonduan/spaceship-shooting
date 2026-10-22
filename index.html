@@ -2915,7 +2915,7 @@
   const WEAPON_UNLOCK_COST = 50000;
   const defaultStats = { playerMaxHP: 30, playerMaxShield: 9, playerMaxEnergy: 75, boostEnergyDrainPerSec: 45, boostEnergyRechargePerSec: 28, shieldRegenDelayMs: 4000, shieldRegenRatePerSec: 1.5, bulletDamage: 2, unlockedWeapons: { heavy: false, laser: false } };
 
-  window.gameProgress = { credits: 100000000000, upgradeCount: 0, stats: { ...defaultStats } };
+  window.gameProgress = { credits: 0, upgradeCount: 0, stats: { ...defaultStats } };
   window.getUpgradeCost = (upgradeCount) => (100 * upgradeCount) + 500;
   window.loadGameProgress = function(){
     const storedCredits = Number(localStorage.getItem(CREDIT_STORAGE_KEY));
@@ -2951,7 +2951,7 @@
       renderUpgradeModal();
       return;
     }
-    const cost = 0* window.getUpgradeCost(gp.upgradeCount);
+    const cost =  window.getUpgradeCost(gp.upgradeCount);
     if (gp.credits < cost){ alert(`Not enough credits. Need ${cost}, have ${Math.floor(gp.credits)}.`); return; }
     gp.credits -= cost;
     gp.upgradeCount += 1;
@@ -2981,7 +2981,7 @@
     const options = [
       ['hp','Player Max HP (+3)'],['shield','Max Shield (+1)'],['energy','Max Energy (+4)'],['regen','Shield Regen (faster)'],['boost','Boost Efficiency'],['weapon','Weapon Damage (+0.08)']
     ];
-    const cost = 0*window.getUpgradeCost(gp.upgradeCount);
+    const cost = window.getUpgradeCost(gp.upgradeCount);
     const weaponUnlockOptions = [
       ['unlockHeavy', `Unlock Heavy Shot (${WEAPON_UNLOCK_COST} credits)`],
       ['unlockLaser', `Unlock Laser (${WEAPON_UNLOCK_COST} credits)`]

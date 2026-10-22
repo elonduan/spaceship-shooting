@@ -2951,7 +2951,7 @@
       renderUpgradeModal();
       return;
     }
-    const cost = window.getUpgradeCost(gp.upgradeCount);
+    const cost = 0* window.getUpgradeCost(gp.upgradeCount);
     if (gp.credits < cost){ alert(`Not enough credits. Need ${cost}, have ${Math.floor(gp.credits)}.`); return; }
     gp.credits -= cost;
     gp.upgradeCount += 1;
@@ -2981,7 +2981,7 @@
     const options = [
       ['hp','Player Max HP (+3)'],['shield','Max Shield (+1)'],['energy','Max Energy (+4)'],['regen','Shield Regen (faster)'],['boost','Boost Efficiency'],['weapon','Weapon Damage (+0.08)']
     ];
-    const cost = window.getUpgradeCost(gp.upgradeCount);
+    const cost = 0*window.getUpgradeCost(gp.upgradeCount);
     const weaponUnlockOptions = [
       ['unlockHeavy', `Unlock Heavy Shot (${WEAPON_UNLOCK_COST} credits)`],
       ['unlockLaser', `Unlock Laser (${WEAPON_UNLOCK_COST} credits)`]
